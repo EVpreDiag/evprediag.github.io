@@ -1,13 +1,54 @@
-// Update this page (the content is just a fallback if you fail to update the page)
+
+import React from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import LoginPage from '../components/LoginPage';
+import Dashboard from '../components/Dashboard';
+import DiagnosticForm from '../components/DiagnosticForm';
+import SearchRecords from '../components/SearchRecords';
+import UserManagement from '../components/UserManagement';
+import PrintSummary from '../components/PrintSummary';
+import { AuthProvider, useAuth } from '../contexts/AuthContext';
+
+const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
+  const { isAuthenticated } = useAuth();
+  return isAuthenticated ? <>{children}</> : <Navigate to="/login" />;
+};
 
 const Index = () => {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-100">
-      <div className="text-center">
-        <h1 className="text-4xl font-bold mb-4">Welcome to Your Blank App</h1>
-        <p className="text-xl text-gray-600">Start building your amazing project here!</p>
+    <AuthProvider>
+      <div className="min-h-screen bg-slate-900">
+        <Routes>
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/dashboard" element={
+            <ProtectedRoute>
+              <Dashboard />
+            </ProtectedRoute>
+          } />
+          <Route path="/diagnostic-form" element={
+            <ProtectedRoute>
+              <DiagnosticForm />
+            </ProtectedRoute>
+          } />
+          <Route path="/search-records" element={
+            <ProtectedRoute>
+              <SearchRecords />
+            </ProtectedRoute>
+          } />
+          <Route path="/user-management" element={
+            <ProtectedRoute>
+              <UserManagement />
+            </ProtectedRoute>
+          } />
+          <Route path="/print-summary/:id" element={
+            <ProtectedRoute>
+              <PrintSummary />
+            </ProtectedRoute>
+          } />
+          <Route path="/" element={<Navigate to="/login" />} />
+        </Routes>
       </div>
-    </div>
+    </AuthProvider>
   );
 };
 
