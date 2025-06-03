@@ -1,5 +1,4 @@
-
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Save, Upload, ChevronDown, ChevronUp } from 'lucide-react';
 
@@ -178,37 +177,39 @@ const DiagnosticForm = () => {
 
   const [expandedSections, setExpandedSections] = useState<string[]>(['general']);
 
-  const toggleSection = (section: string) => {
+  const toggleSection = useCallback((section: string) => {
     setExpandedSections(prev => 
       prev.includes(section) 
         ? prev.filter(s => s !== section)
         : [...prev, section]
     );
-  };
+  }, []);
 
-  const handleInputChange = (field: keyof FormData, value: string | string[]) => {
+  const handleInputChange = useCallback((field: keyof FormData, value: string | string[]) => {
     setFormData(prev => ({ ...prev, [field]: value }));
-  };
+  }, []);
 
-  const handleCheckboxChange = (field: keyof FormData, value: string, checked: boolean) => {
-    const currentArray = formData[field] as string[];
-    if (checked) {
-      handleInputChange(field, [...currentArray, value]);
-    } else {
-      handleInputChange(field, currentArray.filter(item => item !== value));
-    }
-  };
+  const handleCheckboxChange = useCallback((field: keyof FormData, value: string, checked: boolean) => {
+    setFormData(prev => {
+      const currentArray = prev[field] as string[];
+      if (checked) {
+        return { ...prev, [field]: [...currentArray, value] };
+      } else {
+        return { ...prev, [field]: currentArray.filter(item => item !== value) };
+      }
+    });
+  }, []);
 
-  const handleFileUpload = (files: FileList | null) => {
+  const handleFileUpload = useCallback((files: FileList | null) => {
     if (files) {
       setFormData(prev => ({
         ...prev,
         uploadedFiles: [...prev.uploadedFiles, ...Array.from(files)]
       }));
     }
-  };
+  }, []);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = useCallback((e: React.FormEvent) => {
     e.preventDefault();
     
     // Save to localStorage (in real app, this would be sent to Supabase)
@@ -225,9 +226,9 @@ const DiagnosticForm = () => {
     
     // Navigate to print summary
     navigate(`/print-summary/${newRecord.id}`);
-  };
+  }, [formData, navigate]);
 
-  const YesNoQuestion = ({ 
+  const YesNoQuestion = React.memo(({ 
     label, 
     field, 
     detailsField, 
@@ -276,33 +277,46 @@ const DiagnosticForm = () => {
         </div>
       )}
     </div>
-  );
+  ));
 
-  const FormSection = ({ title, children, sectionKey }: { 
+  const FormSection = React.memo(({ title, children, sectionKey }: { 
     title: string; 
     children: React.ReactNode;
     sectionKey: string;
-  }) => (
-    <div className="bg-slate-800 rounded-lg border border-slate-700 overflow-hidden">
-      <button
-        type="button"
-        onClick={() => toggleSection(sectionKey)}
-        className="w-full px-6 py-4 bg-slate-700/50 flex items-center justify-between text-left hover:bg-slate-700/70 transition-colors"
-      >
-        <h3 className="text-lg font-semibold text-white">{title}</h3>
-        {expandedSections.includes(sectionKey) ? (
-          <ChevronUp className="w-5 h-5 text-slate-400" />
-        ) : (
-          <ChevronDown className="w-5 h-5 text-slate-400" />
+  }) => {
+    const handleSectionToggle = useCallback((e: React.MouseEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      toggleSection(sectionKey);
+    }, [sectionKey]);
+
+    return (
+      <div className="bg-slate-800 rounded-lg border border-slate-700 overflow-hidden">
+        <button
+          type="button"
+          onClick={handleSectionToggle}
+          className="w-full px-6 py-4 bg-slate-700/50 flex items-center justify-between text-left hover:bg-slate-700/70 transition-colors"
+        >
+          <h3 className="text-lg font-semibold text-white">{title}</h3>
+          {expandedSections.includes(sectionKey) ? (
+            <ChevronUp className="w-5 h-5 text-slate-400" />
+          ) : (
+            <ChevronDown className="w-5 h-5 text-slate-400" />
+          )}
+        </button>
+        {expandedSections.includes(sectionKey) && (
+          <div className="p-6 space-y-6">
+            {children}
+          </div>
         )}
-      </button>
-      {expandedSections.includes(sectionKey) && (
-        <div className="p-6 space-y-6">
-          {children}
-        </div>
-      )}
-    </div>
-  );
+      </div>
+    );
+  });
+
+  const handleBackToDashboard = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    navigate('/dashboard');
+  }, [navigate]);
 
   return (
     <div className="min-h-screen bg-slate-900">
@@ -312,7 +326,7 @@ const DiagnosticForm = () => {
           <div className="flex items-center space-x-4">
             <button
               type="button"
-              onClick={() => navigate('/dashboard')}
+              onClick={handleBackToDashboard}
               className="flex items-center space-x-2 text-slate-300 hover:text-white transition-colors"
             >
               <ArrowLeft className="w-5 h-5" />
@@ -876,7 +890,7 @@ const DiagnosticForm = () => {
         <div className="flex justify-end space-x-4 pt-6">
           <button
             type="button"
-            onClick={() => navigate('/dashboard')}
+            onClick={handleBackToDashboard}
             className="px-6 py-3 bg-slate-700 hover:bg-slate-600 text-white rounded-lg transition-colors"
           >
             Cancel
