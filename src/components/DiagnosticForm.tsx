@@ -1,180 +1,19 @@
+
 import React, { useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Save, Upload, ChevronDown, ChevronUp } from 'lucide-react';
-
-interface FormData {
-  // General Information
-  customerName: string;
-  vin: string;
-  roNumber: string;
-  makeModel: string;
-  mileage: string;
-  
-  // Battery & Charging
-  chargingIssuesHome: string;
-  chargingIssuesHomeDetails: string;
-  chargingIssuesPublic: string;
-  chargingIssuesPublicDetails: string;
-  chargerType: string;
-  aftermarketCharger: string;
-  aftermarketDetails: string;
-  failedCharges: string;
-  failedChargesDetails: string;
-  rangeDrop: string;
-  rangeDropDetails: string;
-  batteryWarnings: string;
-  batteryWarningsDetails: string;
-  powerLoss: string;
-  powerLossDetails: string;
-  usualChargeLevel: string;
-  dcFastFrequency: string[];
-  chargeRateDrop: string;
-  
-  // Drivetrain & Performance
-  consistentAcceleration: string;
-  accelerationDetails: string;
-  whiningNoises: string;
-  whiningDetails: string;
-  jerkingHesitation: string;
-  jerkingDetails: string;
-  
-  // NVH
-  vibrations: string;
-  vibrationsDetails: string;
-  noisesActions: string;
-  noisesActionsDetails: string;
-  rattlesRoads: string;
-  rattlesDetails: string;
-  
-  // Climate Control
-  hvacPerformance: string;
-  hvacDetails: string;
-  smellsNoises: string;
-  smellsNoisesDetails: string;
-  defoggerPerformance: string;
-  defoggerDetails: string;
-  
-  // Electrical & Software
-  infotainmentGlitches: string;
-  infotainmentDetails: string;
-  otaUpdates: string;
-  brokenFeatures: string;
-  brokenFeaturesDetails: string;
-  lightFlicker: string;
-  lightFlickerDetails: string;
-  
-  // Regenerative Braking
-  smoothRegen: string;
-  smoothRegenDetails: string;
-  regenStrength: string;
-  regenStrengthDetails: string;
-  decelerationNoises: string;
-  decelerationNoisesDetails: string;
-  
-  // Driving Conditions
-  issueConditions: string[];
-  otherConditions: string;
-  towingHighLoad: string;
-  
-  // Driving Mode
-  primaryMode: string;
-  modesDifferences: string;
-  modesDifferencesDetails: string;
-  specificModeIssues: string;
-  specificModeDetails: string;
-  modeSwitchingLags: string;
-  modeSwitchingDetails: string;
-  
-  // Environmental
-  temperatureDuringIssue: string;
-  vehicleParked: string;
-  timeOfDay: string;
-  hvacWeatherDifference: string;
-  hvacWeatherDetails: string;
-  rangeRegenTemp: string;
-  moistureChargingPort: string;
-  
-  // File uploads
-  uploadedFiles: File[];
-}
+import { ArrowLeft, Save } from 'lucide-react';
+import { FormData } from '../types/diagnosticForm';
+import { getInitialFormData, saveFormData } from '../utils/formUtils';
+import FormSection from './diagnostic/FormSection';
+import GeneralInfoSection from './diagnostic/GeneralInfoSection';
+import BatterySection from './diagnostic/BatterySection';
+import DrivetrainSection from './diagnostic/DrivetrainSection';
+import FileUploadSection from './diagnostic/FileUploadSection';
+import YesNoQuestion from './diagnostic/YesNoQuestion';
 
 const DiagnosticForm = () => {
   const navigate = useNavigate();
-  const [formData, setFormData] = useState<FormData>({
-    customerName: '',
-    vin: '',
-    roNumber: '',
-    makeModel: '',
-    mileage: '',
-    chargingIssuesHome: '',
-    chargingIssuesHomeDetails: '',
-    chargingIssuesPublic: '',
-    chargingIssuesPublicDetails: '',
-    chargerType: '',
-    aftermarketCharger: '',
-    aftermarketDetails: '',
-    failedCharges: '',
-    failedChargesDetails: '',
-    rangeDrop: '',
-    rangeDropDetails: '',
-    batteryWarnings: '',
-    batteryWarningsDetails: '',
-    powerLoss: '',
-    powerLossDetails: '',
-    usualChargeLevel: '',
-    dcFastFrequency: [],
-    chargeRateDrop: '',
-    consistentAcceleration: '',
-    accelerationDetails: '',
-    whiningNoises: '',
-    whiningDetails: '',
-    jerkingHesitation: '',
-    jerkingDetails: '',
-    vibrations: '',
-    vibrationsDetails: '',
-    noisesActions: '',
-    noisesActionsDetails: '',
-    rattlesRoads: '',
-    rattlesDetails: '',
-    hvacPerformance: '',
-    hvacDetails: '',
-    smellsNoises: '',
-    smellsNoisesDetails: '',
-    defoggerPerformance: '',
-    defoggerDetails: '',
-    infotainmentGlitches: '',
-    infotainmentDetails: '',
-    otaUpdates: '',
-    brokenFeatures: '',
-    brokenFeaturesDetails: '',
-    lightFlicker: '',
-    lightFlickerDetails: '',
-    smoothRegen: '',
-    smoothRegenDetails: '',
-    regenStrength: '',
-    regenStrengthDetails: '',
-    decelerationNoises: '',
-    decelerationNoisesDetails: '',
-    issueConditions: [],
-    otherConditions: '',
-    towingHighLoad: '',
-    primaryMode: '',
-    modesDifferences: '',
-    modesDifferencesDetails: '',
-    specificModeIssues: '',
-    specificModeDetails: '',
-    modeSwitchingLags: '',
-    modeSwitchingDetails: '',
-    temperatureDuringIssue: '',
-    vehicleParked: '',
-    timeOfDay: '',
-    hvacWeatherDifference: '',
-    hvacWeatherDetails: '',
-    rangeRegenTemp: '',
-    moistureChargingPort: '',
-    uploadedFiles: []
-  });
-
+  const [formData, setFormData] = useState<FormData>(getInitialFormData());
   const [expandedSections, setExpandedSections] = useState<string[]>(['general']);
 
   const toggleSection = useCallback((section: string) => {
@@ -211,107 +50,9 @@ const DiagnosticForm = () => {
 
   const handleSubmit = useCallback((e: React.FormEvent) => {
     e.preventDefault();
-    
-    // Save to localStorage (in real app, this would be sent to Supabase)
-    const savedRecords = JSON.parse(localStorage.getItem('evDiagnosticRecords') || '[]');
-    const newRecord = {
-      id: Date.now().toString(),
-      ...formData,
-      createdAt: new Date().toISOString(),
-      technician: JSON.parse(localStorage.getItem('evDiagUser') || '{}').username
-    };
-    
-    savedRecords.push(newRecord);
-    localStorage.setItem('evDiagnosticRecords', JSON.stringify(savedRecords));
-    
-    // Navigate to print summary
-    navigate(`/print-summary/${newRecord.id}`);
+    const recordId = saveFormData(formData);
+    navigate(`/print-summary/${recordId}`);
   }, [formData, navigate]);
-
-  const YesNoQuestion = React.memo(({ 
-    label, 
-    field, 
-    detailsField, 
-    detailsLabel = "Please provide details:" 
-  }: {
-    label: string;
-    field: keyof FormData;
-    detailsField?: keyof FormData;
-    detailsLabel?: string;
-  }) => (
-    <div className="space-y-3">
-      <label className="block text-sm font-medium text-slate-300">{label}</label>
-      <div className="flex space-x-4">
-        <label className="flex items-center">
-          <input
-            type="radio"
-            name={String(field)}
-            value="yes"
-            checked={formData[field] === 'yes'}
-            onChange={(e) => handleInputChange(field, e.target.value)}
-            className="mr-2 text-blue-600"
-          />
-          <span className="text-slate-300">Yes</span>
-        </label>
-        <label className="flex items-center">
-          <input
-            type="radio"
-            name={String(field)}
-            value="no"
-            checked={formData[field] === 'no'}
-            onChange={(e) => handleInputChange(field, e.target.value)}
-            className="mr-2 text-blue-600"
-          />
-          <span className="text-slate-300">No</span>
-        </label>
-      </div>
-      {formData[field] === 'yes' && detailsField && (
-        <div>
-          <label className="block text-sm font-medium text-slate-400 mb-2">{detailsLabel}</label>
-          <textarea
-            value={String(formData[detailsField] || '')}
-            onChange={(e) => handleInputChange(detailsField, e.target.value)}
-            className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white"
-            rows={3}
-          />
-        </div>
-      )}
-    </div>
-  ));
-
-  const FormSection = React.memo(({ title, children, sectionKey }: { 
-    title: string; 
-    children: React.ReactNode;
-    sectionKey: string;
-  }) => {
-    const handleSectionToggle = useCallback((e: React.MouseEvent) => {
-      e.preventDefault();
-      e.stopPropagation();
-      toggleSection(sectionKey);
-    }, [sectionKey]);
-
-    return (
-      <div className="bg-slate-800 rounded-lg border border-slate-700 overflow-hidden">
-        <button
-          type="button"
-          onClick={handleSectionToggle}
-          className="w-full px-6 py-4 bg-slate-700/50 flex items-center justify-between text-left hover:bg-slate-700/70 transition-colors"
-        >
-          <h3 className="text-lg font-semibold text-white">{title}</h3>
-          {expandedSections.includes(sectionKey) ? (
-            <ChevronUp className="w-5 h-5 text-slate-400" />
-          ) : (
-            <ChevronDown className="w-5 h-5 text-slate-400" />
-          )}
-        </button>
-        {expandedSections.includes(sectionKey) && (
-          <div className="p-6 space-y-6">
-            {children}
-          </div>
-        )}
-      </div>
-    );
-  });
 
   const handleBackToDashboard = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
@@ -342,281 +83,143 @@ const DiagnosticForm = () => {
 
       <form onSubmit={handleSubmit} className="p-6 space-y-6">
         {/* General Information */}
-        <FormSection title="General Information" sectionKey="general">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <label className="block text-sm font-medium text-slate-300 mb-2">Customer Name</label>
-              <input
-                type="text"
-                value={formData.customerName}
-                onChange={(e) => handleInputChange('customerName', e.target.value)}
-                className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white"
-                required
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-300 mb-2">VIN</label>
-              <input
-                type="text"
-                value={formData.vin}
-                onChange={(e) => handleInputChange('vin', e.target.value)}
-                className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white"
-                required
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-300 mb-2">RO Number</label>
-              <input
-                type="text"
-                value={formData.roNumber}
-                onChange={(e) => handleInputChange('roNumber', e.target.value)}
-                className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white"
-                required
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-300 mb-2">Make/Model</label>
-              <input
-                type="text"
-                value={formData.makeModel}
-                onChange={(e) => handleInputChange('makeModel', e.target.value)}
-                className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white"
-                required
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-300 mb-2">Mileage</label>
-              <input
-                type="text"
-                value={formData.mileage}
-                onChange={(e) => handleInputChange('mileage', e.target.value)}
-                className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white"
-                required
-              />
-            </div>
-          </div>
+        <FormSection 
+          title="General Information" 
+          sectionKey="general"
+          expandedSections={expandedSections}
+          onToggleSection={toggleSection}
+        >
+          <GeneralInfoSection 
+            formData={formData}
+            onInputChange={handleInputChange}
+            onCheckboxChange={handleCheckboxChange}
+          />
         </FormSection>
 
         {/* Battery & Charging */}
-        <FormSection title="Battery & Charging" sectionKey="battery">
-          <div className="space-y-6">
-            <YesNoQuestion 
-              label="Any charging issues at home?" 
-              field="chargingIssuesHome" 
-              detailsField="chargingIssuesHomeDetails"
-            />
-            <YesNoQuestion 
-              label="Any charging issues at public stations?" 
-              field="chargingIssuesPublic" 
-              detailsField="chargingIssuesPublicDetails"
-            />
-            
-            <div>
-              <label className="block text-sm font-medium text-slate-300 mb-2">Type of charger used</label>
-              <select
-                value={formData.chargerType}
-                onChange={(e) => handleInputChange('chargerType', e.target.value)}
-                className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white"
-              >
-                <option value="">Select charger type</option>
-                <option value="level1">Level 1 (120V)</option>
-                <option value="level2">Level 2 (240V)</option>
-                <option value="dcfast">DC Fast Charging</option>
-                <option value="tesla">Tesla Supercharger</option>
-              </select>
-            </div>
-
-            <YesNoQuestion 
-              label="Using aftermarket charger?" 
-              field="aftermarketCharger" 
-              detailsField="aftermarketDetails"
-              detailsLabel="Please specify brand, model, kW rating, and certification:"
-            />
-            
-            <YesNoQuestion 
-              label="Recent incomplete or failed charges?" 
-              field="failedCharges" 
-              detailsField="failedChargesDetails"
-            />
-            
-            <YesNoQuestion 
-              label="Drop in driving range?" 
-              field="rangeDrop" 
-              detailsField="rangeDropDetails"
-            />
-            
-            <YesNoQuestion 
-              label="Battery dashboard warnings?" 
-              field="batteryWarnings" 
-              detailsField="batteryWarningsDetails"
-            />
-            
-            <YesNoQuestion 
-              label="Sudden power loss or 'EV Power Limited' messages?" 
-              field="powerLoss" 
-              detailsField="powerLossDetails"
-            />
-
-            <div>
-              <label className="block text-sm font-medium text-slate-300 mb-2">Usual charge level</label>
-              <div className="flex space-x-4">
-                <label className="flex items-center">
-                  <input
-                    type="radio"
-                    name="usualChargeLevel"
-                    value="80"
-                    checked={formData.usualChargeLevel === '80'}
-                    onChange={(e) => handleInputChange('usualChargeLevel', e.target.value)}
-                    className="mr-2 text-blue-600"
-                  />
-                  <span className="text-slate-300">80%</span>
-                </label>
-                <label className="flex items-center">
-                  <input
-                    type="radio"
-                    name="usualChargeLevel"
-                    value="100"
-                    checked={formData.usualChargeLevel === '100'}
-                    onChange={(e) => handleInputChange('usualChargeLevel', e.target.value)}
-                    className="mr-2 text-blue-600"
-                  />
-                  <span className="text-slate-300">100%</span>
-                </label>
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-slate-300 mb-2">DC fast charging frequency (select all that apply)</label>
-              <div className="grid grid-cols-2 gap-2">
-                {['Daily', 'Weekly', 'Monthly', 'Rarely', 'Never'].map(freq => (
-                  <label key={freq} className="flex items-center">
-                    <input
-                      type="checkbox"
-                      checked={formData.dcFastFrequency.includes(freq)}
-                      onChange={(e) => handleCheckboxChange('dcFastFrequency', freq, e.target.checked)}
-                      className="mr-2 text-blue-600"
-                    />
-                    <span className="text-slate-300">{freq}</span>
-                  </label>
-                ))}
-              </div>
-            </div>
-
-            <YesNoQuestion 
-              label="Charge rate drop above/below 50% SOC?" 
-              field="chargeRateDrop"
-            />
-          </div>
+        <FormSection 
+          title="Battery & Charging" 
+          sectionKey="battery"
+          expandedSections={expandedSections}
+          onToggleSection={toggleSection}
+        >
+          <BatterySection 
+            formData={formData}
+            onInputChange={handleInputChange}
+            onCheckboxChange={handleCheckboxChange}
+          />
         </FormSection>
 
         {/* Drivetrain & Performance */}
-        <FormSection title="Drivetrain & Performance" sectionKey="drivetrain">
-          <div className="space-y-6">
-            <YesNoQuestion 
-              label="Consistent acceleration?" 
-              field="consistentAcceleration" 
-              detailsField="accelerationDetails"
-            />
-            <YesNoQuestion 
-              label="Whining or grinding noises?" 
-              field="whiningNoises" 
-              detailsField="whiningDetails"
-            />
-            <YesNoQuestion 
-              label="Jerking or hesitation under acceleration?" 
-              field="jerkingHesitation" 
-              detailsField="jerkingDetails"
-            />
-          </div>
+        <FormSection 
+          title="Drivetrain & Performance" 
+          sectionKey="drivetrain"
+          expandedSections={expandedSections}
+          onToggleSection={toggleSection}
+        >
+          <DrivetrainSection 
+            formData={formData}
+            onInputChange={handleInputChange}
+            onCheckboxChange={handleCheckboxChange}
+          />
         </FormSection>
 
         {/* NVH (Noise, Vibration, Harshness) */}
-        <FormSection title="NVH (Noise, Vibration, Harshness)" sectionKey="nvh">
+        <FormSection 
+          title="NVH (Noise, Vibration, Harshness)" 
+          sectionKey="nvh"
+          expandedSections={expandedSections}
+          onToggleSection={toggleSection}
+        >
           <div className="space-y-6">
             <YesNoQuestion 
               label="Any vibrations?" 
               field="vibrations" 
               detailsField="vibrationsDetails"
+              formData={formData}
+              onInputChange={handleInputChange}
             />
             <YesNoQuestion 
               label="Noises during specific actions (acceleration, regen, cornering)?" 
               field="noisesActions" 
               detailsField="noisesActionsDetails"
+              formData={formData}
+              onInputChange={handleInputChange}
             />
             <YesNoQuestion 
               label="Rattles or thumps on rough roads?" 
               field="rattlesRoads" 
               detailsField="rattlesDetails"
+              formData={formData}
+              onInputChange={handleInputChange}
             />
           </div>
         </FormSection>
 
         {/* Climate Control System */}
-        <FormSection title="Climate Control System" sectionKey="climate">
+        <FormSection 
+          title="Climate Control System" 
+          sectionKey="climate"
+          expandedSections={expandedSections}
+          onToggleSection={toggleSection}
+        >
           <div className="space-y-6">
             <YesNoQuestion 
               label="HVAC performance satisfactory?" 
               field="hvacPerformance" 
               detailsField="hvacDetails"
+              formData={formData}
+              onInputChange={handleInputChange}
             />
             <YesNoQuestion 
               label="Any smells or noises from vents?" 
               field="smellsNoises" 
               detailsField="smellsNoisesDetails"
+              formData={formData}
+              onInputChange={handleInputChange}
             />
             <YesNoQuestion 
               label="Defogger performance adequate?" 
               field="defoggerPerformance" 
               detailsField="defoggerDetails"
+              formData={formData}
+              onInputChange={handleInputChange}
             />
           </div>
         </FormSection>
 
         {/* Electrical & Software Systems */}
-        <FormSection title="Electrical & Software Systems" sectionKey="electrical">
+        <FormSection 
+          title="Electrical & Software Systems" 
+          sectionKey="electrical"
+          expandedSections={expandedSections}
+          onToggleSection={toggleSection}
+        >
           <div className="space-y-6">
             <YesNoQuestion 
               label="Any infotainment glitches?" 
               field="infotainmentGlitches" 
               detailsField="infotainmentDetails"
+              formData={formData}
+              onInputChange={handleInputChange}
             />
             
             <div>
               <label className="block text-sm font-medium text-slate-300 mb-2">Awareness of recent OTA updates</label>
               <div className="flex space-x-4">
-                <label className="flex items-center">
-                  <input
-                    type="radio"
-                    name="otaUpdates"
-                    value="yes"
-                    checked={formData.otaUpdates === 'yes'}
-                    onChange={(e) => handleInputChange('otaUpdates', e.target.value)}
-                    className="mr-2 text-blue-600"
-                  />
-                  <span className="text-slate-300">Yes</span>
-                </label>
-                <label className="flex items-center">
-                  <input
-                    type="radio"
-                    name="otaUpdates"
-                    value="no"
-                    checked={formData.otaUpdates === 'no'}
-                    onChange={(e) => handleInputChange('otaUpdates', e.target.value)}
-                    className="mr-2 text-blue-600"
-                  />
-                  <span className="text-slate-300">No</span>
-                </label>
-                <label className="flex items-center">
-                  <input
-                    type="radio"
-                    name="otaUpdates"
-                    value="unsure"
-                    checked={formData.otaUpdates === 'unsure'}
-                    onChange={(e) => handleInputChange('otaUpdates', e.target.value)}
-                    className="mr-2 text-blue-600"
-                  />
-                  <span className="text-slate-300">Unsure</span>
-                </label>
+                {['yes', 'no', 'unsure'].map(value => (
+                  <label key={value} className="flex items-center">
+                    <input
+                      type="radio"
+                      name="otaUpdates"
+                      value={value}
+                      checked={formData.otaUpdates === value}
+                      onChange={(e) => handleInputChange('otaUpdates', e.target.value)}
+                      className="mr-2 text-blue-600"
+                    />
+                    <span className="text-slate-300 capitalize">{value}</span>
+                  </label>
+                ))}
               </div>
             </div>
 
@@ -624,23 +227,34 @@ const DiagnosticForm = () => {
               label="Features broken after update?" 
               field="brokenFeatures" 
               detailsField="brokenFeaturesDetails"
+              formData={formData}
+              onInputChange={handleInputChange}
             />
             
             <YesNoQuestion 
               label="Light flicker or abnormal behavior?" 
               field="lightFlicker" 
               detailsField="lightFlickerDetails"
+              formData={formData}
+              onInputChange={handleInputChange}
             />
           </div>
         </FormSection>
 
         {/* Regenerative Braking */}
-        <FormSection title="Regenerative Braking" sectionKey="regen">
+        <FormSection 
+          title="Regenerative Braking" 
+          sectionKey="regen"
+          expandedSections={expandedSections}
+          onToggleSection={toggleSection}
+        >
           <div className="space-y-6">
             <YesNoQuestion 
               label="Smooth regenerative braking?" 
               field="smoothRegen" 
               detailsField="smoothRegenDetails"
+              formData={formData}
+              onInputChange={handleInputChange}
             />
             
             <div>
@@ -686,12 +300,19 @@ const DiagnosticForm = () => {
               label="Any noises during deceleration?" 
               field="decelerationNoises" 
               detailsField="decelerationNoisesDetails"
+              formData={formData}
+              onInputChange={handleInputChange}
             />
           </div>
         </FormSection>
 
         {/* Driving Conditions */}
-        <FormSection title="Driving Conditions" sectionKey="driving">
+        <FormSection 
+          title="Driving Conditions" 
+          sectionKey="driving"
+          expandedSections={expandedSections}
+          onToggleSection={toggleSection}
+        >
           <div className="space-y-6">
             <div>
               <label className="block text-sm font-medium text-slate-300 mb-2">When do issues occur? (select all that apply)</label>
@@ -724,12 +345,19 @@ const DiagnosticForm = () => {
             <YesNoQuestion 
               label="Any towing or high-load cases?" 
               field="towingHighLoad"
+              formData={formData}
+              onInputChange={handleInputChange}
             />
           </div>
         </FormSection>
 
         {/* Driving Mode Awareness */}
-        <FormSection title="Driving Mode Awareness" sectionKey="modes">
+        <FormSection 
+          title="Driving Mode Awareness" 
+          sectionKey="modes"
+          expandedSections={expandedSections}
+          onToggleSection={toggleSection}
+        >
           <div className="space-y-6">
             <div>
               <label className="block text-sm font-medium text-slate-300 mb-2">Primary driving mode</label>
@@ -751,24 +379,35 @@ const DiagnosticForm = () => {
               label="Noticed differences between modes?" 
               field="modesDifferences" 
               detailsField="modesDifferencesDetails"
+              formData={formData}
+              onInputChange={handleInputChange}
             />
             
             <YesNoQuestion 
               label="Issues only in specific mode?" 
               field="specificModeIssues" 
               detailsField="specificModeDetails"
+              formData={formData}
+              onInputChange={handleInputChange}
             />
             
             <YesNoQuestion 
               label="Mode switching causes system lags/warnings?" 
               field="modeSwitchingLags" 
               detailsField="modeSwitchingDetails"
+              formData={formData}
+              onInputChange={handleInputChange}
             />
           </div>
         </FormSection>
 
         {/* Environmental & Climate Conditions */}
-        <FormSection title="Environmental & Climate Conditions" sectionKey="environmental">
+        <FormSection 
+          title="Environmental & Climate Conditions" 
+          sectionKey="environmental"
+          expandedSections={expandedSections}
+          onToggleSection={toggleSection}
+        >
           <div className="space-y-6">
             <div>
               <label className="block text-sm font-medium text-slate-300 mb-2">Temperature during issue</label>
@@ -831,59 +470,37 @@ const DiagnosticForm = () => {
               label="HVAC difference in different weather (humid/cold/dry)?" 
               field="hvacWeatherDifference" 
               detailsField="hvacWeatherDetails"
+              formData={formData}
+              onInputChange={handleInputChange}
             />
             
             <YesNoQuestion 
               label="Range or regen affected by temperature?" 
               field="rangeRegenTemp"
+              formData={formData}
+              onInputChange={handleInputChange}
             />
             
             <YesNoQuestion 
               label="Moisture/condensation in charging port?" 
               field="moistureChargingPort"
+              formData={formData}
+              onInputChange={handleInputChange}
             />
           </div>
         </FormSection>
 
         {/* File Upload Section */}
-        <FormSection title="Evidence Upload" sectionKey="upload">
-          <div className="space-y-6">
-            <div>
-              <label className="block text-sm font-medium text-slate-300 mb-2">
-                Upload photos, dash screenshots, or videos
-              </label>
-              <div className="border-2 border-dashed border-slate-600 rounded-lg p-6 text-center">
-                <Upload className="w-12 h-12 text-slate-400 mx-auto mb-4" />
-                <p className="text-slate-400 mb-4">Click to upload or drag and drop files here</p>
-                <input
-                  type="file"
-                  multiple
-                  accept="image/*,video/*"
-                  onChange={(e) => handleFileUpload(e.target.files)}
-                  className="hidden"
-                  id="file-upload"
-                />
-                <label
-                  htmlFor="file-upload"
-                  className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg cursor-pointer inline-block"
-                >
-                  Choose Files
-                </label>
-              </div>
-              {formData.uploadedFiles.length > 0 && (
-                <div className="mt-4">
-                  <p className="text-sm text-slate-300 mb-2">Uploaded files:</p>
-                  <ul className="space-y-1">
-                    {formData.uploadedFiles.map((file, index) => (
-                      <li key={index} className="text-sm text-slate-400">
-                        {file.name} ({Math.round(file.size / 1024)}KB)
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-            </div>
-          </div>
+        <FormSection 
+          title="Evidence Upload" 
+          sectionKey="upload"
+          expandedSections={expandedSections}
+          onToggleSection={toggleSection}
+        >
+          <FileUploadSection 
+            formData={formData}
+            onFileUpload={handleFileUpload}
+          />
         </FormSection>
 
         {/* Submit Button */}
