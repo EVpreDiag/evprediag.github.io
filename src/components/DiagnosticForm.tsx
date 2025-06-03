@@ -244,7 +244,7 @@ const DiagnosticForm = () => {
         <label className="flex items-center">
           <input
             type="radio"
-            name={field}
+            name={String(field)}
             value="yes"
             checked={formData[field] === 'yes'}
             onChange={(e) => handleInputChange(field, e.target.value)}
@@ -255,7 +255,7 @@ const DiagnosticForm = () => {
         <label className="flex items-center">
           <input
             type="radio"
-            name={field}
+            name={String(field)}
             value="no"
             checked={formData[field] === 'no'}
             onChange={(e) => handleInputChange(field, e.target.value)}
@@ -268,7 +268,7 @@ const DiagnosticForm = () => {
         <div>
           <label className="block text-sm font-medium text-slate-400 mb-2">{detailsLabel}</label>
           <textarea
-            value={formData[detailsField] as string}
+            value={String(formData[detailsField] || '')}
             onChange={(e) => handleInputChange(detailsField, e.target.value)}
             className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white"
             rows={3}
@@ -311,6 +311,7 @@ const DiagnosticForm = () => {
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-4">
             <button
+              type="button"
               onClick={() => navigate('/dashboard')}
               className="flex items-center space-x-2 text-slate-300 hover:text-white transition-colors"
             >
