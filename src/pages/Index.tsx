@@ -9,6 +9,7 @@ import SearchRecords from '../components/SearchRecords';
 import UserManagement from '../components/UserManagement';
 import PrintSummary from '../components/PrintSummary';
 import ProfileManagement from '../components/ProfileManagement';
+import RoleProtectedRoute from '../components/RoleProtectedRoute';
 import { AuthProvider, useAuth } from '../contexts/AuthContext';
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
@@ -56,12 +57,16 @@ const Index = () => {
           } />
           <Route path="/diagnostic-form" element={
             <ProtectedRoute>
-              <DiagnosticForm />
+              <RoleProtectedRoute requiredRoles={['admin', 'tech']}>
+                <DiagnosticForm />
+              </RoleProtectedRoute>
             </ProtectedRoute>
           } />
           <Route path="/phev-diagnostic-form" element={
             <ProtectedRoute>
-              <PHEVDiagnosticForm />
+              <RoleProtectedRoute requiredRoles={['admin', 'tech']}>
+                <PHEVDiagnosticForm />
+              </RoleProtectedRoute>
             </ProtectedRoute>
           } />
           <Route path="/search-records" element={
@@ -71,7 +76,9 @@ const Index = () => {
           } />
           <Route path="/user-management" element={
             <ProtectedRoute>
-              <UserManagement />
+              <RoleProtectedRoute requiredRoles={['admin']}>
+                <UserManagement />
+              </RoleProtectedRoute>
             </ProtectedRoute>
           } />
           <Route path="/profile" element={

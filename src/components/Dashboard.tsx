@@ -13,11 +13,12 @@ import {
   BarChart3,
   Settings,
   Plug,
-  User
+  User,
+  Shield
 } from 'lucide-react';
 
 const Dashboard = () => {
-  const { user, profile, signOut } = useAuth();
+  const { user, profile, userRoles, hasRole, isAdmin, signOut } = useAuth();
   const navigate = useNavigate();
 
   const handleLogout = async () => {
@@ -32,7 +33,7 @@ const Dashboard = () => {
       icon: Battery,
       path: '/diagnostic-form',
       color: 'from-blue-600 to-blue-700',
-      available: true
+      available: hasRole('admin') || hasRole('tech')
     },
     {
       title: 'PHEV Diagnostic Form',
@@ -40,7 +41,7 @@ const Dashboard = () => {
       icon: Plug,
       path: '/phev-diagnostic-form',
       color: 'from-emerald-600 to-emerald-700',
-      available: true
+      available: hasRole('admin') || hasRole('tech')
     },
     {
       title: 'Search Records',
@@ -48,7 +49,7 @@ const Dashboard = () => {
       icon: Search,
       path: '/search-records',
       color: 'from-green-600 to-green-700',
-      available: true
+      available: true // Available to all authenticated users
     },
     {
       title: 'User Management',
@@ -56,7 +57,7 @@ const Dashboard = () => {
       icon: Users,
       path: '/user-management',
       color: 'from-purple-600 to-purple-700',
-      available: true // Remove role restriction for now since we don't have roles yet
+      available: isAdmin()
     },
     {
       title: 'Profile Management',
@@ -74,6 +75,24 @@ const Dashboard = () => {
     { label: 'Critical Issues', value: '3', icon: Zap, color: 'text-red-400' }
   ];
 
+  const getRoleDisplayName = (role: string) => {
+    switch (role) {
+      case 'admin': return 'Administrator';
+      case 'tech': return 'Technician';
+      case 'service_desk': return 'Service Desk';
+      default: return role;
+    }
+  };
+
+  const getRoleColor = (role: string) => {
+    switch (role) {
+      case 'admin': return 'bg-purple-600/20 text-purple-400';
+      case 'tech': return 'bg-blue-600/20 text-blue-400';
+      case 'service_desk': return 'bg-green-600/20 text-green-400';
+      default: return 'bg-gray-600/20 text-gray-400';
+    }
+  };
+
   return (
     <div className="min-h-screen bg-slate-900">
       {/* Header */}
@@ -83,9 +102,23 @@ const Dashboard = () => {
             <Battery className="w-8 h-8 text-blue-400" />
             <div>
               <h1 className="text-xl font-bold text-white">EV Diagnostic Portal</h1>
-              <p className="text-sm text-slate-400">
-                Welcome back, {profile?.full_name || profile?.username || user?.email}
-              </p>
+              <div className="flex items-center space-x-2">
+                <p className="text-sm text-slate-400">
+                  Welcome back, {profile?.full_name || profile?.username || user?.email}
+                </p>
+                {userRoles.length > 0 && (
+                  <div className="flex space-x-1">
+                    {userRoles.map((role) => (
+                      <span
+                        key={role}
+                        className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getRoleColor(role)}`}
+                      >
+                        {getRoleDisplayName(role)}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
           <div className="flex items-center space-x-4">
@@ -108,6 +141,19 @@ const Dashboard = () => {
       </header>
 
       <div className="p-6">
+        {/* No Role Warning */}
+        {userRoles.length === 0 && (
+          <div className="mb-6 bg-yellow-900/20 border border-yellow-600/50 rounded-lg p-4">
+            <div className="flex items-center space-x-2">
+              <Shield className="w-5 h-5 text-yellow-400" />
+              <h3 className="text-yellow-400 font-medium">Access Pending</h3>
+            </div>
+            <p className="text-yellow-300 text-sm mt-1">
+              Your account has been created but no roles have been assigned yet. Please contact an administrator to assign your role and activate your access to the system.
+            </p>
+          </div>
+        )}
+
         {/* Stats Row */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
           {stats.map((stat, index) => (
@@ -143,28 +189,30 @@ const Dashboard = () => {
         </div>
 
         {/* Quick Actions */}
-        <div className="mt-8 bg-slate-800 rounded-lg p-6 border border-slate-700">
-          <h3 className="text-lg font-semibold text-white mb-4 flex items-center">
-            <Settings className="w-5 h-5 mr-2" />
-            Quick Actions
-          </h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <button 
-              onClick={() => navigate('/diagnostic-form')}
-              className="flex items-center space-x-3 p-3 bg-slate-700/50 rounded-lg hover:bg-slate-700 transition-colors text-left"
-            >
-              <Battery className="w-5 h-5 text-blue-400" />
-              <span className="text-white">Start EV Diagnostic</span>
-            </button>
-            <button 
-              onClick={() => navigate('/phev-diagnostic-form')}
-              className="flex items-center space-x-3 p-3 bg-slate-700/50 rounded-lg hover:bg-slate-700 transition-colors text-left"
-            >
-              <Plug className="w-5 h-5 text-emerald-400" />
-              <span className="text-white">Start PHEV Diagnostic</span>
-            </button>
+        {(hasRole('admin') || hasRole('tech')) && (
+          <div className="mt-8 bg-slate-800 rounded-lg p-6 border border-slate-700">
+            <h3 className="text-lg font-semibold text-white mb-4 flex items-center">
+              <Settings className="w-5 h-5 mr-2" />
+              Quick Actions
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <button 
+                onClick={() => navigate('/diagnostic-form')}
+                className="flex items-center space-x-3 p-3 bg-slate-700/50 rounded-lg hover:bg-slate-700 transition-colors text-left"
+              >
+                <Battery className="w-5 h-5 text-blue-400" />
+                <span className="text-white">Start EV Diagnostic</span>
+              </button>
+              <button 
+                onClick={() => navigate('/phev-diagnostic-form')}
+                className="flex items-center space-x-3 p-3 bg-slate-700/50 rounded-lg hover:bg-slate-700 transition-colors text-left"
+              >
+                <Plug className="w-5 h-5 text-emerald-400" />
+                <span className="text-white">Start PHEV Diagnostic</span>
+              </button>
+            </div>
           </div>
-        </div>
+        )}
       </div>
     </div>
   );

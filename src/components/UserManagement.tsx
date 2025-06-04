@@ -1,63 +1,143 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { supabase } from '../integrations/supabase/client';
 import { ArrowLeft, Users, Plus, Edit, Trash2, Shield, User } from 'lucide-react';
+
+type UserRole = 'admin' | 'tech' | 'service_desk';
 
 interface SystemUser {
   id: string;
-  username: string;
-  role: 'admin' | 'technician';
   email: string;
-  createdAt: string;
-  lastLogin: string;
-  active: boolean;
+  created_at: string;
+  last_sign_in_at: string | null;
+  profile?: {
+    username: string | null;
+    full_name: string | null;
+  };
+  roles: UserRole[];
 }
 
 const UserManagement = () => {
   const navigate = useNavigate();
-  const { user } = useAuth();
-  const [users, setUsers] = useState<SystemUser[]>([
-    {
-      id: '1',
-      username: 'admin',
-      role: 'admin',
-      email: 'admin@evdiag.com',
-      createdAt: '2024-01-01T00:00:00Z',
-      lastLogin: '2024-01-15T10:30:00Z',
-      active: true
-    },
-    {
-      id: '2',
-      username: 'tech1',
-      role: 'technician',
-      email: 'tech1@evdiag.com',
-      createdAt: '2024-01-05T00:00:00Z',
-      lastLogin: '2024-01-15T09:15:00Z',
-      active: true
-    },
-    {
-      id: '3',
-      username: 'tech2',
-      role: 'technician',
-      email: 'tech2@evdiag.com',
-      createdAt: '2024-01-10T00:00:00Z',
-      lastLogin: '2024-01-14T16:45:00Z',
-      active: false
-    }
-  ]);
-  
-  const [showAddUser, setShowAddUser] = useState(false);
-  const [editingUser, setEditingUser] = useState<SystemUser | null>(null);
-  const [newUser, setNewUser] = useState({
-    username: '',
-    email: '',
-    role: 'technician' as 'admin' | 'technician',
-    password: ''
-  });
+  const { isAdmin, assignRole, removeRole } = useAuth();
+  const [users, setUsers] = useState<SystemUser[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showRoleModal, setShowRoleModal] = useState(false);
+  const [selectedUser, setSelectedUser] = useState<SystemUser | null>(null);
 
-  // Check if current user is admin
-  if (user?.role !== 'admin') {
+  useEffect(() => {
+    if (!isAdmin()) {
+      return;
+    }
+    fetchUsers();
+  }, [isAdmin]);
+
+  const fetchUsers = async () => {
+    try {
+      setLoading(true);
+      
+      // Fetch all users from auth.users (this requires admin access)
+      const { data: authUsers, error: authError } = await supabase.auth.admin.listUsers();
+      
+      if (authError) {
+        console.error('Error fetching auth users:', authError);
+        return;
+      }
+
+      // Fetch profiles for all users
+      const { data: profiles, error: profilesError } = await supabase
+        .from('profiles')
+        .select('*');
+
+      if (profilesError) {
+        console.error('Error fetching profiles:', profilesError);
+      }
+
+      // Fetch roles for all users
+      const { data: userRoles, error: rolesError } = await supabase
+        .from('user_roles')
+        .select('user_id, role');
+
+      if (rolesError) {
+        console.error('Error fetching user roles:', rolesError);
+      }
+
+      // Combine the data
+      const combinedUsers: SystemUser[] = authUsers.users.map(user => {
+        const profile = profiles?.find(p => p.id === user.id);
+        const roles = userRoles?.filter(r => r.user_id === user.id).map(r => r.role) || [];
+        
+        return {
+          id: user.id,
+          email: user.email || '',
+          created_at: user.created_at,
+          last_sign_in_at: user.last_sign_in_at,
+          profile: profile ? {
+            username: profile.username,
+            full_name: profile.full_name
+          } : undefined,
+          roles: roles as UserRole[]
+        };
+      });
+
+      setUsers(combinedUsers);
+    } catch (error) {
+      console.error('Error fetching users:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleAssignRole = async (userId: string, role: UserRole) => {
+    const { error } = await assignRole(userId, role);
+    if (!error) {
+      await fetchUsers(); // Refresh the list
+    } else {
+      console.error('Error assigning role:', error);
+    }
+  };
+
+  const handleRemoveRole = async (userId: string, role: UserRole) => {
+    const { error } = await removeRole(userId, role);
+    if (!error) {
+      await fetchUsers(); // Refresh the list
+    } else {
+      console.error('Error removing role:', error);
+    }
+  };
+
+  const formatDate = (dateString: string | null) => {
+    if (!dateString) return 'Never';
+    return new Date(dateString).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
+
+  const getRoleColor = (role: UserRole) => {
+    switch (role) {
+      case 'admin': return 'bg-purple-600/20 text-purple-400';
+      case 'tech': return 'bg-blue-600/20 text-blue-400';
+      case 'service_desk': return 'bg-green-600/20 text-green-400';
+      default: return 'bg-gray-600/20 text-gray-400';
+    }
+  };
+
+  const getRoleDisplayName = (role: UserRole) => {
+    switch (role) {
+      case 'admin': return 'Administrator';
+      case 'tech': return 'Technician';
+      case 'service_desk': return 'Service Desk';
+      default: return role;
+    }
+  };
+
+  if (!isAdmin()) {
     return (
       <div className="min-h-screen bg-slate-900 flex items-center justify-center">
         <div className="text-center">
@@ -75,53 +155,13 @@ const UserManagement = () => {
     );
   }
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
-  };
-
-  const handleAddUser = (e: React.FormEvent) => {
-    e.preventDefault();
-    const user: SystemUser = {
-      id: Date.now().toString(),
-      ...newUser,
-      createdAt: new Date().toISOString(),
-      lastLogin: '',
-      active: true
-    };
-    setUsers([...users, user]);
-    setNewUser({ username: '', email: '', role: 'technician', password: '' });
-    setShowAddUser(false);
-  };
-
-  const handleEditUser = (user: SystemUser) => {
-    setEditingUser(user);
-  };
-
-  const handleUpdateUser = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!editingUser) return;
-    
-    setUsers(users.map(u => u.id === editingUser.id ? editingUser : u));
-    setEditingUser(null);
-  };
-
-  const handleDeleteUser = (userId: string) => {
-    if (confirm('Are you sure you want to delete this user?')) {
-      setUsers(users.filter(u => u.id !== userId));
-    }
-  };
-
-  const toggleUserStatus = (userId: string) => {
-    setUsers(users.map(u => 
-      u.id === userId ? { ...u, active: !u.active } : u
-    ));
-  };
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-slate-900 flex items-center justify-center">
+        <div className="text-white">Loading users...</div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-slate-900">
@@ -138,16 +178,9 @@ const UserManagement = () => {
             </button>
             <div>
               <h1 className="text-xl font-bold text-white">User Management</h1>
-              <p className="text-sm text-slate-400">Manage technician accounts and permissions</p>
+              <p className="text-sm text-slate-400">Manage user accounts and assign roles</p>
             </div>
           </div>
-          <button
-            onClick={() => setShowAddUser(true)}
-            className="flex items-center space-x-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
-          >
-            <Plus className="w-5 h-5" />
-            <span>Add User</span>
-          </button>
         </div>
       </header>
 
@@ -166,17 +199,8 @@ const UserManagement = () => {
           <div className="bg-slate-800 rounded-lg p-4 border border-slate-700">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-slate-400 text-sm">Active Users</p>
-                <p className="text-2xl font-bold text-white">{users.filter(u => u.active).length}</p>
-              </div>
-              <User className="w-8 h-8 text-green-400" />
-            </div>
-          </div>
-          <div className="bg-slate-800 rounded-lg p-4 border border-slate-700">
-            <div className="flex items-center justify-between">
-              <div>
                 <p className="text-slate-400 text-sm">Administrators</p>
-                <p className="text-2xl font-bold text-white">{users.filter(u => u.role === 'admin').length}</p>
+                <p className="text-2xl font-bold text-white">{users.filter(u => u.roles.includes('admin')).length}</p>
               </div>
               <Shield className="w-8 h-8 text-purple-400" />
             </div>
@@ -185,9 +209,18 @@ const UserManagement = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-slate-400 text-sm">Technicians</p>
-                <p className="text-2xl font-bold text-white">{users.filter(u => u.role === 'technician').length}</p>
+                <p className="text-2xl font-bold text-white">{users.filter(u => u.roles.includes('tech')).length}</p>
               </div>
-              <User className="w-8 h-8 text-orange-400" />
+              <User className="w-8 h-8 text-blue-400" />
+            </div>
+          </div>
+          <div className="bg-slate-800 rounded-lg p-4 border border-slate-700">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-slate-400 text-sm">Service Desk</p>
+                <p className="text-2xl font-bold text-white">{users.filter(u => u.roles.includes('service_desk')).length}</p>
+              </div>
+              <User className="w-8 h-8 text-green-400" />
             </div>
           </div>
         </div>
@@ -203,8 +236,7 @@ const UserManagement = () => {
               <thead className="bg-slate-700/50">
                 <tr>
                   <th className="px-6 py-3 text-left text-xs font-medium text-slate-300 uppercase tracking-wider">User</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-300 uppercase tracking-wider">Role</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-300 uppercase tracking-wider">Status</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-300 uppercase tracking-wider">Roles</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-slate-300 uppercase tracking-wider">Last Login</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-slate-300 uppercase tracking-wider">Actions</th>
                 </tr>
@@ -214,54 +246,41 @@ const UserManagement = () => {
                   <tr key={user.id} className="hover:bg-slate-700/30">
                     <td className="px-6 py-4">
                       <div>
-                        <div className="text-sm font-medium text-white">{user.username}</div>
+                        <div className="text-sm font-medium text-white">
+                          {user.profile?.full_name || user.profile?.username || 'No Name'}
+                        </div>
                         <div className="text-sm text-slate-400">{user.email}</div>
                       </div>
                     </td>
                     <td className="px-6 py-4">
-                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                        user.role === 'admin' 
-                          ? 'bg-purple-600/20 text-purple-400' 
-                          : 'bg-blue-600/20 text-blue-400'
-                      }`}>
-                        {user.role}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                        user.active 
-                          ? 'bg-green-600/20 text-green-400' 
-                          : 'bg-red-600/20 text-red-400'
-                      }`}>
-                        {user.active ? 'Active' : 'Inactive'}
-                      </span>
+                      <div className="flex flex-wrap gap-1">
+                        {user.roles.length > 0 ? (
+                          user.roles.map((role) => (
+                            <span
+                              key={role}
+                              className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getRoleColor(role)}`}
+                            >
+                              {getRoleDisplayName(role)}
+                            </span>
+                          ))
+                        ) : (
+                          <span className="text-slate-500 text-sm">No roles assigned</span>
+                        )}
+                      </div>
                     </td>
                     <td className="px-6 py-4 text-sm text-slate-300">
-                      {user.lastLogin ? formatDate(user.lastLogin) : 'Never'}
+                      {formatDate(user.last_sign_in_at)}
                     </td>
                     <td className="px-6 py-4">
-                      <div className="flex space-x-2">
-                        <button
-                          onClick={() => handleEditUser(user)}
-                          className="p-2 text-blue-400 hover:text-blue-300 transition-colors"
-                        >
-                          <Edit className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={() => toggleUserStatus(user.id)}
-                          className={`p-2 transition-colors ${
-                            user.active ? 'text-red-400 hover:text-red-300' : 'text-green-400 hover:text-green-300'
-                          }`}
-                        >
-                          <Shield className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={() => handleDeleteUser(user.id)}
-                          className="p-2 text-red-400 hover:text-red-300 transition-colors"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
+                      <button
+                        onClick={() => {
+                          setSelectedUser(user);
+                          setShowRoleModal(true);
+                        }}
+                        className="p-2 text-blue-400 hover:text-blue-300 transition-colors"
+                      >
+                        <Edit className="w-4 h-4" />
+                      </button>
                     </td>
                   </tr>
                 ))}
@@ -271,130 +290,53 @@ const UserManagement = () => {
         </div>
       </div>
 
-      {/* Add User Modal */}
-      {showAddUser && (
+      {/* Role Assignment Modal */}
+      {showRoleModal && selectedUser && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
           <div className="bg-slate-800 rounded-lg border border-slate-700 w-full max-w-md">
             <div className="p-6 border-b border-slate-700">
-              <h3 className="text-lg font-semibold text-white">Add New User</h3>
+              <h3 className="text-lg font-semibold text-white">Manage Roles</h3>
+              <p className="text-sm text-slate-400">
+                {selectedUser.profile?.full_name || selectedUser.email}
+              </p>
             </div>
-            <form onSubmit={handleAddUser} className="p-6 space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-slate-300 mb-2">Username</label>
-                <input
-                  type="text"
-                  value={newUser.username}
-                  onChange={(e) => setNewUser({...newUser, username: e.target.value})}
-                  className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white"
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-300 mb-2">Email</label>
-                <input
-                  type="email"
-                  value={newUser.email}
-                  onChange={(e) => setNewUser({...newUser, email: e.target.value})}
-                  className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white"
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-300 mb-2">Role</label>
-                <select
-                  value={newUser.role}
-                  onChange={(e) => setNewUser({...newUser, role: e.target.value as 'admin' | 'technician'})}
-                  className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white"
-                >
-                  <option value="technician">Technician</option>
-                  <option value="admin">Administrator</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-300 mb-2">Password</label>
-                <input
-                  type="password"
-                  value={newUser.password}
-                  onChange={(e) => setNewUser({...newUser, password: e.target.value})}
-                  className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white"
-                  required
-                />
-              </div>
-              <div className="flex justify-end space-x-3 pt-4">
-                <button
-                  type="button"
-                  onClick={() => setShowAddUser(false)}
-                  className="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
-                >
-                  Add User
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* Edit User Modal */}
-      {editingUser && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-          <div className="bg-slate-800 rounded-lg border border-slate-700 w-full max-w-md">
-            <div className="p-6 border-b border-slate-700">
-              <h3 className="text-lg font-semibold text-white">Edit User</h3>
+            <div className="p-6 space-y-4">
+              {(['admin', 'tech', 'service_desk'] as UserRole[]).map((role) => (
+                <div key={role} className="flex items-center justify-between">
+                  <div>
+                    <span className="text-white font-medium">{getRoleDisplayName(role)}</span>
+                  </div>
+                  <div>
+                    {selectedUser.roles.includes(role) ? (
+                      <button
+                        onClick={() => handleRemoveRole(selectedUser.id, role)}
+                        className="px-3 py-1 bg-red-600 hover:bg-red-700 text-white text-sm rounded transition-colors"
+                      >
+                        Remove
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => handleAssignRole(selectedUser.id, role)}
+                        className="px-3 py-1 bg-green-600 hover:bg-green-700 text-white text-sm rounded transition-colors"
+                      >
+                        Assign
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ))}
             </div>
-            <form onSubmit={handleUpdateUser} className="p-6 space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-slate-300 mb-2">Username</label>
-                <input
-                  type="text"
-                  value={editingUser.username}
-                  onChange={(e) => setEditingUser({...editingUser, username: e.target.value})}
-                  className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white"
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-300 mb-2">Email</label>
-                <input
-                  type="email"
-                  value={editingUser.email}
-                  onChange={(e) => setEditingUser({...editingUser, email: e.target.value})}
-                  className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white"
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-300 mb-2">Role</label>
-                <select
-                  value={editingUser.role}
-                  onChange={(e) => setEditingUser({...editingUser, role: e.target.value as 'admin' | 'technician'})}
-                  className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white"
-                >
-                  <option value="technician">Technician</option>
-                  <option value="admin">Administrator</option>
-                </select>
-              </div>
-              <div className="flex justify-end space-x-3 pt-4">
-                <button
-                  type="button"
-                  onClick={() => setEditingUser(null)}
-                  className="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
-                >
-                  Update User
-                </button>
-              </div>
-            </form>
+            <div className="p-6 border-t border-slate-700">
+              <button
+                onClick={() => {
+                  setShowRoleModal(false);
+                  setSelectedUser(null);
+                }}
+                className="w-full px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg transition-colors"
+              >
+                Close
+              </button>
+            </div>
           </div>
         </div>
       )}

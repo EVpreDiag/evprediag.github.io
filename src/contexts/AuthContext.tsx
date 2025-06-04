@@ -10,16 +10,24 @@ interface Profile {
   avatar_url: string | null;
 }
 
+type UserRole = 'admin' | 'tech' | 'service_desk';
+
 interface AuthContextType {
   user: User | null;
   profile: Profile | null;
   session: Session | null;
+  userRoles: UserRole[];
   isAuthenticated: boolean;
   loading: boolean;
   signUp: (email: string, password: string, metadata?: { username?: string; full_name?: string }) => Promise<{ error: any }>;
   signIn: (email: string, password: string) => Promise<{ error: any }>;
   signOut: () => Promise<void>;
   updateProfile: (updates: Partial<Profile>) => Promise<{ error: any }>;
+  hasRole: (role: UserRole) => boolean;
+  isAdmin: () => boolean;
+  assignRole: (userId: string, role: UserRole) => Promise<{ error: any }>;
+  removeRole: (userId: string, role: UserRole) => Promise<{ error: any }>;
+  fetchUserRoles: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -28,6 +36,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [session, setSession] = useState<Session | null>(null);
+  const [userRoles, setUserRoles] = useState<UserRole[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -38,12 +47,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setUser(session?.user ?? null);
         
         if (session?.user) {
-          // Fetch user profile
+          // Fetch user profile and roles
           setTimeout(async () => {
             await fetchUserProfile(session.user.id);
+            await fetchUserRoles();
           }, 0);
         } else {
           setProfile(null);
+          setUserRoles([]);
         }
         
         setLoading(false);
@@ -56,6 +67,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setUser(session?.user ?? null);
       if (session?.user) {
         fetchUserProfile(session.user.id);
+        fetchUserRoles();
       }
       setLoading(false);
     });
@@ -79,6 +91,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setProfile(data);
     } catch (error) {
       console.error('Error fetching profile:', error);
+    }
+  };
+
+  const fetchUserRoles = async () => {
+    if (!user) return;
+
+    try {
+      const { data, error } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', user.id);
+
+      if (error) {
+        console.error('Error fetching user roles:', error);
+        return;
+      }
+
+      setUserRoles(data?.map(item => item.role) || []);
+    } catch (error) {
+      console.error('Error fetching user roles:', error);
     }
   };
 
@@ -111,6 +143,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setUser(null);
     setProfile(null);
     setSession(null);
+    setUserRoles([]);
   };
 
   const updateProfile = async (updates: Partial<Profile>) => {
@@ -131,17 +164,61 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return { error };
   };
 
+  const hasRole = (role: UserRole): boolean => {
+    return userRoles.includes(role);
+  };
+
+  const isAdmin = (): boolean => {
+    return hasRole('admin');
+  };
+
+  const assignRole = async (userId: string, role: UserRole) => {
+    if (!isAdmin()) {
+      return { error: new Error('Only admins can assign roles') };
+    }
+
+    const { error } = await supabase
+      .from('user_roles')
+      .insert({
+        user_id: userId,
+        role: role,
+        assigned_by: user?.id
+      });
+
+    return { error };
+  };
+
+  const removeRole = async (userId: string, role: UserRole) => {
+    if (!isAdmin()) {
+      return { error: new Error('Only admins can remove roles') };
+    }
+
+    const { error } = await supabase
+      .from('user_roles')
+      .delete()
+      .eq('user_id', userId)
+      .eq('role', role);
+
+    return { error };
+  };
+
   return (
     <AuthContext.Provider value={{
       user,
       profile,
       session,
+      userRoles,
       isAuthenticated: !!user,
       loading,
       signUp,
       signIn,
       signOut,
-      updateProfile
+      updateProfile,
+      hasRole,
+      isAdmin,
+      assignRole,
+      removeRole,
+      fetchUserRoles
     }}>
       {children}
     </AuthContext.Provider>
