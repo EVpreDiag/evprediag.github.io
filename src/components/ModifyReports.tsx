@@ -203,7 +203,7 @@ const ModifyReports = () => {
           </div>
         </div>
       </header>
-
+    </div>
       <div className="p-6 max-w-6xl mx-auto">
 
         {error && (
