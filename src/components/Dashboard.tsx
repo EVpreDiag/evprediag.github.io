@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
@@ -11,7 +10,8 @@ import {
   Zap,
   Car,
   BarChart3,
-  Settings
+  Settings,
+  Plug
 } from 'lucide-react';
 
 const Dashboard = () => {
@@ -26,10 +26,18 @@ const Dashboard = () => {
   const dashboardCards = [
     {
       title: 'EV Diagnostic Form',
-      description: 'Complete pre-check diagnostic assessment',
-      icon: FileText,
+      description: 'Complete diagnostic assessment for electric vehicles',
+      icon: Battery,
       path: '/diagnostic-form',
       color: 'from-blue-600 to-blue-700',
+      available: true
+    },
+    {
+      title: 'PHEV Diagnostic Form',
+      description: 'Complete diagnostic assessment for plug-in hybrid vehicles',
+      icon: Plug,
+      path: '/phev-diagnostic-form',
+      color: 'from-emerald-600 to-emerald-700',
       available: true
     },
     {
@@ -125,13 +133,19 @@ const Dashboard = () => {
             Quick Actions
           </h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <button className="flex items-center space-x-3 p-3 bg-slate-700/50 rounded-lg hover:bg-slate-700 transition-colors text-left">
-              <FileText className="w-5 h-5 text-blue-400" />
-              <span className="text-white">Start New Diagnostic</span>
+            <button 
+              onClick={() => navigate('/diagnostic-form')}
+              className="flex items-center space-x-3 p-3 bg-slate-700/50 rounded-lg hover:bg-slate-700 transition-colors text-left"
+            >
+              <Battery className="w-5 h-5 text-blue-400" />
+              <span className="text-white">Start EV Diagnostic</span>
             </button>
-            <button className="flex items-center space-x-3 p-3 bg-slate-700/50 rounded-lg hover:bg-slate-700 transition-colors text-left">
-              <Search className="w-5 h-5 text-green-400" />
-              <span className="text-white">Quick Search</span>
+            <button 
+              onClick={() => navigate('/phev-diagnostic-form')}
+              className="flex items-center space-x-3 p-3 bg-slate-700/50 rounded-lg hover:bg-slate-700 transition-colors text-left"
+            >
+              <Plug className="w-5 h-5 text-emerald-400" />
+              <span className="text-white">Start PHEV Diagnostic</span>
             </button>
           </div>
         </div>

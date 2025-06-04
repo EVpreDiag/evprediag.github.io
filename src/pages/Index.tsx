@@ -4,6 +4,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import LoginPage from '../components/LoginPage';
 import Dashboard from '../components/Dashboard';
 import DiagnosticForm from '../components/DiagnosticForm';
+import PHEVDiagnosticForm from '../components/PHEVDiagnosticForm';
 import SearchRecords from '../components/SearchRecords';
 import UserManagement from '../components/UserManagement';
 import PrintSummary from '../components/PrintSummary';
@@ -28,6 +29,11 @@ const Index = () => {
           <Route path="/diagnostic-form" element={
             <ProtectedRoute>
               <DiagnosticForm />
+            </ProtectedRoute>
+          } />
+          <Route path="/phev-diagnostic-form" element={
+            <ProtectedRoute>
+              <PHEVDiagnosticForm />
             </ProtectedRoute>
           } />
           <Route path="/search-records" element={
