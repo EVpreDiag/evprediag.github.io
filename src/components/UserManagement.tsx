@@ -1,11 +1,11 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../integrations/supabase/client';
-import { ArrowLeft, Users, Plus, Edit, Trash2, Shield, User } from 'lucide-react';
+import { ArrowLeft, Users, Plus, Edit, Trash2, Shield, User, Filter, Mail } from 'lucide-react';
 
 type UserRole = 'admin' | 'tech' | 'service_desk';
+type FilterType = 'all' | 'with_roles' | 'without_roles' | 'without_profiles';
 
 interface SystemUser {
   id: string;
@@ -14,15 +14,19 @@ interface SystemUser {
   full_name: string | null;
   created_at: string;
   roles: UserRole[];
+  hasProfile: boolean;
+  emailConfirmed?: boolean;
 }
 
 const UserManagement = () => {
   const navigate = useNavigate();
   const { isAdmin, assignRole, removeRole } = useAuth();
   const [users, setUsers] = useState<SystemUser[]>([]);
+  const [filteredUsers, setFilteredUsers] = useState<SystemUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [showRoleModal, setShowRoleModal] = useState(false);
   const [selectedUser, setSelectedUser] = useState<SystemUser | null>(null);
+  const [activeFilter, setActiveFilter] = useState<FilterType>('all');
 
   useEffect(() => {
     if (!isAdmin()) {
@@ -31,11 +35,27 @@ const UserManagement = () => {
     fetchUsers();
   }, [isAdmin]);
 
+  useEffect(() => {
+    filterUsers();
+  }, [users, activeFilter]);
+
   const fetchUsers = async () => {
     try {
       setLoading(true);
       
-      // Fetch all profiles (these are the users who have signed up)
+      // Fetch auth users metadata (this gives us emails and confirmation status)
+      const { data: authUsers, error: authError } = await supabase.auth.admin.listUsers();
+      
+      if (authError) {
+        console.error('Error fetching auth users:', authError);
+        // Fallback to just profiles if auth.admin is not available
+        await fetchProfilesOnly();
+        return;
+      }
+
+      console.log('Auth users fetched:', authUsers);
+
+      // Fetch all profiles
       const { data: profiles, error: profilesError } = await supabase
         .from('profiles')
         .select('*')
@@ -59,16 +79,20 @@ const UserManagement = () => {
 
       console.log('User roles fetched:', userRoles);
 
-      // Combine the data
-      const combinedUsers: SystemUser[] = (profiles || []).map(profile => {
-        const roles = userRoles?.filter(r => r.user_id === profile.id).map(r => r.role) || [];
+      // Combine all data
+      const combinedUsers: SystemUser[] = authUsers.users.map(authUser => {
+        const profile = profiles?.find(p => p.id === authUser.id);
+        const roles = userRoles?.filter(r => r.user_id === authUser.id).map(r => r.role) || [];
         
         return {
-          id: profile.id,
-          username: profile.username,
-          full_name: profile.full_name,
-          created_at: profile.created_at,
-          roles: roles as UserRole[]
+          id: authUser.id,
+          email: authUser.email,
+          username: profile?.username || null,
+          full_name: profile?.full_name || null,
+          created_at: authUser.created_at,
+          roles: roles as UserRole[],
+          hasProfile: !!profile,
+          emailConfirmed: authUser.email_confirmed_at !== null
         };
       });
 
@@ -76,9 +100,76 @@ const UserManagement = () => {
       setUsers(combinedUsers);
     } catch (error) {
       console.error('Error fetching users:', error);
+      // Fallback to profiles only
+      await fetchProfilesOnly();
     } finally {
       setLoading(false);
     }
+  };
+
+  // Fallback method if auth.admin is not available
+  const fetchProfilesOnly = async () => {
+    try {
+      // Fetch all profiles
+      const { data: profiles, error: profilesError } = await supabase
+        .from('profiles')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (profilesError) {
+        console.error('Error fetching profiles:', profilesError);
+        return;
+      }
+
+      // Fetch roles for all users
+      const { data: userRoles, error: rolesError } = await supabase
+        .from('user_roles')
+        .select('user_id, role');
+
+      if (rolesError) {
+        console.error('Error fetching user roles:', rolesError);
+      }
+
+      // Map profiles to system users format
+      const combinedUsers: SystemUser[] = (profiles || []).map(profile => {
+        const roles = userRoles?.filter(r => r.user_id === profile.id).map(r => r.role) || [];
+        
+        return {
+          id: profile.id,
+          email: undefined, // Not available from profiles
+          username: profile.username,
+          full_name: profile.full_name,
+          created_at: profile.created_at,
+          roles: roles as UserRole[],
+          hasProfile: true,
+          emailConfirmed: undefined
+        };
+      };
+
+      setUsers(combinedUsers);
+    } catch (error) {
+      console.error('Error in fallback fetch:', error);
+    }
+  };
+
+  const filterUsers = () => {
+    let filtered = [...users];
+
+    switch (activeFilter) {
+      case 'with_roles':
+        filtered = users.filter(user => user.roles.length > 0);
+        break;
+      case 'without_roles':
+        filtered = users.filter(user => user.roles.length === 0);
+        break;
+      case 'without_profiles':
+        filtered = users.filter(user => !user.hasProfile);
+        break;
+      default:
+        filtered = users;
+    }
+
+    setFilteredUsers(filtered);
   };
 
   const handleAssignRole = async (userId: string, role: UserRole) => {
@@ -125,6 +216,26 @@ const UserManagement = () => {
       case 'tech': return 'Technician';
       case 'service_desk': return 'Service Desk';
       default: return role;
+    }
+  };
+
+  const getFilterDisplayName = (filter: FilterType) => {
+    switch (filter) {
+      case 'all': return 'All Users';
+      case 'with_roles': return 'Users with Roles';
+      case 'without_roles': return 'Pending Users (No Roles)';
+      case 'without_profiles': return 'Users without Profiles';
+      default: return filter;
+    }
+  };
+
+  const getFilterCount = (filter: FilterType) => {
+    switch (filter) {
+      case 'all': return users.length;
+      case 'with_roles': return users.filter(u => u.roles.length > 0).length;
+      case 'without_roles': return users.filter(u => u.roles.length === 0).length;
+      case 'without_profiles': return users.filter(u => !u.hasProfile).length;
+      default: return 0;
     }
   };
 
@@ -176,6 +287,25 @@ const UserManagement = () => {
       </header>
 
       <div className="p-6">
+        {/* Filter Tabs */}
+        <div className="mb-6">
+          <div className="flex flex-wrap gap-2">
+            {(['all', 'without_roles', 'with_roles', 'without_profiles'] as FilterType[]).map((filter) => (
+              <button
+                key={filter}
+                onClick={() => setActiveFilter(filter)}
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  activeFilter === filter
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+                }`}
+              >
+                {getFilterDisplayName(filter)} ({getFilterCount(filter)})
+              </button>
+            ))}
+          </div>
+        </div>
+
         {/* Stats */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
           <div className="bg-slate-800 rounded-lg p-4 border border-slate-700">
@@ -185,6 +315,15 @@ const UserManagement = () => {
                 <p className="text-2xl font-bold text-white">{users.length}</p>
               </div>
               <Users className="w-8 h-8 text-blue-400" />
+            </div>
+          </div>
+          <div className="bg-slate-800 rounded-lg p-4 border border-slate-700">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-slate-400 text-sm">Pending Users</p>
+                <p className="text-2xl font-bold text-white">{users.filter(u => u.roles.length === 0).length}</p>
+              </div>
+              <Filter className="w-8 h-8 text-yellow-400" />
             </div>
           </div>
           <div className="bg-slate-800 rounded-lg p-4 border border-slate-700">
@@ -205,21 +344,14 @@ const UserManagement = () => {
               <User className="w-8 h-8 text-blue-400" />
             </div>
           </div>
-          <div className="bg-slate-800 rounded-lg p-4 border border-slate-700">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-slate-400 text-sm">Service Desk</p>
-                <p className="text-2xl font-bold text-white">{users.filter(u => u.roles.includes('service_desk')).length}</p>
-              </div>
-              <User className="w-8 h-8 text-green-400" />
-            </div>
-          </div>
         </div>
 
         {/* Users Table */}
         <div className="bg-slate-800 rounded-lg border border-slate-700 overflow-hidden">
           <div className="p-6 border-b border-slate-700">
-            <h2 className="text-lg font-semibold text-white">System Users</h2>
+            <h2 className="text-lg font-semibold text-white">
+              {getFilterDisplayName(activeFilter)} ({filteredUsers.length})
+            </h2>
           </div>
           
           <div className="overflow-x-auto">
@@ -227,27 +359,44 @@ const UserManagement = () => {
               <thead className="bg-slate-700/50">
                 <tr>
                   <th className="px-6 py-3 text-left text-xs font-medium text-slate-300 uppercase tracking-wider">User</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-300 uppercase tracking-wider">Email</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-slate-300 uppercase tracking-wider">Roles</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-300 uppercase tracking-wider">Status</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-slate-300 uppercase tracking-wider">Created</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-slate-300 uppercase tracking-wider">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-700">
-                {users.length === 0 ? (
+                {filteredUsers.length === 0 ? (
                   <tr>
-                    <td colSpan={4} className="px-6 py-8 text-center text-slate-400">
-                      No users found. Users will appear here after they sign up.
+                    <td colSpan={6} className="px-6 py-8 text-center text-slate-400">
+                      No users found matching the current filter.
                     </td>
                   </tr>
                 ) : (
-                  users.map((user) => (
+                  filteredUsers.map((user) => (
                     <tr key={user.id} className="hover:bg-slate-700/30">
                       <td className="px-6 py-4">
                         <div>
                           <div className="text-sm font-medium text-white">
                             {user.full_name || user.username || 'No Name'}
                           </div>
-                          <div className="text-sm text-slate-400">{user.username || 'No username'}</div>
+                          <div className="text-sm text-slate-400">
+                            {user.username || 'No username'}
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="flex items-center space-x-2">
+                          <Mail className="w-4 h-4 text-slate-400" />
+                          <span className="text-sm text-slate-300">
+                            {user.email || 'No email available'}
+                          </span>
+                          {user.emailConfirmed === false && (
+                            <span className="text-xs bg-yellow-600/20 text-yellow-400 px-2 py-1 rounded">
+                              Unverified
+                            </span>
+                          )}
                         </div>
                       </td>
                       <td className="px-6 py-4">
@@ -263,6 +412,20 @@ const UserManagement = () => {
                             ))
                           ) : (
                             <span className="text-slate-500 text-sm">No roles assigned</span>
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="flex flex-col gap-1">
+                          {!user.hasProfile && (
+                            <span className="text-xs bg-orange-600/20 text-orange-400 px-2 py-1 rounded">
+                              No Profile
+                            </span>
+                          )}
+                          {user.roles.length === 0 && (
+                            <span className="text-xs bg-yellow-600/20 text-yellow-400 px-2 py-1 rounded">
+                              Pending
+                            </span>
                           )}
                         </div>
                       </td>
@@ -296,8 +459,11 @@ const UserManagement = () => {
             <div className="p-6 border-b border-slate-700">
               <h3 className="text-lg font-semibold text-white">Manage Roles</h3>
               <p className="text-sm text-slate-400">
-                {selectedUser.full_name || selectedUser.username || 'Unknown User'}
+                {selectedUser.full_name || selectedUser.username || selectedUser.email || 'Unknown User'}
               </p>
+              {selectedUser.email && (
+                <p className="text-xs text-slate-500 mt-1">{selectedUser.email}</p>
+              )}
             </div>
             <div className="p-6 space-y-4">
               {(['admin', 'tech', 'service_desk'] as UserRole[]).map((role) => (
