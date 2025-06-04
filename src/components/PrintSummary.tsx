@@ -127,9 +127,19 @@ const PrintSummary = () => {
     window.print();
   };
 
-  const handleDownload = () => {
-    // In a real application, this would generate and download a PDF
-    alert('PDF download functionality would be implemented here');
+  const handleDownload = async () => {
+    const element = document.getElementById('print-section');
+    if (!element) return;
+    const html2pdf = (await import('html2pdf.js')).default;
+    html2pdf()
+      .from(element)
+      .set({
+        margin: 0.5,
+        filename: `diagnostic-report-${record?.id ?? 'report'}.pdf`,
+        html2canvas: { scale: 2 },
+        jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' }
+      })
+      .save();
   };
 
   const formatDate = (dateString: string) => {
@@ -476,7 +486,7 @@ const PrintSummary = () => {
       </header>
 
       {/* Print Content - Optimized Layout */}
-      <div className="p-6 max-w-6xl mx-auto print:p-4 print:max-w-none print:text-[10px]">
+      <div id="print-section" className="p-6 max-w-6xl mx-auto print:p-4 print:max-w-none print:text-[10px]">
         {/* Header Info - Compact */}
         <div className="bg-slate-800 print:bg-white print:border print:border-gray-300 rounded-lg p-6 print:p-3 mb-6 print:mb-3">
           <div className="flex items-center justify-between mb-4 print:mb-2">
@@ -552,9 +562,10 @@ const PrintSummary = () => {
             line-height: 1.2 !important;
           }
           
+          /* allow page breaks but keep sections intact within columns */
           .break-inside-avoid {
-            page-break-inside: avoid;
-            break-inside: avoid;
+            page-break-inside: auto;
+            break-inside: avoid-column;
           }
           
           .print\\:columns-2 {
