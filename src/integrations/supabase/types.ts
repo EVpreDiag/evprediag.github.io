@@ -74,7 +74,7 @@ export type Database = {
           smooth_regen_details: string | null
           specific_mode_details: string | null
           specific_mode_issues: string | null
-          technician_id: string | null
+          technician_id: string
           temperature_during_issue: string | null
           time_of_day: string | null
           towing_high_load: string | null
@@ -151,7 +151,7 @@ export type Database = {
           smooth_regen_details?: string | null
           specific_mode_details?: string | null
           specific_mode_issues?: string | null
-          technician_id?: string | null
+          technician_id: string
           temperature_during_issue?: string | null
           time_of_day?: string | null
           towing_high_load?: string | null
@@ -228,7 +228,7 @@ export type Database = {
           smooth_regen_details?: string | null
           specific_mode_details?: string | null
           specific_mode_issues?: string | null
-          technician_id?: string | null
+          technician_id?: string
           temperature_during_issue?: string | null
           time_of_day?: string | null
           towing_high_load?: string | null
@@ -322,7 +322,7 @@ export type Database = {
           sport_mode_power: string | null
           switching_details: string | null
           switching_lags: string | null
-          technician_id: string | null
+          technician_id: string
           temperature_details: string | null
           temperature_during_issue: string | null
           temperature_regulation: string | null
@@ -416,7 +416,7 @@ export type Database = {
           sport_mode_power?: string | null
           switching_details?: string | null
           switching_lags?: string | null
-          technician_id?: string | null
+          technician_id: string
           temperature_details?: string | null
           temperature_during_issue?: string | null
           temperature_regulation?: string | null
@@ -510,7 +510,7 @@ export type Database = {
           sport_mode_power?: string | null
           switching_details?: string | null
           switching_lags?: string | null
-          technician_id?: string | null
+          technician_id?: string
           temperature_details?: string | null
           temperature_during_issue?: string | null
           temperature_regulation?: string | null
@@ -595,6 +595,10 @@ export type Database = {
           _user_id: string
           _role: Database["public"]["Enums"]["app_role"]
         }
+        Returns: boolean
+      }
+      is_admin: {
+        Args: { user_id: string }
         Returns: boolean
       }
     }

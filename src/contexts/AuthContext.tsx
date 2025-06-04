@@ -2,6 +2,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '../integrations/supabase/client';
+import { secureLog } from '../utils/securityUtils';
 
 interface Profile {
   id: string;
@@ -43,7 +44,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        console.log('Auth state changed:', event, session?.user?.id);
+        secureLog(`Auth state changed: ${event}`, 'info');
         setSession(session);
         setUser(session?.user ?? null);
         
@@ -64,7 +65,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     // Get initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
-      console.log('Initial session check:', session?.user?.id);
+      secureLog('Initial session check completed', 'info');
       setSession(session);
       setUser(session?.user ?? null);
       
@@ -81,7 +82,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const fetchUserProfile = async (userId: string) => {
     try {
-      console.log('Fetching profile for user:', userId);
+      secureLog('Fetching user profile', 'info');
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
@@ -89,14 +90,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         .single();
 
       if (error && error.code !== 'PGRST116') {
-        console.error('Error fetching profile:', error);
+        secureLog('Error fetching profile', 'error', { error: error.message });
         return;
       }
 
-      console.log('Profile fetched:', data);
       setProfile(data);
     } catch (error) {
-      console.error('Error fetching profile:', error);
+      secureLog('Exception in fetchUserProfile', 'error', error);
     }
   };
 
@@ -104,27 +104,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const fetchId = userId || user?.id;
     
     if (!fetchId) {
-      console.log('No user ID available for fetching roles');
+      secureLog('No user ID available for fetching roles', 'warn');
       return;
     }
 
     try {
-      console.log('Fetching roles for user:', fetchId);
+      secureLog('Fetching user roles', 'info');
       const { data, error } = await supabase
         .from('user_roles')
         .select('role')
         .eq('user_id', fetchId);
 
       if (error) {
-        console.error('Error fetching user roles:', error);
+        secureLog('Error fetching user roles', 'error', { error: error.message });
         return;
       }
 
       const roles = data?.map(item => item.role as UserRole) || [];
-      console.log('Roles fetched:', roles);
       setUserRoles(roles);
     } catch (error) {
-      console.error('Error fetching user roles:', error);
+      secureLog('Exception in fetchUserRoles', 'error', error);
     }
   };
 
@@ -140,6 +139,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     });
     
+    if (error) {
+      secureLog('Sign up error', 'error', { error: error.message });
+    } else {
+      secureLog('Sign up successful', 'info');
+    }
+    
     return { error };
   };
 
@@ -149,10 +154,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       password
     });
     
+    if (error) {
+      secureLog('Sign in error', 'error', { error: error.message });
+    } else {
+      secureLog('Sign in successful', 'info');
+    }
+    
     return { error };
   };
 
   const signOut = async () => {
+    secureLog('User signing out', 'info');
     await supabase.auth.signOut();
     setUser(null);
     setProfile(null);
@@ -173,6 +185,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     if (!error && profile) {
       setProfile({ ...profile, ...updates });
+      secureLog('Profile updated successfully', 'info');
+    } else if (error) {
+      secureLog('Profile update error', 'error', { error: error.message });
     }
 
     return { error };
@@ -188,7 +203,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const assignRole = async (userId: string, role: UserRole) => {
     if (!isAdmin()) {
-      return { error: new Error('Only admins can assign roles') };
+      const error = new Error('Only admins can assign roles');
+      secureLog('Unauthorized role assignment attempt', 'warn');
+      return { error };
     }
 
     const { error } = await supabase
@@ -199,12 +216,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         assigned_by: user?.id
       });
 
+    if (error) {
+      secureLog('Role assignment error', 'error', { error: error.message });
+    } else {
+      secureLog(`Role ${role} assigned to user ${userId}`, 'info');
+    }
+
     return { error };
   };
 
   const removeRole = async (userId: string, role: UserRole) => {
     if (!isAdmin()) {
-      return { error: new Error('Only admins can remove roles') };
+      const error = new Error('Only admins can remove roles');
+      secureLog('Unauthorized role removal attempt', 'warn');
+      return { error };
     }
 
     const { error } = await supabase
@@ -212,6 +237,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       .delete()
       .eq('user_id', userId)
       .eq('role', role);
+
+    if (error) {
+      secureLog('Role removal error', 'error', { error: error.message });
+    } else {
+      secureLog(`Role ${role} removed from user ${userId}`, 'info');
+    }
 
     return { error };
   };
