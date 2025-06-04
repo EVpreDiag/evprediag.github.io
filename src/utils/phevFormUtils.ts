@@ -1,5 +1,6 @@
 
 import { PHEVFormData } from '../types/phevDiagnosticForm';
+import { supabase } from '../integrations/supabase/client';
 
 export const getInitialPHEVFormData = (): PHEVFormData => ({
   customerName: '',
@@ -89,21 +90,118 @@ export const getInitialPHEVFormData = (): PHEVFormData => ({
   hvacWeatherDetails: '',
   rangeRegenTemp: '',
   rangeRegenDetails: '',
-  moistureChargingPort: '',
-  uploadedFiles: []
+  moistureChargingPort: ''
 });
 
-export const savePHEVFormData = (formData: PHEVFormData) => {
-  const savedRecords = JSON.parse(localStorage.getItem('phevDiagnosticRecords') || '[]');
-  const newRecord = {
-    id: Date.now().toString(),
-    ...formData,
-    createdAt: new Date().toISOString(),
-    technician: JSON.parse(localStorage.getItem('evDiagUser') || '{}').username
+export const savePHEVFormData = async (formData: PHEVFormData): Promise<string> => {
+  const { data: { user } } = await supabase.auth.getUser();
+  
+  if (!user) {
+    throw new Error('User must be authenticated to save diagnostic records');
+  }
+
+  const recordData = {
+    customer_name: formData.customerName,
+    vin: formData.vin,
+    ro_number: formData.roNumber,
+    vehicle_make: formData.vehicleMake,
+    model: formData.model,
+    mileage: formData.mileage,
+    fuel_type: formData.fuelType,
+    fuel_source: formData.fuelSource,
+    petrol_vs_ev_usage: formData.petrolVsEvUsage,
+    fuel_economy_change: formData.fuelEconomyChange,
+    fuel_economy_details: formData.fuelEconomyDetails,
+    battery_charging: formData.batteryCharging,
+    battery_charging_details: formData.batteryChargingDetails,
+    charger_type: formData.chargerType,
+    aftermarket_charger: formData.aftermarketCharger,
+    aftermarket_details: formData.aftermarketDetails,
+    ev_range_expected: formData.evRangeExpected,
+    ev_range_details: formData.evRangeDetails,
+    excessive_ice_operation: formData.excessiveIceOperation,
+    ice_operation_details: formData.iceOperationDetails,
+    usual_charge_level: formData.usualChargeLevel,
+    dc_fast_frequency: formData.dcFastFrequency,
+    dc_fast_duration: formData.dcFastDuration,
+    charge_rate_drop: formData.chargeRateDrop,
+    charge_rate_details: formData.chargeRateDetails,
+    switching_lags: formData.switchingLags,
+    switching_details: formData.switchingDetails,
+    engine_start_ev_mode: formData.engineStartEVMode,
+    engine_start_details: formData.engineStartDetails,
+    abnormal_vibrations: formData.abnormalVibrations,
+    vibrations_details: formData.vibrationsDetails,
+    acceleration_issues: formData.accelerationIssues,
+    acceleration_details: formData.accelerationDetails,
+    engine_sound: formData.engineSound,
+    engine_sound_details: formData.engineSoundDetails,
+    burning_smell: formData.burningSmell,
+    burning_smell_details: formData.burningSmellDetails,
+    misfires: formData.misfires,
+    misfires_details: formData.misfiresDetails,
+    underbody_noise: formData.underbodyNoise,
+    underbody_details: formData.underbodyDetails,
+    road_condition_noises: formData.roadConditionNoises,
+    road_condition_details: formData.roadConditionDetails,
+    hvac_effectiveness: formData.hvacEffectiveness,
+    hvac_details: formData.hvacDetails,
+    fan_sounds: formData.fanSounds,
+    fan_details: formData.fanDetails,
+    temperature_regulation: formData.temperatureRegulation,
+    temperature_details: formData.temperatureDetails,
+    fuel_consumption: formData.fuelConsumption,
+    fuel_consumption_details: formData.fuelConsumptionDetails,
+    average_electric_range: formData.averageElectricRange,
+    infotainment_glitches: formData.infotainmentGlitches,
+    infotainment_details: formData.infotainmentDetails,
+    ota_updates: formData.otaUpdates,
+    broken_features: formData.brokenFeatures,
+    broken_features_details: formData.brokenFeaturesDetails,
+    light_flicker: formData.lightFlicker,
+    light_flicker_details: formData.lightFlickerDetails,
+    smooth_regen: formData.smoothRegen,
+    smooth_regen_details: formData.smoothRegenDetails,
+    regen_strength: formData.regenStrength,
+    regen_strength_details: formData.regenStrengthDetails,
+    deceleration_noises: formData.decelerationNoises,
+    deceleration_noises_details: formData.decelerationNoisesDetails,
+    towing_issues: formData.towingIssues,
+    towing_details: formData.towingDetails,
+    heavy_load_behavior: formData.heavyLoadBehavior,
+    heavy_load_details: formData.heavyLoadDetails,
+    regular_modes: formData.regularModes,
+    inconsistent_performance: formData.inconsistentPerformance,
+    inconsistent_details: formData.inconsistentDetails,
+    sport_mode_power: formData.sportModePower,
+    sport_mode_details: formData.sportModeDetails,
+    eco_ev_mode_limit: formData.ecoEvModeLimit,
+    eco_ev_mode_details: formData.ecoEvModeDetails,
+    mode_noise: formData.modeNoise,
+    mode_noise_details: formData.modeNoiseDetails,
+    mode_warnings: formData.modeWarnings,
+    mode_warnings_details: formData.modeWarningsDetails,
+    temperature_during_issue: formData.temperatureDuringIssue,
+    vehicle_parked: formData.vehicleParked,
+    time_of_day: formData.timeOfDay,
+    hvac_weather_difference: formData.hvacWeatherDifference,
+    hvac_weather_details: formData.hvacWeatherDetails,
+    range_regen_temp: formData.rangeRegenTemp,
+    range_regen_details: formData.rangeRegenDetails,
+    moisture_charging_port: formData.moistureChargingPort,
+    technician_id: user.id
   };
-  
-  savedRecords.push(newRecord);
-  localStorage.setItem('phevDiagnosticRecords', JSON.stringify(savedRecords));
-  
-  return newRecord.id;
+
+  const { data, error } = await supabase
+    .from('phev_diagnostic_records')
+    .insert(recordData)
+    .select('id')
+    .single();
+
+  if (error) {
+    console.error('Error saving PHEV diagnostic record:', error);
+    throw new Error('Failed to save diagnostic record');
+  }
+
+  return data.id;
 };

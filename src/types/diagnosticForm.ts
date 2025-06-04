@@ -90,9 +90,6 @@ export interface FormData {
   hvacWeatherDetails: string;
   rangeRegenTemp: string;
   moistureChargingPort: string;
-  
-  // File uploads
-  uploadedFiles: File[];
 }
 
 export interface FormProps {

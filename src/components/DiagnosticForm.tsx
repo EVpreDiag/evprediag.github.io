@@ -1,20 +1,20 @@
-
 import React, { useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Save } from 'lucide-react';
+import { ArrowLeft, Save, Loader2 } from 'lucide-react';
 import { FormData } from '../types/diagnosticForm';
 import { getInitialFormData, saveFormData } from '../utils/formUtils';
 import FormSection from './diagnostic/FormSection';
 import GeneralInfoSection from './diagnostic/GeneralInfoSection';
 import BatterySection from './diagnostic/BatterySection';
 import DrivetrainSection from './diagnostic/DrivetrainSection';
-import FileUploadSection from './diagnostic/FileUploadSection';
 import YesNoQuestion from './diagnostic/YesNoQuestion';
 
 const DiagnosticForm = () => {
   const navigate = useNavigate();
   const [formData, setFormData] = useState<FormData>(getInitialFormData());
   const [expandedSections, setExpandedSections] = useState<string[]>(['general']);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   const toggleSection = useCallback((section: string) => {
     setExpandedSections(prev => 
@@ -39,19 +39,20 @@ const DiagnosticForm = () => {
     });
   }, []);
 
-  const handleFileUpload = useCallback((files: FileList | null) => {
-    if (files) {
-      setFormData(prev => ({
-        ...prev,
-        uploadedFiles: [...prev.uploadedFiles, ...Array.from(files)]
-      }));
-    }
-  }, []);
-
-  const handleSubmit = useCallback((e: React.FormEvent) => {
+  const handleSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
-    const recordId = saveFormData(formData);
-    navigate(`/print-summary/${recordId}`);
+    setIsSubmitting(true);
+    setSubmitError(null);
+
+    try {
+      const recordId = await saveFormData(formData);
+      navigate(`/print-summary/${recordId}`);
+    } catch (error) {
+      console.error('Error saving form:', error);
+      setSubmitError(error instanceof Error ? error.message : 'Failed to save diagnostic record');
+    } finally {
+      setIsSubmitting(false);
+    }
   }, [formData, navigate]);
 
   const handleBackToDashboard = useCallback((e: React.MouseEvent) => {
@@ -490,34 +491,37 @@ const DiagnosticForm = () => {
           </div>
         </FormSection>
 
-        {/* File Upload Section */}
-        <FormSection 
-          title="Evidence Upload" 
-          sectionKey="upload"
-          expandedSections={expandedSections}
-          onToggleSection={toggleSection}
-        >
-          <FileUploadSection 
-            formData={formData}
-            onFileUpload={handleFileUpload}
-          />
-        </FormSection>
-
         {/* Submit Button */}
         <div className="flex justify-end space-x-4 pt-6">
+          {submitError && (
+            <div className="text-red-400 text-sm mr-4 self-center">
+              {submitError}
+            </div>
+          )}
           <button
             type="button"
             onClick={handleBackToDashboard}
             className="px-6 py-3 bg-slate-700 hover:bg-slate-600 text-white rounded-lg transition-colors"
+            disabled={isSubmitting}
           >
             Cancel
           </button>
           <button
             type="submit"
-            className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors flex items-center space-x-2"
+            disabled={isSubmitting}
+            className="px-6 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-800 disabled:cursor-not-allowed text-white rounded-lg transition-colors flex items-center space-x-2"
           >
-            <Save className="w-5 h-5" />
-            <span>Save & Print</span>
+            {isSubmitting ? (
+              <>
+                <Loader2 className="w-5 h-5 animate-spin" />
+                <span>Saving...</span>
+              </>
+            ) : (
+              <>
+                <Save className="w-5 h-5" />
+                <span>Save & Print</span>
+              </>
+            )}
           </button>
         </div>
       </form>

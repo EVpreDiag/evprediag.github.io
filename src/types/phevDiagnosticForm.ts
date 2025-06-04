@@ -113,9 +113,6 @@ export interface PHEVFormData {
   rangeRegenTemp: string;
   rangeRegenDetails: string;
   moistureChargingPort: string;
-  
-  // File uploads
-  uploadedFiles: File[];
 }
 
 export interface PHEVFormProps {
