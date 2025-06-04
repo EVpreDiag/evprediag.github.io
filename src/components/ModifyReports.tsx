@@ -143,14 +143,27 @@ const ModifyReports = () => {
       setSaveSuccess(false);
 
       console.log('Saving changes for record:', selectedRecord.id);
+      console.log('Edit form data:', editForm);
 
       const tableName = selectedRecord.record_type === 'ev' ? 'ev_diagnostic_records' : 'phev_diagnostic_records';
       
-      // Prepare update data - exclude non-editable fields
-      const { id, created_at, technician_id, record_type, ...updateData } = editForm;
-      updateData.updated_at = new Date().toISOString();
+      // Prepare update data - exclude non-editable fields and handle schema differences
+      const { id, created_at, technician_id, record_type, make_model, ...updateData } = editForm;
+      
+      // Handle PHEV vs EV schema differences
+      if (selectedRecord.record_type === 'phev') {
+        // For PHEV, we need to handle vehicle_make and model separately
+        // Don't include make_model in the update data for PHEV
+        updateData.updated_at = new Date().toISOString();
+      } else {
+        // For EV, include make_model in update data
+        if (editForm.make_model !== undefined) {
+          updateData.make_model = editForm.make_model;
+        }
+        updateData.updated_at = new Date().toISOString();
+      }
 
-      console.log('Update data prepared:', updateData);
+      console.log('Final update data for', tableName, ':', updateData);
 
       // Update the record in the database
       const { error: updateError, data: updatedData } = await supabase
@@ -174,8 +187,8 @@ const ModifyReports = () => {
             ...record,
             ...updateData,
             make_model: selectedRecord.record_type === 'ev' 
-              ? updateData.make_model 
-              : `${updateData.vehicle_make || ''} ${updateData.model || ''}`.trim()
+              ? updateData.make_model || record.make_model
+              : `${updateData.vehicle_make || record.vehicle_make || ''} ${updateData.model || record.model || ''}`.trim()
           };
           return updatedRecord;
         }
@@ -464,7 +477,7 @@ const ModifyReports = () => {
         <div className="space-y-6">
           {renderSelectInput("Fuel Type", "fuel_type", ["Regular (87)", "Mid-grade (89)", "Premium (91-93)", "E85", "Diesel"])}
           {renderSelectInput("Fuel Source", "fuel_source", ["Brand station", "Independent station", "Costco/warehouse", "Various"])}
-          {renderSelectInput("Petrol vs EV Usage", "petrol_vs_ev_usage", ["Mostly EV", "Mostly Petrol", "50/50", "Varies"])}
+          {renderTextInput("Petrol vs EV Usage", "petrol_vs_ev_usage")}
           {renderYesNoQuestion("Fuel Economy Change", "fuel_economy_change", "fuel_economy_details")}
         </div>
       ))}
