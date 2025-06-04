@@ -42,20 +42,9 @@ const UserManagement = () => {
   const fetchUsers = async () => {
     try {
       setLoading(true);
+      console.log('Fetching users from profiles and user_roles tables...');
       
-      // Fetch auth users metadata (this gives us emails and confirmation status)
-      const { data: authUsers, error: authError } = await supabase.auth.admin.listUsers();
-      
-      if (authError) {
-        console.error('Error fetching auth users:', authError);
-        // Fallback to just profiles if auth.admin is not available
-        await fetchProfilesOnly();
-        return;
-      }
-
-      console.log('Auth users fetched:', authUsers);
-
-      // Fetch all profiles
+      // Fetch all profiles (this contains all users who have signed up)
       const { data: profiles, error: profilesError } = await supabase
         .from('profiles')
         .select('*')
@@ -79,20 +68,19 @@ const UserManagement = () => {
 
       console.log('User roles fetched:', userRoles);
 
-      // Combine all data
-      const combinedUsers: SystemUser[] = authUsers.users.map(authUser => {
-        const profile = profiles?.find(p => p.id === authUser.id);
-        const roles = userRoles?.filter(r => r.user_id === authUser.id).map(r => r.role) || [];
+      // Combine profiles with their roles
+      const combinedUsers: SystemUser[] = (profiles || []).map(profile => {
+        const roles = userRoles?.filter(r => r.user_id === profile.id).map(r => r.role) || [];
         
         return {
-          id: authUser.id,
-          email: authUser.email,
-          username: profile?.username || null,
-          full_name: profile?.full_name || null,
-          created_at: authUser.created_at,
+          id: profile.id,
+          email: profile.username, // In the profiles table, username often contains the email
+          username: profile.username,
+          full_name: profile.full_name,
+          created_at: profile.created_at,
           roles: roles as UserRole[],
-          hasProfile: !!profile,
-          emailConfirmed: authUser.email_confirmed_at !== null
+          hasProfile: true, // All these users have profiles since we fetched from profiles table
+          emailConfirmed: undefined // This info isn't available from profiles table
         };
       });
 
@@ -100,55 +88,8 @@ const UserManagement = () => {
       setUsers(combinedUsers);
     } catch (error) {
       console.error('Error fetching users:', error);
-      // Fallback to profiles only
-      await fetchProfilesOnly();
     } finally {
       setLoading(false);
-    }
-  };
-
-  // Fallback method if auth.admin is not available
-  const fetchProfilesOnly = async () => {
-    try {
-      // Fetch all profiles
-      const { data: profiles, error: profilesError } = await supabase
-        .from('profiles')
-        .select('*')
-        .order('created_at', { ascending: false });
-
-      if (profilesError) {
-        console.error('Error fetching profiles:', profilesError);
-        return;
-      }
-
-      // Fetch roles for all users
-      const { data: userRoles, error: rolesError } = await supabase
-        .from('user_roles')
-        .select('user_id, role');
-
-      if (rolesError) {
-        console.error('Error fetching user roles:', rolesError);
-      }
-
-      // Map profiles to system users format
-      const combinedUsers: SystemUser[] = (profiles || []).map(profile => {
-        const roles = userRoles?.filter(r => r.user_id === profile.id).map(r => r.role) || [];
-        
-        return {
-          id: profile.id,
-          email: undefined, // Not available from profiles
-          username: profile.username,
-          full_name: profile.full_name,
-          created_at: profile.created_at,
-          roles: roles as UserRole[],
-          hasProfile: true,
-          emailConfirmed: undefined
-        };
-      });
-
-      setUsers(combinedUsers);
-    } catch (error) {
-      console.error('Error in fallback fetch:', error);
     }
   };
 
@@ -163,6 +104,8 @@ const UserManagement = () => {
         filtered = users.filter(user => user.roles.length === 0);
         break;
       case 'without_profiles':
+        // Since we're fetching from profiles table, all users have profiles
+        // This filter will show empty results, but we keep it for consistency
         filtered = users.filter(user => !user.hasProfile);
         break;
       default:
