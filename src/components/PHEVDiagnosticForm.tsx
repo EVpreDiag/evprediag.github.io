@@ -1,8 +1,11 @@
-import React, { useState, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useCallback, useEffect } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, Save, Loader2 } from 'lucide-react';
 import { PHEVFormData } from '../types/phevDiagnosticForm';
 import { getInitialPHEVFormData, savePHEVFormData } from '../utils/phevFormUtils';
+import { supabase } from '../integrations/supabase/client';
+import { useAuth } from '../contexts/AuthContext';
+import { checkRecordOwnership } from '../utils/securityUtils';
 import FormSection from './diagnostic/FormSection';
 import PHEVGeneralInfoSection from './diagnostic/phev/PHEVGeneralInfoSection';
 import PHEVFuelUsageSection from './diagnostic/phev/PHEVFuelUsageSection';
@@ -10,11 +13,17 @@ import PHEVYesNoQuestion from './diagnostic/phev/PHEVYesNoQuestion';
 
 const PHEVDiagnosticForm = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const { user, isAdmin } = useAuth();
+  const editId = searchParams.get('edit');
+  const isEditMode = !!editId;
+
   const [formData, setFormData] = useState<PHEVFormData>(getInitialPHEVFormData());
   const [expandedSections, setExpandedSections] = useState<string[]>(['general']);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
-
+  const [loading, setLoading] = useState(isEditMode);
+  
   const toggleSection = useCallback((section: string) => {
     setExpandedSections(prev => 
       prev.includes(section) 
@@ -38,26 +47,271 @@ const PHEVDiagnosticForm = () => {
     });
   }, []);
 
+  // Load existing record data if editing
+  useEffect(() => {
+    if (isEditMode && editId && user) {
+      loadExistingRecord(editId);
+    }
+  }, [isEditMode, editId, user]);
+
+  const loadExistingRecord = async (recordId: string) => {
+    try {
+      setLoading(true);
+      setSubmitError(null);
+
+      if (!isAdmin()) {
+        const hasOwnership = await checkRecordOwnership(recordId, 'phev_diagnostic_records');
+        if (!hasOwnership) {
+          setSubmitError('You can only edit your own records.');
+          return;
+        }
+      }
+
+      const { data, error } = await supabase
+        .from('phev_diagnostic_records')
+        .select('*')
+        .eq('id', recordId)
+        .single();
+
+      if (error) {
+        console.error('Error loading PHEV record for edit:', error);
+        throw error;
+      }
+
+      if (data) {
+        const loadedFormData: PHEVFormData = {
+          ...getInitialPHEVFormData(),
+          customerName: data.customer_name || '',
+          vin: data.vin || '',
+          roNumber: data.ro_number || '',
+          vehicleMake: data.vehicle_make || '',
+          model: data.model || '',
+          mileage: data.mileage || '',
+          fuelType: data.fuel_type || '',
+          fuelSource: data.fuel_source || '',
+          petrolVsEvUsage: data.petrol_vs_ev_usage || '',
+          fuelEconomyChange: data.fuel_economy_change || '',
+          fuelEconomyDetails: data.fuel_economy_details || '',
+          batteryCharging: data.battery_charging || '',
+          batteryChargingDetails: data.battery_charging_details || '',
+          chargerType: data.charger_type || '',
+          aftermarketCharger: data.aftermarket_charger || '',
+          aftermarketDetails: data.aftermarket_details || '',
+          evRangeExpected: data.ev_range_expected || '',
+          evRangeDetails: data.ev_range_details || '',
+          excessiveIceOperation: data.excessive_ice_operation || '',
+          iceOperationDetails: data.ice_operation_details || '',
+          usualChargeLevel: data.usual_charge_level || '',
+          dcFastFrequency: data.dc_fast_frequency || '',
+          dcFastDuration: data.dc_fast_duration || '',
+          chargeRateDrop: data.charge_rate_drop || '',
+          chargeRateDetails: data.charge_rate_details || '',
+          switchingLags: data.switching_lags || '',
+          switchingDetails: data.switching_details || '',
+          engineStartEVMode: data.engine_start_ev_mode || '',
+          engineStartDetails: data.engine_start_details || '',
+          abnormalVibrations: data.abnormal_vibrations || '',
+          vibrationsDetails: data.vibrations_details || '',
+          accelerationIssues: data.acceleration_issues || '',
+          accelerationDetails: data.acceleration_details || '',
+          engineSound: data.engine_sound || '',
+          engineSoundDetails: data.engine_sound_details || '',
+          burningSmell: data.burning_smell || '',
+          burningSmellDetails: data.burning_smell_details || '',
+          misfires: data.misfires || '',
+          misfiresDetails: data.misfires_details || '',
+          underbodyNoise: data.underbody_noise || '',
+          underbodyDetails: data.underbody_details || '',
+          roadConditionNoises: data.road_condition_noises || '',
+          roadConditionDetails: data.road_condition_details || '',
+          hvacEffectiveness: data.hvac_effectiveness || '',
+          hvacDetails: data.hvac_details || '',
+          fanSounds: data.fan_sounds || '',
+          fanDetails: data.fan_details || '',
+          temperatureRegulation: data.temperature_regulation || '',
+          temperatureDetails: data.temperature_details || '',
+          fuelConsumption: data.fuel_consumption || '',
+          fuelConsumptionDetails: data.fuel_consumption_details || '',
+          averageElectricRange: data.average_electric_range || '',
+          infotainmentGlitches: data.infotainment_glitches || '',
+          infotainmentDetails: data.infotainment_details || '',
+          otaUpdates: data.ota_updates || '',
+          brokenFeatures: data.broken_features || '',
+          brokenFeaturesDetails: data.broken_features_details || '',
+          lightFlicker: data.light_flicker || '',
+          lightFlickerDetails: data.light_flicker_details || '',
+          smoothRegen: data.smooth_regen || '',
+          smoothRegenDetails: data.smooth_regen_details || '',
+          regenStrength: data.regen_strength || '',
+          regenStrengthDetails: data.regen_strength_details || '',
+          decelerationNoises: data.deceleration_noises || '',
+          decelerationNoisesDetails: data.deceleration_noises_details || '',
+          towingIssues: data.towing_issues || '',
+          towingDetails: data.towing_details || '',
+          heavyLoadBehavior: data.heavy_load_behavior || '',
+          heavyLoadDetails: data.heavy_load_details || '',
+          regularModes: data.regular_modes || [],
+          inconsistentPerformance: data.inconsistent_performance || '',
+          inconsistentDetails: data.inconsistent_details || '',
+          sportModePower: data.sport_mode_power || '',
+          sportModeDetails: data.sport_mode_details || '',
+          ecoEvModeLimit: data.eco_ev_mode_limit || '',
+          ecoEvModeDetails: data.eco_ev_mode_details || '',
+          modeNoise: data.mode_noise || '',
+          modeNoiseDetails: data.mode_noise_details || '',
+          modeWarnings: data.mode_warnings || '',
+          modeWarningsDetails: data.mode_warnings_details || '',
+          temperatureDuringIssue: data.temperature_during_issue || '',
+          vehicleParked: data.vehicle_parked || '',
+          timeOfDay: data.time_of_day || '',
+          hvacWeatherDifference: data.hvac_weather_difference || '',
+          hvacWeatherDetails: data.hvac_weather_details || '',
+          rangeRegenTemp: data.range_regen_temp || '',
+          rangeRegenDetails: data.range_regen_details || '',
+          moistureChargingPort: data.moisture_charging_port || ''
+        };
+
+        setFormData(loadedFormData);
+      }
+    } catch (error) {
+      console.error('Error loading record for edit:', error);
+      setSubmitError('Failed to load record for editing. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
     setSubmitError(null);
 
     try {
-      const recordId = await savePHEVFormData(formData);
-      navigate(`/print-summary/${recordId}`);
+      let recordId;
+
+      if (isEditMode && editId) {
+        const { error } = await supabase
+          .from('phev_diagnostic_records')
+          .update({
+            customer_name: formData.customerName,
+            vin: formData.vin,
+            ro_number: formData.roNumber,
+            vehicle_make: formData.vehicleMake,
+            model: formData.model,
+            mileage: formData.mileage,
+            fuel_type: formData.fuelType,
+            fuel_source: formData.fuelSource,
+            petrol_vs_ev_usage: formData.petrolVsEvUsage,
+            fuel_economy_change: formData.fuelEconomyChange,
+            fuel_economy_details: formData.fuelEconomyDetails,
+            battery_charging: formData.batteryCharging,
+            battery_charging_details: formData.batteryChargingDetails,
+            charger_type: formData.chargerType,
+            aftermarket_charger: formData.aftermarketCharger,
+            aftermarket_details: formData.aftermarketDetails,
+            ev_range_expected: formData.evRangeExpected,
+            ev_range_details: formData.evRangeDetails,
+            excessive_ice_operation: formData.excessiveIceOperation,
+            ice_operation_details: formData.iceOperationDetails,
+            usual_charge_level: formData.usualChargeLevel,
+            dc_fast_frequency: formData.dcFastFrequency,
+            dc_fast_duration: formData.dcFastDuration,
+            charge_rate_drop: formData.chargeRateDrop,
+            charge_rate_details: formData.chargeRateDetails,
+            switching_lags: formData.switchingLags,
+            switching_details: formData.switchingDetails,
+            engine_start_ev_mode: formData.engineStartEVMode,
+            engine_start_details: formData.engineStartDetails,
+            abnormal_vibrations: formData.abnormalVibrations,
+            vibrations_details: formData.vibrationsDetails,
+            acceleration_issues: formData.accelerationIssues,
+            acceleration_details: formData.accelerationDetails,
+            engine_sound: formData.engineSound,
+            engine_sound_details: formData.engineSoundDetails,
+            burning_smell: formData.burningSmell,
+            burning_smell_details: formData.burningSmellDetails,
+            misfires: formData.misfires,
+            misfires_details: formData.misfiresDetails,
+            underbody_noise: formData.underbodyNoise,
+            underbody_details: formData.underbodyDetails,
+            road_condition_noises: formData.roadConditionNoises,
+            road_condition_details: formData.roadConditionDetails,
+            hvac_effectiveness: formData.hvacEffectiveness,
+            hvac_details: formData.hvacDetails,
+            fan_sounds: formData.fanSounds,
+            fan_details: formData.fanDetails,
+            temperature_regulation: formData.temperatureRegulation,
+            temperature_details: formData.temperatureDetails,
+            fuel_consumption: formData.fuelConsumption,
+            fuel_consumption_details: formData.fuelConsumptionDetails,
+            average_electric_range: formData.averageElectricRange,
+            infotainment_glitches: formData.infotainmentGlitches,
+            infotainment_details: formData.infotainmentDetails,
+            ota_updates: formData.otaUpdates,
+            broken_features: formData.brokenFeatures,
+            broken_features_details: formData.brokenFeaturesDetails,
+            light_flicker: formData.lightFlicker,
+            light_flicker_details: formData.lightFlickerDetails,
+            smooth_regen: formData.smoothRegen,
+            smooth_regen_details: formData.smoothRegenDetails,
+            regen_strength: formData.regenStrength,
+            regen_strength_details: formData.regenStrengthDetails,
+            deceleration_noises: formData.decelerationNoises,
+            deceleration_noises_details: formData.decelerationNoisesDetails,
+            towing_issues: formData.towingIssues,
+            towing_details: formData.towingDetails,
+            heavy_load_behavior: formData.heavyLoadBehavior,
+            heavy_load_details: formData.heavyLoadDetails,
+            regular_modes: formData.regularModes,
+            inconsistent_performance: formData.inconsistentPerformance,
+            inconsistent_details: formData.inconsistentDetails,
+            sport_mode_power: formData.sportModePower,
+            sport_mode_details: formData.sportModeDetails,
+            eco_ev_mode_limit: formData.ecoEvModeLimit,
+            eco_ev_mode_details: formData.ecoEvModeDetails,
+            mode_noise: formData.modeNoise,
+            mode_noise_details: formData.modeNoiseDetails,
+            mode_warnings: formData.modeWarnings,
+            mode_warnings_details: formData.modeWarningsDetails,
+            temperature_during_issue: formData.temperatureDuringIssue,
+            vehicle_parked: formData.vehicleParked,
+            time_of_day: formData.timeOfDay,
+            hvac_weather_difference: formData.hvacWeatherDifference,
+            hvac_weather_details: formData.hvacWeatherDetails,
+            range_regen_temp: formData.rangeRegenTemp,
+            range_regen_details: formData.rangeRegenDetails,
+            moisture_charging_port: formData.moistureChargingPort,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', editId);
+
+        if (error) throw error;
+        recordId = editId;
+      } else {
+        recordId = await savePHEVFormData(formData);
+      }
+
+      navigate(`/print-summary/phev/${recordId}`);
     } catch (error) {
       console.error('Error saving PHEV form:', error);
       setSubmitError(error instanceof Error ? error.message : 'Failed to save diagnostic record');
     } finally {
       setIsSubmitting(false);
     }
-  }, [formData, navigate]);
+  }, [formData, navigate, isEditMode, editId]);
 
   const handleBackToDashboard = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
     navigate('/dashboard');
   }, [navigate]);
+
+    if (loading) {
+    return (
+      <div className="min-h-screen bg-slate-900 flex items-center justify-center">
+        <div className="text-white">Loading record...</div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-slate-900">
