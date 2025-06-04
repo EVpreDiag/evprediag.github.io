@@ -2,16 +2,20 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Printer, Download, Battery, AlertTriangle } from 'lucide-react';
+import { supabase } from '../integrations/supabase/client';
 
 interface DiagnosticRecord {
   id: string;
-  customerName: string;
+  customer_name: string;
   vin: string;
-  roNumber: string;
-  makeModel: string;
+  ro_number: string;
+  make_model?: string;
+  vehicle_make?: string;
+  model?: string;
   mileage: string;
-  createdAt: string;
-  technician: string;
+  created_at: string;
+  technician_id: string;
+  record_type: 'ev' | 'phev';
   [key: string]: any;
 }
 
@@ -19,11 +23,69 @@ const PrintSummary = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const [record, setRecord] = useState<DiagnosticRecord | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const savedRecords = JSON.parse(localStorage.getItem('evDiagnosticRecords') || '[]');
-    const foundRecord = savedRecords.find((r: DiagnosticRecord) => r.id === id);
-    setRecord(foundRecord || null);
+    const fetchRecord = async () => {
+      if (!id) {
+        setError('No record ID provided');
+        setLoading(false);
+        return;
+      }
+
+      try {
+        // Try to fetch from EV diagnostic records first
+        const { data: evRecord, error: evError } = await supabase
+          .from('ev_diagnostic_records')
+          .select('*')
+          .eq('id', id)
+          .maybeSingle();
+
+        if (evRecord) {
+          setRecord({
+            ...evRecord,
+            customerName: evRecord.customer_name,
+            makeModel: evRecord.make_model,
+            createdAt: evRecord.created_at,
+            technician: evRecord.technician_id || 'Unknown',
+            record_type: 'ev'
+          });
+          setLoading(false);
+          return;
+        }
+
+        // If not found in EV records, try PHEV records
+        const { data: phevRecord, error: phevError } = await supabase
+          .from('phev_diagnostic_records')
+          .select('*')
+          .eq('id', id)
+          .maybeSingle();
+
+        if (phevRecord) {
+          setRecord({
+            ...phevRecord,
+            customerName: phevRecord.customer_name,
+            makeModel: `${phevRecord.vehicle_make || ''} ${phevRecord.model || ''}`.trim(),
+            createdAt: phevRecord.created_at,
+            technician: phevRecord.technician_id || 'Unknown',
+            record_type: 'phev'
+          });
+          setLoading(false);
+          return;
+        }
+
+        // If not found in either table
+        setError('Record not found');
+        setLoading(false);
+      } catch (err) {
+        console.error('Error fetching record:', err);
+        setError('Failed to fetch record');
+        setLoading(false);
+      }
+    };
+
+    fetchRecord();
   }, [id]);
 
   const handlePrint = () => {
@@ -54,69 +116,135 @@ const PrintSummary = () => {
   const getSectionSummary = () => {
     if (!record) return [];
     
-    const sections = [
-      {
-        title: 'Battery & Charging Issues',
-        issues: [
-          { label: 'Charging Issues at Home', value: record.chargingIssuesHome },
-          { label: 'Charging Issues at Public Stations', value: record.chargingIssuesPublic },
-          { label: 'Failed/Incomplete Charges', value: record.failedCharges },
-          { label: 'Range Drop', value: record.rangeDrop },
-          { label: 'Battery Warnings', value: record.batteryWarnings },
-          { label: 'Power Loss/EV Power Limited', value: record.powerLoss }
-        ]
-      },
-      {
-        title: 'Drivetrain & Performance',
-        issues: [
-          { label: 'Inconsistent Acceleration', value: record.consistentAcceleration === 'no' ? 'yes' : 'no' },
-          { label: 'Whining/Grinding Noises', value: record.whiningNoises },
-          { label: 'Jerking/Hesitation', value: record.jerkingHesitation }
-        ]
-      },
-      {
-        title: 'NVH (Noise, Vibration, Harshness)',
-        issues: [
-          { label: 'Vibrations', value: record.vibrations },
-          { label: 'Noises During Actions', value: record.noisesActions },
-          { label: 'Rattles/Thumps', value: record.rattlesRoads }
-        ]
-      },
-      {
-        title: 'Climate Control',
-        issues: [
-          { label: 'HVAC Performance Issues', value: record.hvacPerformance === 'no' ? 'yes' : 'no' },
-          { label: 'Smells/Noises from Vents', value: record.smellsNoises },
-          { label: 'Defogger Issues', value: record.defoggerPerformance === 'no' ? 'yes' : 'no' }
-        ]
-      },
-      {
-        title: 'Electrical & Software',
-        issues: [
-          { label: 'Infotainment Glitches', value: record.infotainmentGlitches },
-          { label: 'Features Broken After Update', value: record.brokenFeatures },
-          { label: 'Light Flicker/Abnormal Behavior', value: record.lightFlicker }
-        ]
-      },
-      {
-        title: 'Regenerative Braking',
-        issues: [
-          { label: 'Rough Regenerative Braking', value: record.smoothRegen === 'no' ? 'yes' : 'no' },
-          { label: 'Regen Strength Different', value: record.regenStrength },
-          { label: 'Deceleration Noises', value: record.decelerationNoises }
-        ]
-      }
-    ];
-
-    return sections;
+    if (record.record_type === 'ev') {
+      return [
+        {
+          title: 'Battery & Charging Issues',
+          issues: [
+            { label: 'Charging Issues at Home', value: record.charging_issues_home },
+            { label: 'Charging Issues at Public Stations', value: record.charging_issues_public },
+            { label: 'Failed/Incomplete Charges', value: record.failed_charges },
+            { label: 'Range Drop', value: record.range_drop },
+            { label: 'Battery Warnings', value: record.battery_warnings },
+            { label: 'Power Loss/EV Power Limited', value: record.power_loss }
+          ]
+        },
+        {
+          title: 'Drivetrain & Performance',
+          issues: [
+            { label: 'Inconsistent Acceleration', value: record.consistent_acceleration === 'no' ? 'yes' : 'no' },
+            { label: 'Whining/Grinding Noises', value: record.whining_noises },
+            { label: 'Jerking/Hesitation', value: record.jerking_hesitation }
+          ]
+        },
+        {
+          title: 'NVH (Noise, Vibration, Harshness)',
+          issues: [
+            { label: 'Vibrations', value: record.vibrations },
+            { label: 'Noises During Actions', value: record.noises_actions },
+            { label: 'Rattles/Thumps', value: record.rattles_roads }
+          ]
+        },
+        {
+          title: 'Climate Control',
+          issues: [
+            { label: 'HVAC Performance Issues', value: record.hvac_performance === 'no' ? 'yes' : 'no' },
+            { label: 'Smells/Noises from Vents', value: record.smells_noises },
+            { label: 'Defogger Issues', value: record.defogger_performance === 'no' ? 'yes' : 'no' }
+          ]
+        },
+        {
+          title: 'Electrical & Software',
+          issues: [
+            { label: 'Infotainment Glitches', value: record.infotainment_glitches },
+            { label: 'Features Broken After Update', value: record.broken_features },
+            { label: 'Light Flicker/Abnormal Behavior', value: record.light_flicker }
+          ]
+        },
+        {
+          title: 'Regenerative Braking',
+          issues: [
+            { label: 'Rough Regenerative Braking', value: record.smooth_regen === 'no' ? 'yes' : 'no' },
+            { label: 'Regen Strength Different', value: record.regen_strength },
+            { label: 'Deceleration Noises', value: record.deceleration_noises }
+          ]
+        }
+      ];
+    } else {
+      // PHEV sections
+      return [
+        {
+          title: 'Battery & Charging Issues',
+          issues: [
+            { label: 'Battery Charging Issues', value: record.battery_charging === 'no' ? 'yes' : 'no' },
+            { label: 'EV Range Not As Expected', value: record.ev_range_expected === 'no' ? 'yes' : 'no' },
+            { label: 'Excessive ICE Operation', value: record.excessive_ice_operation },
+            { label: 'Charge Rate Drop', value: record.charge_rate_drop }
+          ]
+        },
+        {
+          title: 'Hybrid Operation',
+          issues: [
+            { label: 'Switching Lags/Delays', value: record.switching_lags },
+            { label: 'Engine Start in EV Mode', value: record.engine_start_ev_mode },
+            { label: 'Abnormal Vibrations', value: record.abnormal_vibrations }
+          ]
+        },
+        {
+          title: 'Engine & Drivetrain',
+          issues: [
+            { label: 'Acceleration Issues', value: record.acceleration_issues },
+            { label: 'Engine Sound Different', value: record.engine_sound },
+            { label: 'Burning Smell', value: record.burning_smell },
+            { label: 'Misfires/Rough Running', value: record.misfires }
+          ]
+        },
+        {
+          title: 'Climate Control',
+          issues: [
+            { label: 'HVAC Effectiveness Issues', value: record.hvac_effectiveness === 'no' ? 'yes' : 'no' },
+            { label: 'Fan Sounds/Noises', value: record.fan_sounds },
+            { label: 'Temperature Regulation Issues', value: record.temperature_regulation === 'no' ? 'yes' : 'no' }
+          ]
+        },
+        {
+          title: 'Electrical & Software',
+          issues: [
+            { label: 'Infotainment Glitches', value: record.infotainment_glitches },
+            { label: 'Features Broken After Update', value: record.broken_features },
+            { label: 'Light Flicker/Abnormal Behavior', value: record.light_flicker }
+          ]
+        },
+        {
+          title: 'Regenerative Braking',
+          issues: [
+            { label: 'Rough Regenerative Braking', value: record.smooth_regen === 'no' ? 'yes' : 'no' },
+            { label: 'Regen Strength Different', value: record.regen_strength },
+            { label: 'Deceleration Noises', value: record.deceleration_noises }
+          ]
+        }
+      ];
+    }
   };
 
-  if (!record) {
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-slate-900 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-400 mx-auto mb-4"></div>
+          <h2 className="text-xl font-bold text-white mb-2">Loading Record</h2>
+          <p className="text-slate-400">Fetching diagnostic record...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error || !record) {
     return (
       <div className="min-h-screen bg-slate-900 flex items-center justify-center">
         <div className="text-center">
           <h2 className="text-xl font-bold text-white mb-2">Record Not Found</h2>
-          <p className="text-slate-400 mb-4">The requested diagnostic record could not be found.</p>
+          <p className="text-slate-400 mb-4">{error || 'The requested diagnostic record could not be found.'}</p>
           <button
             onClick={() => navigate('/search-records')}
             className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
@@ -173,7 +301,9 @@ const PrintSummary = () => {
             <div className="flex items-center space-x-3">
               <Battery className="w-8 h-8 text-blue-400 print:text-blue-600" />
               <div>
-                <h1 className="text-2xl font-bold text-white print:text-black">EV Diagnostic Report</h1>
+                <h1 className="text-2xl font-bold text-white print:text-black">
+                  {record.record_type === 'ev' ? 'EV' : 'PHEV'} Diagnostic Report
+                </h1>
                 <p className="text-slate-400 print:text-gray-600">Pre-Check Assessment Summary</p>
               </div>
             </div>
@@ -195,7 +325,7 @@ const PrintSummary = () => {
             </div>
             <div>
               <label className="block text-xs font-medium text-slate-400 print:text-gray-600 uppercase tracking-wider mb-1">RO Number</label>
-              <p className="text-white print:text-black">{record.roNumber}</p>
+              <p className="text-white print:text-black">{record.ro_number}</p>
             </div>
             <div>
               <label className="block text-xs font-medium text-slate-400 print:text-gray-600 uppercase tracking-wider mb-1">Make/Model</label>
@@ -239,11 +369,11 @@ const PrintSummary = () => {
           <div className="space-y-4 print:space-y-3">
             {/* Show only fields with details */}
             {Object.entries(record).filter(([key, value]) => 
-              key.includes('Details') && value && value.trim() !== ''
+              key.includes('_details') && value && value.toString().trim() !== ''
             ).map(([key, value]) => (
               <div key={key} className="border-l-4 border-blue-500 pl-4 print:border-blue-400">
                 <h4 className="font-medium text-white print:text-black text-sm mb-1">
-                  {key.replace('Details', '').replace(/([A-Z])/g, ' $1').trim()}
+                  {key.replace('_details', '').replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
                 </h4>
                 <p className="text-slate-300 print:text-gray-700 text-sm">{value}</p>
               </div>
