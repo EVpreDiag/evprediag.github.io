@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Edit, Save, FileText, Calendar, User, Trash2, Search, ChevronDown, ChevronRight, CheckCircle } from 'lucide-react';
+import { ArrowLeft, Edit, Save, FileText, Calendar, User, Trash2, Search, ChevronDown, ChevronRight } from 'lucide-react';
 import { supabase } from '../integrations/supabase/client';
 import { useTechnicianNames } from '../hooks/useTechnicianNames';
 
@@ -31,7 +31,6 @@ const ModifyReports = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
-  const [saveSuccess, setSaveSuccess] = useState(false);
   const { getTechnicianName } = useTechnicianNames();
 
   useEffect(() => {
@@ -127,11 +126,9 @@ const ModifyReports = () => {
 
   const handleEditRecord = (record: DiagnosticRecord) => {
     setSelectedRecord(record);
-    setEditForm({ ...record }); // Create a full copy to avoid reference issues
+    setEditForm(record);
     setIsEditing(true);
     setExpandedSections(['general']); // Start with general section expanded
-    setSaveSuccess(false);
-    setError(null);
   };
 
   const handleSaveChanges = async () => {
@@ -143,70 +140,33 @@ const ModifyReports = () => {
 
       const tableName = selectedRecord.record_type === 'ev' ? 'ev_diagnostic_records' : 'phev_diagnostic_records';
       
-      // Prepare the update data by removing computed fields and ensuring proper structure
-      const updateData = { ...editForm };
-      delete updateData.record_type; // Don't try to update this
-      delete updateData.make_model; // This is computed for PHEV
-      
-      // Ensure we have the current timestamp for updated_at
-      updateData.updated_at = new Date().toISOString();
-
-      console.log('Updating record:', selectedRecord.id, 'with data:', updateData);
-      
       // Update the record in the database
-      const { data, error: updateError } = await supabase
+      const { error: updateError } = await supabase
         .from(tableName)
-        .update(updateData)
-        .eq('id', selectedRecord.id)
-        .select()
-        .single();
+        .update({
+          ...editForm,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', selectedRecord.id);
 
-      if (updateError) {
-        console.error('Update error:', updateError);
-        throw updateError;
-      }
+      if (updateError) throw updateError;
 
-      console.log('Update successful:', data);
-
-      // Update local state with the returned data
-      const updatedRecord = {
-        ...data,
-        record_type: selectedRecord.record_type,
-        make_model: selectedRecord.record_type === 'phev' 
-          ? `${data.vehicle_make || ''} ${data.model || ''}`.trim()
-          : data.make_model
-      };
-
+      // Update local state
       const updatedRecords = records.map(record => 
-        record.id === selectedRecord.id ? updatedRecord : record
+        record.id === selectedRecord.id 
+          ? { ...record, ...editForm, updated_at: new Date().toISOString() }
+          : record
       );
 
       setRecords(updatedRecords);
-      setFilteredRecords(updatedRecords.filter(record => {
-        if (!searchTerm) return true;
-        const term = searchTerm.toLowerCase();
-        return (
-          record.vin.toLowerCase().includes(term) ||
-          record.ro_number.toLowerCase().includes(term) ||
-          record.customer_name.toLowerCase().includes(term) ||
-          record.make_model?.toLowerCase().includes(term)
-        );
-      }));
+      setFilteredRecords(updatedRecords);
       
-      // Show success message
-      setSaveSuccess(true);
-      
-      // Auto-close the form after 1.5 seconds
-      setTimeout(() => {
-        setIsEditing(false);
-        setSelectedRecord(null);
-        setEditForm({});
-        setSaveSuccess(false);
-      }, 1500);
-
+      setIsEditing(false);
+      setSelectedRecord(null);
+      setEditForm({});
     } catch (err) {
       console.error('Error updating record:', err);
-      setError(`Failed to update record: ${err instanceof Error ? err.message : 'Unknown error'}`);
+      setError('Failed to update record');
     } finally {
       setSaving(false);
     }
@@ -242,8 +202,6 @@ const ModifyReports = () => {
     setIsEditing(false);
     setSelectedRecord(null);
     setEditForm({});
-    setSaveSuccess(false);
-    setError(null);
   };
 
   const handleFieldChange = (field: string, value: string) => {
@@ -397,15 +355,6 @@ const ModifyReports = () => {
           </div>
         )}
 
-        {saveSuccess && (
-          <div className="bg-green-600/20 border border-green-600/30 rounded-lg p-4 mb-6">
-            <div className="flex items-center space-x-2">
-              <CheckCircle className="w-5 h-5 text-green-400" />
-              <p className="text-green-400">Record updated successfully! Form will close automatically.</p>
-            </div>
-          </div>
-        )}
-
         {/* Search Controls */}
         <div className="bg-slate-800 rounded-lg p-6 border border-slate-700 mb-6">
           <div className="flex items-center space-x-4">
@@ -544,9 +493,6 @@ const ModifyReports = () => {
                       {renderYesNoQuestion("Power loss during acceleration?", "power_loss", "power_loss_details")}
                       {renderTextInput("Usual charge level", "usual_charge_level")}
                       {renderTextInput("Charge rate drop", "charge_rate_drop")}
-                      {renderYesNoQuestion("Aftermarket charger?", "aftermarket_charger", "aftermarket_details")}
-                      {renderTextInput("Charger type", "charger_type")}
-                      {renderTextInput("DC fast frequency", "dc_fast_frequency")}
                     </>
                   ) : (
                     <>
@@ -555,10 +501,6 @@ const ModifyReports = () => {
                       {renderYesNoQuestion("Excessive ICE operation?", "excessive_ice_operation", "ice_operation_details")}
                       {renderYesNoQuestion("Charge rate drop?", "charge_rate_drop", "charge_rate_details")}
                       {renderTextInput("Usual charge level", "usual_charge_level")}
-                      {renderYesNoQuestion("Aftermarket charger?", "aftermarket_charger", "aftermarket_details")}
-                      {renderTextInput("Charger type", "charger_type")}
-                      {renderTextInput("DC fast frequency", "dc_fast_frequency")}
-                      {renderTextInput("DC fast duration", "dc_fast_duration")}
                     </>
                   )}
                 </div>
@@ -576,8 +518,6 @@ const ModifyReports = () => {
                       {renderYesNoQuestion("Smooth regeneration?", "smooth_regen", "smooth_regen_details")}
                       {renderTextInput("Regeneration strength", "regen_strength")}
                       {renderYesNoQuestion("Deceleration noises?", "deceleration_noises", "deceleration_noises_details")}
-                      {renderYesNoQuestion("Noises during actions?", "noises_actions", "noises_actions_details")}
-                      {renderYesNoQuestion("Rattles on roads?", "rattles_roads", "rattles_details")}
                     </>
                   ) : (
                     <>
@@ -587,10 +527,6 @@ const ModifyReports = () => {
                       {renderYesNoQuestion("Any misfires?", "misfires", "misfires_details")}
                       {renderYesNoQuestion("Smooth regeneration?", "smooth_regen", "smooth_regen_details")}
                       {renderTextInput("Regeneration strength", "regen_strength")}
-                      {renderYesNoQuestion("Deceleration noises?", "deceleration_noises", "deceleration_noises_details")}
-                      {renderYesNoQuestion("Underbody noise?", "underbody_noise", "underbody_details")}
-                      {renderYesNoQuestion("Road condition noises?", "road_condition_noises", "road_condition_details")}
-                      {renderYesNoQuestion("Burning smell?", "burning_smell", "burning_smell_details")}
                     </>
                   )}
                 </div>
@@ -610,6 +546,7 @@ const ModifyReports = () => {
                       {renderYesNoQuestion("HVAC effective?", "hvac_effectiveness", "hvac_details")}
                       {renderYesNoQuestion("Fan sounds normal?", "fan_sounds", "fan_details")}
                       {renderYesNoQuestion("Temperature regulation good?", "temperature_regulation", "temperature_details")}
+                      {renderYesNoQuestion("Any burning smell?", "burning_smell", "burning_smell_details")}
                     </>
                   )}
                 </div>
@@ -647,37 +584,6 @@ const ModifyReports = () => {
                       {renderYesNoQuestion("Engine starts in EV mode?", "engine_start_ev_mode", "engine_start_details")}
                       {renderYesNoQuestion("Mode noise issues?", "mode_noise", "mode_noise_details")}
                       {renderYesNoQuestion("Mode warnings?", "mode_warnings", "mode_warnings_details")}
-                      {renderTextInput("Regular modes", "regular_modes")}
-                      {renderYesNoQuestion("Inconsistent performance?", "inconsistent_performance", "inconsistent_details")}
-                    </div>
-                  ))}
-                  
-                  {renderSection("Towing & Load", "towing", (
-                    <div className="space-y-6">
-                      {renderYesNoQuestion("Towing issues?", "towing_issues", "towing_details")}
-                      {renderYesNoQuestion("Heavy load behavior?", "heavy_load_behavior", "heavy_load_details")}
-                    </div>
-                  ))}
-                </>
-              )}
-
-              {/* EV Specific Sections */}
-              {selectedRecord.record_type === 'ev' && (
-                <>
-                  {renderSection("Driving Modes", "driving_modes", (
-                    <div className="space-y-6">
-                      {renderTextInput("Primary mode", "primary_mode")}
-                      {renderYesNoQuestion("Modes differences?", "modes_differences", "modes_differences_details")}
-                      {renderYesNoQuestion("Specific mode issues?", "specific_mode_issues", "specific_mode_details")}
-                      {renderYesNoQuestion("Mode switching lags?", "mode_switching_lags", "mode_switching_details")}
-                    </div>
-                  ))}
-                  
-                  {renderSection("Load Conditions", "load_conditions", (
-                    <div className="space-y-6">
-                      {renderYesNoQuestion("Towing/high load?", "towing_high_load")}
-                      {renderTextInput("Issue conditions", "issue_conditions")}
-                      {renderTextInput("Other conditions", "other_conditions")}
                     </div>
                   ))}
                 </>
