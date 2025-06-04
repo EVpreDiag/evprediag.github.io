@@ -14,7 +14,8 @@ import {
   Settings,
   Plug,
   User,
-  Shield
+  Shield,
+  Edit
 } from 'lucide-react';
 
 const Dashboard = () => {
@@ -33,7 +34,7 @@ const Dashboard = () => {
       icon: Battery,
       path: '/diagnostic-form',
       color: 'from-blue-600 to-blue-700',
-      available: hasRole('admin') || hasRole('tech')
+      available: hasRole('admin') || hasRole('tech') || hasRole('service_desk')
     },
     {
       title: 'PHEV Diagnostic Form',
@@ -41,7 +42,7 @@ const Dashboard = () => {
       icon: Plug,
       path: '/phev-diagnostic-form',
       color: 'from-emerald-600 to-emerald-700',
-      available: hasRole('admin') || hasRole('tech')
+      available: hasRole('admin') || hasRole('tech') || hasRole('service_desk')
     },
     {
       title: 'Search Records',
@@ -50,6 +51,14 @@ const Dashboard = () => {
       path: '/search-records',
       color: 'from-green-600 to-green-700',
       available: true // Available to all authenticated users
+    },
+    {
+      title: 'Modify Reports',
+      description: 'Edit and update saved diagnostic reports',
+      icon: Edit,
+      path: '/modify-reports',
+      color: 'from-orange-600 to-orange-700',
+      available: hasRole('admin') || hasRole('tech')
     },
     {
       title: 'User Management',
@@ -189,13 +198,13 @@ const Dashboard = () => {
         </div>
 
         {/* Quick Actions */}
-        {(hasRole('admin') || hasRole('tech')) && (
+        {(hasRole('admin') || hasRole('tech') || hasRole('service_desk')) && (
           <div className="mt-8 bg-slate-800 rounded-lg p-6 border border-slate-700">
             <h3 className="text-lg font-semibold text-white mb-4 flex items-center">
               <Settings className="w-5 h-5 mr-2" />
               Quick Actions
             </h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               <button 
                 onClick={() => navigate('/diagnostic-form')}
                 className="flex items-center space-x-3 p-3 bg-slate-700/50 rounded-lg hover:bg-slate-700 transition-colors text-left"
@@ -210,6 +219,15 @@ const Dashboard = () => {
                 <Plug className="w-5 h-5 text-emerald-400" />
                 <span className="text-white">Start PHEV Diagnostic</span>
               </button>
+              {(hasRole('admin') || hasRole('tech')) && (
+                <button 
+                  onClick={() => navigate('/modify-reports')}
+                  className="flex items-center space-x-3 p-3 bg-slate-700/50 rounded-lg hover:bg-slate-700 transition-colors text-left"
+                >
+                  <Edit className="w-5 h-5 text-orange-400" />
+                  <span className="text-white">Modify Reports</span>
+                </button>
+              )}
             </div>
           </div>
         )}

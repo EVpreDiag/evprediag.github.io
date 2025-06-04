@@ -9,6 +9,7 @@ import SearchRecords from '../components/SearchRecords';
 import UserManagement from '../components/UserManagement';
 import PrintSummary from '../components/PrintSummary';
 import ProfileManagement from '../components/ProfileManagement';
+import ModifyReports from '../components/ModifyReports';
 import RoleProtectedRoute from '../components/RoleProtectedRoute';
 import { AuthProvider, useAuth } from '../contexts/AuthContext';
 
@@ -57,14 +58,14 @@ const Index = () => {
           } />
           <Route path="/diagnostic-form" element={
             <ProtectedRoute>
-              <RoleProtectedRoute requiredRoles={['admin', 'tech']}>
+              <RoleProtectedRoute requiredRoles={['admin', 'tech', 'service_desk']}>
                 <DiagnosticForm />
               </RoleProtectedRoute>
             </ProtectedRoute>
           } />
           <Route path="/phev-diagnostic-form" element={
             <ProtectedRoute>
-              <RoleProtectedRoute requiredRoles={['admin', 'tech']}>
+              <RoleProtectedRoute requiredRoles={['admin', 'tech', 'service_desk']}>
                 <PHEVDiagnosticForm />
               </RoleProtectedRoute>
             </ProtectedRoute>
@@ -72,6 +73,13 @@ const Index = () => {
           <Route path="/search-records" element={
             <ProtectedRoute>
               <SearchRecords />
+            </ProtectedRoute>
+          } />
+          <Route path="/modify-reports" element={
+            <ProtectedRoute>
+              <RoleProtectedRoute requiredRoles={['admin', 'tech']}>
+                <ModifyReports />
+              </RoleProtectedRoute>
             </ProtectedRoute>
           } />
           <Route path="/user-management" element={
