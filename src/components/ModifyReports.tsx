@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../integrations/supabase/client';
-import { Edit, Trash2, Eye, Calendar, User, Car, AlertTriangle, Shield } from 'lucide-react';
+import { ArrowLeft, Edit, Trash2, Eye, Calendar, User, Car, AlertTriangle, Shield } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { secureLog, checkRecordOwnership } from '../utils/securityUtils';
 
@@ -196,14 +196,14 @@ const ModifyReports = () => {
             <span>Back to Dashboard</span>
           </button>
           <div>
-            <h1 className="text-xl font-bold text-white">Search Diagnostic Records</h1>
+            <h1 className="text-xl font-bold text-white">Modify Reports</h1>
             <p className="text-sm text-slate-400">
-              {isAdmin() ? 'Search all diagnostic records': 'Search your diagnostic records'}
+              {isAdmin() ? 'Edit and manage all diagnostic reports' : 'Edit and manage your diagnostic reports'}
             </p>
           </div>
         </div>
       </header>
-    </div>
+
       <div className="p-6 max-w-6xl mx-auto">
 
         {error && (
