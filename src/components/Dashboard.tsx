@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
@@ -11,16 +12,17 @@ import {
   Car,
   BarChart3,
   Settings,
-  Plug
+  Plug,
+  User
 } from 'lucide-react';
 
 const Dashboard = () => {
-  const { user, logout } = useAuth();
+  const { user, profile, signOut } = useAuth();
   const navigate = useNavigate();
 
-  const handleLogout = () => {
-    logout();
-    navigate('/login');
+  const handleLogout = async () => {
+    await signOut();
+    navigate('/auth');
   };
 
   const dashboardCards = [
@@ -54,7 +56,15 @@ const Dashboard = () => {
       icon: Users,
       path: '/user-management',
       color: 'from-purple-600 to-purple-700',
-      available: user?.role === 'admin'
+      available: true // Remove role restriction for now since we don't have roles yet
+    },
+    {
+      title: 'Profile Management',
+      description: 'Manage your account and profile settings',
+      icon: User,
+      path: '/profile',
+      color: 'from-indigo-600 to-indigo-700',
+      available: true
     }
   ];
 
@@ -73,13 +83,19 @@ const Dashboard = () => {
             <Battery className="w-8 h-8 text-blue-400" />
             <div>
               <h1 className="text-xl font-bold text-white">EV Diagnostic Portal</h1>
-              <p className="text-sm text-slate-400">Welcome back, {user?.username}</p>
+              <p className="text-sm text-slate-400">
+                Welcome back, {profile?.full_name || profile?.username || user?.email}
+              </p>
             </div>
           </div>
           <div className="flex items-center space-x-4">
-            <span className="px-3 py-1 bg-slate-700 text-slate-300 rounded-full text-sm capitalize">
-              {user?.role}
-            </span>
+            <button
+              onClick={() => navigate('/profile')}
+              className="flex items-center space-x-2 px-3 py-1 bg-slate-700 text-slate-300 rounded-full text-sm hover:bg-slate-600 transition-colors"
+            >
+              <User className="w-4 h-4" />
+              <span>Profile</span>
+            </button>
             <button
               onClick={handleLogout}
               className="flex items-center space-x-2 text-slate-300 hover:text-white transition-colors"
