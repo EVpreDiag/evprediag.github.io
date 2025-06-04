@@ -9,13 +9,10 @@ type UserRole = 'admin' | 'tech' | 'service_desk';
 
 interface SystemUser {
   id: string;
-  email: string;
+  email?: string;
+  username: string | null;
+  full_name: string | null;
   created_at: string;
-  last_sign_in_at: string | null;
-  profile?: {
-    username: string | null;
-    full_name: string | null;
-  };
   roles: UserRole[];
 }
 
@@ -38,22 +35,18 @@ const UserManagement = () => {
     try {
       setLoading(true);
       
-      // Fetch all users from auth.users (this requires admin access)
-      const { data: authUsers, error: authError } = await supabase.auth.admin.listUsers();
-      
-      if (authError) {
-        console.error('Error fetching auth users:', authError);
-        return;
-      }
-
-      // Fetch profiles for all users
+      // Fetch all profiles (these are the users who have signed up)
       const { data: profiles, error: profilesError } = await supabase
         .from('profiles')
-        .select('*');
+        .select('*')
+        .order('created_at', { ascending: false });
 
       if (profilesError) {
         console.error('Error fetching profiles:', profilesError);
+        return;
       }
+
+      console.log('Profiles fetched:', profiles);
 
       // Fetch roles for all users
       const { data: userRoles, error: rolesError } = await supabase
@@ -64,24 +57,22 @@ const UserManagement = () => {
         console.error('Error fetching user roles:', rolesError);
       }
 
+      console.log('User roles fetched:', userRoles);
+
       // Combine the data
-      const combinedUsers: SystemUser[] = authUsers.users.map(user => {
-        const profile = profiles?.find(p => p.id === user.id);
-        const roles = userRoles?.filter(r => r.user_id === user.id).map(r => r.role) || [];
+      const combinedUsers: SystemUser[] = (profiles || []).map(profile => {
+        const roles = userRoles?.filter(r => r.user_id === profile.id).map(r => r.role) || [];
         
         return {
-          id: user.id,
-          email: user.email || '',
-          created_at: user.created_at,
-          last_sign_in_at: user.last_sign_in_at,
-          profile: profile ? {
-            username: profile.username,
-            full_name: profile.full_name
-          } : undefined,
+          id: profile.id,
+          username: profile.username,
+          full_name: profile.full_name,
+          created_at: profile.created_at,
           roles: roles as UserRole[]
         };
       });
 
+      console.log('Combined users:', combinedUsers);
       setUsers(combinedUsers);
     } catch (error) {
       console.error('Error fetching users:', error);
@@ -109,7 +100,7 @@ const UserManagement = () => {
   };
 
   const formatDate = (dateString: string | null) => {
-    if (!dateString) return 'Never';
+    if (!dateString) return 'Unknown';
     return new Date(dateString).toLocaleDateString('en-US', {
       year: 'numeric',
       month: 'short',
@@ -237,53 +228,61 @@ const UserManagement = () => {
                 <tr>
                   <th className="px-6 py-3 text-left text-xs font-medium text-slate-300 uppercase tracking-wider">User</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-slate-300 uppercase tracking-wider">Roles</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-300 uppercase tracking-wider">Last Login</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-300 uppercase tracking-wider">Created</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-slate-300 uppercase tracking-wider">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-700">
-                {users.map((user) => (
-                  <tr key={user.id} className="hover:bg-slate-700/30">
-                    <td className="px-6 py-4">
-                      <div>
-                        <div className="text-sm font-medium text-white">
-                          {user.profile?.full_name || user.profile?.username || 'No Name'}
-                        </div>
-                        <div className="text-sm text-slate-400">{user.email}</div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="flex flex-wrap gap-1">
-                        {user.roles.length > 0 ? (
-                          user.roles.map((role) => (
-                            <span
-                              key={role}
-                              className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getRoleColor(role)}`}
-                            >
-                              {getRoleDisplayName(role)}
-                            </span>
-                          ))
-                        ) : (
-                          <span className="text-slate-500 text-sm">No roles assigned</span>
-                        )}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 text-sm text-slate-300">
-                      {formatDate(user.last_sign_in_at)}
-                    </td>
-                    <td className="px-6 py-4">
-                      <button
-                        onClick={() => {
-                          setSelectedUser(user);
-                          setShowRoleModal(true);
-                        }}
-                        className="p-2 text-blue-400 hover:text-blue-300 transition-colors"
-                      >
-                        <Edit className="w-4 h-4" />
-                      </button>
+                {users.length === 0 ? (
+                  <tr>
+                    <td colSpan={4} className="px-6 py-8 text-center text-slate-400">
+                      No users found. Users will appear here after they sign up.
                     </td>
                   </tr>
-                ))}
+                ) : (
+                  users.map((user) => (
+                    <tr key={user.id} className="hover:bg-slate-700/30">
+                      <td className="px-6 py-4">
+                        <div>
+                          <div className="text-sm font-medium text-white">
+                            {user.full_name || user.username || 'No Name'}
+                          </div>
+                          <div className="text-sm text-slate-400">{user.username || 'No username'}</div>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="flex flex-wrap gap-1">
+                          {user.roles.length > 0 ? (
+                            user.roles.map((role) => (
+                              <span
+                                key={role}
+                                className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getRoleColor(role)}`}
+                              >
+                                {getRoleDisplayName(role)}
+                              </span>
+                            ))
+                          ) : (
+                            <span className="text-slate-500 text-sm">No roles assigned</span>
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 text-sm text-slate-300">
+                        {formatDate(user.created_at)}
+                      </td>
+                      <td className="px-6 py-4">
+                        <button
+                          onClick={() => {
+                            setSelectedUser(user);
+                            setShowRoleModal(true);
+                          }}
+                          className="p-2 text-blue-400 hover:text-blue-300 transition-colors"
+                        >
+                          <Edit className="w-4 h-4" />
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>
@@ -297,7 +296,7 @@ const UserManagement = () => {
             <div className="p-6 border-b border-slate-700">
               <h3 className="text-lg font-semibold text-white">Manage Roles</h3>
               <p className="text-sm text-slate-400">
-                {selectedUser.profile?.full_name || selectedUser.email}
+                {selectedUser.full_name || selectedUser.username || 'Unknown User'}
               </p>
             </div>
             <div className="p-6 space-y-4">
