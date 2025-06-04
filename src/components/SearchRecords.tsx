@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../integrations/supabase/client';
@@ -145,8 +144,8 @@ const SearchRecords = () => {
   };
 
   const handleViewRecord = (record: SearchRecord) => {
-    const path = record.record_type === 'EV' ? '/print-summary/ev' : '/print-summary/phev';
-    navigate(`${path}/${record.id}`);
+    const recordType = record.record_type.toLowerCase();
+    navigate(`/print-summary/${recordType}/${record.id}`);
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {

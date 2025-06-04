@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../integrations/supabase/client';
@@ -113,8 +112,8 @@ const ModifyReports = () => {
   };
 
   const handleView = (record: DiagnosticRecord) => {
-    const path = record.record_type === 'EV' ? '/print-summary/ev' : '/print-summary/phev';
-    navigate(`${path}/${record.id}`);
+    const recordType = record.record_type.toLowerCase();
+    navigate(`/print-summary/${recordType}/${record.id}`);
   };
 
   const handleDelete = async (record: DiagnosticRecord) => {

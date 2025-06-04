@@ -1,8 +1,11 @@
-import React, { useState, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useCallback, useEffect } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, Save, Loader2 } from 'lucide-react';
 import { FormData } from '../types/diagnosticForm';
 import { getInitialFormData, saveFormData } from '../utils/formUtils';
+import { supabase } from '../integrations/supabase/client';
+import { secureLog, checkRecordOwnership } from '../utils/securityUtils';
+import { useAuth } from '../contexts/AuthContext';
 import FormSection from './diagnostic/FormSection';
 import GeneralInfoSection from './diagnostic/GeneralInfoSection';
 import BatterySection from './diagnostic/BatterySection';
@@ -11,10 +14,137 @@ import YesNoQuestion from './diagnostic/YesNoQuestion';
 
 const DiagnosticForm = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const { user, isAdmin } = useAuth();
+  const editId = searchParams.get('edit');
+  const isEditMode = !!editId;
+  
   const [formData, setFormData] = useState<FormData>(getInitialFormData());
   const [expandedSections, setExpandedSections] = useState<string[]>(['general']);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(isEditMode);
+
+  // Load existing record data if in edit mode
+  useEffect(() => {
+    if (isEditMode && editId && user) {
+      loadExistingRecord(editId);
+    }
+  }, [isEditMode, editId, user]);
+
+  const loadExistingRecord = async (recordId: string) => {
+    try {
+      setLoading(true);
+      setSubmitError(null);
+
+      // Check if user has permission to edit this record
+      if (!isAdmin()) {
+        const hasOwnership = await checkRecordOwnership(recordId, 'ev_diagnostic_records');
+        if (!hasOwnership) {
+          setSubmitError('You can only edit your own records.');
+          return;
+        }
+      }
+
+      // Fetch the record
+      const { data, error } = await supabase
+        .from('ev_diagnostic_records')
+        .select('*')
+        .eq('id', recordId)
+        .single();
+
+      if (error) {
+        secureLog('Error loading EV record for edit', 'error', { error: error.message });
+        throw error;
+      }
+
+      if (data) {
+        // Convert database record to form data
+        const loadedFormData: FormData = {
+          ...getInitialFormData(),
+          customerName: data.customer_name || '',
+          vin: data.vin || '',
+          roNumber: data.ro_number || '',
+          makeModel: data.make_model || '',
+          mileage: data.mileage || '',
+          chargerType: data.charger_type || '',
+          aftermarketCharger: data.aftermarket_charger || '',
+          aftermarketDetails: data.aftermarket_details || '',
+          usualChargeLevel: data.usual_charge_level || '',
+          dcFastFrequency: data.dc_fast_frequency || [],
+          chargingIssuesHome: data.charging_issues_home || '',
+          chargingIssuesHomeDetails: data.charging_issues_home_details || '',
+          chargingIssuesPublic: data.charging_issues_public || '',
+          chargingIssuesPublicDetails: data.charging_issues_public_details || '',
+          failedCharges: data.failed_charges || '',
+          failedChargesDetails: data.failed_charges_details || '',
+          chargeRateDrop: data.charge_rate_drop || '',
+          rangeDrop: data.range_drop || '',
+          rangeDropDetails: data.range_drop_details || '',
+          batteryWarnings: data.battery_warnings || '',
+          batteryWarningsDetails: data.battery_warnings_details || '',
+          powerLoss: data.power_loss || '',
+          powerLossDetails: data.power_loss_details || '',
+          consistentAcceleration: data.consistent_acceleration || '',
+          accelerationDetails: data.acceleration_details || '',
+          whiningNoises: data.whining_noises || '',
+          whiningDetails: data.whining_details || '',
+          jerkingHesitation: data.jerking_hesitation || '',
+          jerkingDetails: data.jerking_details || '',
+          vibrations: data.vibrations || '',
+          vibrationsDetails: data.vibrations_details || '',
+          noisesActions: data.noises_actions || '',
+          noisesActionsDetails: data.noises_actions_details || '',
+          rattlesRoads: data.rattles_roads || '',
+          rattlesDetails: data.rattles_details || '',
+          hvacPerformance: data.hvac_performance || '',
+          hvacDetails: data.hvac_details || '',
+          smellsNoises: data.smells_noises || '',
+          smellsNoisesDetails: data.smells_noises_details || '',
+          defoggerPerformance: data.defogger_performance || '',
+          defoggerDetails: data.defogger_details || '',
+          infotainmentGlitches: data.infotainment_glitches || '',
+          infotainmentDetails: data.infotainment_details || '',
+          otaUpdates: data.ota_updates || '',
+          brokenFeatures: data.broken_features || '',
+          brokenFeaturesDetails: data.broken_features_details || '',
+          lightFlicker: data.light_flicker || '',
+          lightFlickerDetails: data.light_flicker_details || '',
+          smoothRegen: data.smooth_regen || '',
+          smoothRegenDetails: data.smooth_regen_details || '',
+          regenStrength: data.regen_strength || '',
+          regenStrengthDetails: data.regen_strength_details || '',
+          decelerationNoises: data.deceleration_noises || '',
+          decelerationNoisesDetails: data.deceleration_noises_details || '',
+          issueConditions: data.issue_conditions || [],
+          otherConditions: data.other_conditions || '',
+          towingHighLoad: data.towing_high_load || '',
+          primaryMode: data.primary_mode || '',
+          modesDifferences: data.modes_differences || '',
+          modesDifferencesDetails: data.modes_differences_details || '',
+          specificModeIssues: data.specific_mode_issues || '',
+          specificModeDetails: data.specific_mode_details || '',
+          modeSwitchingLags: data.mode_switching_lags || '',
+          modeSwitchingDetails: data.mode_switching_details || '',
+          temperatureDuringIssue: data.temperature_during_issue || '',
+          vehicleParked: data.vehicle_parked || '',
+          timeOfDay: data.time_of_day || '',
+          hvacWeatherDifference: data.hvac_weather_difference || '',
+          hvacWeatherDetails: data.hvac_weather_details || '',
+          rangeRegenTemp: data.range_regen_temp || '',
+          moistureChargingPort: data.moisture_charging_port || ''
+        };
+
+        setFormData(loadedFormData);
+        secureLog('EV record loaded for editing', 'info');
+      }
+    } catch (error) {
+      secureLog('Error loading record for edit', 'error', error);
+      setSubmitError('Failed to load record for editing. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const toggleSection = useCallback((section: string) => {
     setExpandedSections(prev => 
@@ -45,20 +175,117 @@ const DiagnosticForm = () => {
     setSubmitError(null);
 
     try {
-      const recordId = await saveFormData(formData);
-      navigate(`/print-summary/${recordId}`);
+      let recordId;
+      
+      if (isEditMode && editId) {
+        // Update existing record
+        const { error } = await supabase
+          .from('ev_diagnostic_records')
+          .update({
+            customer_name: formData.customerName,
+            vin: formData.vin,
+            ro_number: formData.roNumber,
+            make_model: formData.makeModel,
+            mileage: formData.mileage,
+            charger_type: formData.chargerType,
+            aftermarket_charger: formData.aftermarketCharger,
+            aftermarket_details: formData.aftermarketDetails,
+            usual_charge_level: formData.usualChargeLevel,
+            dc_fast_frequency: formData.dcFastFrequency,
+            charging_issues_home: formData.chargingIssuesHome,
+            charging_issues_home_details: formData.chargingIssuesHomeDetails,
+            charging_issues_public: formData.chargingIssuesPublic,
+            charging_issues_public_details: formData.chargingIssuesPublicDetails,
+            failed_charges: formData.failedCharges,
+            failed_charges_details: formData.failedChargesDetails,
+            charge_rate_drop: formData.chargeRateDrop,
+            range_drop: formData.rangeDrop,
+            range_drop_details: formData.rangeDropDetails,
+            battery_warnings: formData.batteryWarnings,
+            battery_warnings_details: formData.batteryWarningsDetails,
+            power_loss: formData.powerLoss,
+            power_loss_details: formData.powerLossDetails,
+            consistent_acceleration: formData.consistentAcceleration,
+            acceleration_details: formData.accelerationDetails,
+            whining_noises: formData.whiningNoises,
+            whining_details: formData.whiningDetails,
+            jerking_hesitation: formData.jerkingHesitation,
+            jerking_details: formData.jerkingDetails,
+            vibrations: formData.vibrations,
+            vibrations_details: formData.vibrationsDetails,
+            noises_actions: formData.noisesActions,
+            noises_actions_details: formData.noisesActionsDetails,
+            rattles_roads: formData.rattlesRoads,
+            rattles_details: formData.rattlesDetails,
+            hvac_performance: formData.hvacPerformance,
+            hvac_details: formData.hvacDetails,
+            smells_noises: formData.smellsNoises,
+            smells_noises_details: formData.smellsNoisesDetails,
+            defogger_performance: formData.defoggerPerformance,
+            defogger_details: formData.defoggerDetails,
+            infotainment_glitches: formData.infotainmentGlitches,
+            infotainment_details: formData.infotainmentDetails,
+            ota_updates: formData.otaUpdates,
+            broken_features: formData.brokenFeatures,
+            broken_features_details: formData.brokenFeaturesDetails,
+            light_flicker: formData.lightFlicker,
+            light_flicker_details: formData.lightFlickerDetails,
+            smooth_regen: formData.smoothRegen,
+            smooth_regen_details: formData.smoothRegenDetails,
+            regen_strength: formData.regenStrength,
+            regen_strength_details: formData.regenStrengthDetails,
+            deceleration_noises: formData.decelerationNoises,
+            deceleration_noises_details: formData.decelerationNoisesDetails,
+            issue_conditions: formData.issueConditions,
+            other_conditions: formData.otherConditions,
+            towing_high_load: formData.towingHighLoad,
+            primary_mode: formData.primaryMode,
+            modes_differences: formData.modesDifferences,
+            modes_differences_details: formData.modesDifferencesDetails,
+            specific_mode_issues: formData.specificModeIssues,
+            specific_mode_details: formData.specificModeDetails,
+            mode_switching_lags: formData.modeSwitchingLags,
+            mode_switching_details: formData.modeSwitchingDetails,
+            temperature_during_issue: formData.temperatureDuringIssue,
+            vehicle_parked: formData.vehicleParked,
+            time_of_day: formData.timeOfDay,
+            hvac_weather_difference: formData.hvacWeatherDifference,
+            hvac_weather_details: formData.hvacWeatherDetails,
+            range_regen_temp: formData.rangeRegenTemp,
+            moisture_charging_port: formData.moistureChargingPort,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', editId);
+
+        if (error) throw error;
+        recordId = editId;
+        secureLog('EV record updated successfully', 'info');
+      } else {
+        // Create new record
+        recordId = await saveFormData(formData);
+      }
+
+      navigate(`/print-summary/ev/${recordId}`);
     } catch (error) {
       console.error('Error saving form:', error);
       setSubmitError(error instanceof Error ? error.message : 'Failed to save diagnostic record');
     } finally {
       setIsSubmitting(false);
     }
-  }, [formData, navigate]);
+  }, [formData, navigate, isEditMode, editId]);
 
   const handleBackToDashboard = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
     navigate('/dashboard');
   }, [navigate]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-slate-900 flex items-center justify-center">
+        <div className="text-white">Loading record...</div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-slate-900">
@@ -75,8 +302,12 @@ const DiagnosticForm = () => {
               <span>Back to Dashboard</span>
             </button>
             <div>
-              <h1 className="text-xl font-bold text-white">EV Diagnostic Pre-Check Form</h1>
-              <p className="text-sm text-slate-400">Complete comprehensive vehicle assessment</p>
+              <h1 className="text-xl font-bold text-white">
+                {isEditMode ? 'Edit EV Diagnostic Record' : 'EV Diagnostic Pre-Check Form'}
+              </h1>
+              <p className="text-sm text-slate-400">
+                {isEditMode ? 'Update existing vehicle assessment' : 'Complete comprehensive vehicle assessment'}
+              </p>
             </div>
           </div>
         </div>
@@ -514,12 +745,12 @@ const DiagnosticForm = () => {
             {isSubmitting ? (
               <>
                 <Loader2 className="w-5 h-5 animate-spin" />
-                <span>Saving...</span>
+                <span>{isEditMode ? 'Updating...' : 'Saving...'}</span>
               </>
             ) : (
               <>
                 <Save className="w-5 h-5" />
-                <span>Save & Print</span>
+                <span>{isEditMode ? 'Update & Print' : 'Save & Print'}</span>
               </>
             )}
           </button>
