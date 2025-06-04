@@ -144,7 +144,7 @@ const UserManagement = () => {
           hasProfile: true,
           emailConfirmed: undefined
         };
-      };
+      });
 
       setUsers(combinedUsers);
     } catch (error) {
