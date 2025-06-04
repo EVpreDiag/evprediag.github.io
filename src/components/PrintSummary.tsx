@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, Printer, Download, Battery, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, Printer, Download, Battery, AlertTriangle, CheckCircle } from 'lucide-react';
 import { supabase } from '../integrations/supabase/client';
 
 interface DiagnosticRecord {
@@ -143,124 +143,267 @@ const PrintSummary = () => {
   };
 
   const getYesNoIcon = (value: string) => {
-    if (value === 'yes') return <span className="text-red-500 font-bold">⚠ YES</span>;
-    if (value === 'no') return <span className="text-green-500">✓ NO</span>;
-    return <span className="text-slate-400">-</span>;
+    if (value === 'yes') return <span className="text-red-500 print:text-red-600 font-bold">⚠ YES</span>;
+    if (value === 'no') return <span className="text-green-500 print:text-green-600">✓ NO</span>;
+    return <span className="text-slate-400 print:text-gray-500">-</span>;
   };
 
-  const getSectionSummary = () => {
-    if (!record) return [];
-    
-    if (record.record_type === 'ev') {
-      return [
-        {
-          title: 'Battery & Charging Issues',
-          issues: [
-            { label: 'Charging Issues at Home', value: record.charging_issues_home },
-            { label: 'Charging Issues at Public Stations', value: record.charging_issues_public },
-            { label: 'Failed/Incomplete Charges', value: record.failed_charges },
-            { label: 'Range Drop', value: record.range_drop },
-            { label: 'Battery Warnings', value: record.battery_warnings },
-            { label: 'Power Loss/EV Power Limited', value: record.power_loss }
-          ]
-        },
-        {
-          title: 'Drivetrain & Performance',
-          issues: [
-            { label: 'Inconsistent Acceleration', value: record.consistent_acceleration === 'no' ? 'yes' : 'no' },
-            { label: 'Whining/Grinding Noises', value: record.whining_noises },
-            { label: 'Jerking/Hesitation', value: record.jerking_hesitation }
-          ]
-        },
-        {
-          title: 'NVH (Noise, Vibration, Harshness)',
-          issues: [
-            { label: 'Vibrations', value: record.vibrations },
-            { label: 'Noises During Actions', value: record.noises_actions },
-            { label: 'Rattles/Thumps', value: record.rattles_roads }
-          ]
-        },
-        {
-          title: 'Climate Control',
-          issues: [
-            { label: 'HVAC Performance Issues', value: record.hvac_performance === 'no' ? 'yes' : 'no' },
-            { label: 'Smells/Noises from Vents', value: record.smells_noises },
-            { label: 'Defogger Issues', value: record.defogger_performance === 'no' ? 'yes' : 'no' }
-          ]
-        },
-        {
-          title: 'Electrical & Software',
-          issues: [
-            { label: 'Infotainment Glitches', value: record.infotainment_glitches },
-            { label: 'Features Broken After Update', value: record.broken_features },
-            { label: 'Light Flicker/Abnormal Behavior', value: record.light_flicker }
-          ]
-        },
-        {
-          title: 'Regenerative Braking',
-          issues: [
-            { label: 'Rough Regenerative Braking', value: record.smooth_regen === 'no' ? 'yes' : 'no' },
-            { label: 'Regen Strength Different', value: record.regen_strength },
-            { label: 'Deceleration Noises', value: record.deceleration_noises }
-          ]
-        }
-      ];
-    } else {
-      // PHEV sections
-      return [
-        {
-          title: 'Battery & Charging Issues',
-          issues: [
-            { label: 'Battery Charging Issues', value: record.battery_charging === 'no' ? 'yes' : 'no' },
-            { label: 'EV Range Not As Expected', value: record.ev_range_expected === 'no' ? 'yes' : 'no' },
-            { label: 'Excessive ICE Operation', value: record.excessive_ice_operation },
-            { label: 'Charge Rate Drop', value: record.charge_rate_drop }
-          ]
-        },
-        {
-          title: 'Hybrid Operation',
-          issues: [
-            { label: 'Switching Lags/Delays', value: record.switching_lags },
-            { label: 'Engine Start in EV Mode', value: record.engine_start_ev_mode },
-            { label: 'Abnormal Vibrations', value: record.abnormal_vibrations }
-          ]
-        },
-        {
-          title: 'Engine & Drivetrain',
-          issues: [
-            { label: 'Acceleration Issues', value: record.acceleration_issues },
-            { label: 'Engine Sound Different', value: record.engine_sound },
-            { label: 'Burning Smell', value: record.burning_smell },
-            { label: 'Misfires/Rough Running', value: record.misfires }
-          ]
-        },
-        {
-          title: 'Climate Control',
-          issues: [
-            { label: 'HVAC Effectiveness Issues', value: record.hvac_effectiveness === 'no' ? 'yes' : 'no' },
-            { label: 'Fan Sounds/Noises', value: record.fan_sounds },
-            { label: 'Temperature Regulation Issues', value: record.temperature_regulation === 'no' ? 'yes' : 'no' }
-          ]
-        },
-        {
-          title: 'Electrical & Software',
-          issues: [
-            { label: 'Infotainment Glitches', value: record.infotainment_glitches },
-            { label: 'Features Broken After Update', value: record.broken_features },
-            { label: 'Light Flicker/Abnormal Behavior', value: record.light_flicker }
-          ]
-        },
-        {
-          title: 'Regenerative Braking',
-          issues: [
-            { label: 'Rough Regenerative Braking', value: record.smooth_regen === 'no' ? 'yes' : 'no' },
-            { label: 'Regen Strength Different', value: record.regen_strength },
-            { label: 'Deceleration Noises', value: record.deceleration_noises }
-          ]
-        }
-      ];
-    }
+  const formatFieldName = (fieldName: string) => {
+    return fieldName
+      .replace(/_/g, ' ')
+      .replace(/\b\w/g, l => l.toUpperCase())
+      .replace(/Hvac/g, 'HVAC')
+      .replace(/Nvh/g, 'NVH')
+      .replace(/Ev/g, 'EV')
+      .replace(/Ice/g, 'ICE')
+      .replace(/Ota/g, 'OTA')
+      .replace(/Dc/g, 'DC');
   };
+
+  const renderQuestionAnswer = (question: string, value: any, detailsField?: string) => {
+    if (!value && value !== 0 && !detailsField) return null;
+    
+    const hasDetails = detailsField && record?.[detailsField];
+    
+    return (
+      <div className="border-l-4 border-blue-500 print:border-blue-400 pl-4 py-2">
+        <div className="flex items-center justify-between mb-1">
+          <h4 className="font-medium text-white print:text-black text-sm">{question}</h4>
+          <div className="flex items-center space-x-2">
+            {(value === 'yes' || value === 'no') ? getYesNoIcon(value) : (
+              <span className="text-slate-300 print:text-gray-700 text-sm">
+                {Array.isArray(value) ? value.join(', ') : value || 'Not specified'}
+              </span>
+            )}
+          </div>
+        </div>
+        {hasDetails && (
+          <div className="mt-2 p-3 bg-slate-700/30 print:bg-gray-100 rounded text-sm">
+            <p className="text-slate-300 print:text-gray-700 font-medium mb-1">Details:</p>
+            <p className="text-slate-300 print:text-gray-600">{record[detailsField]}</p>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  const renderSection = (title: string, questions: Array<{question: string, field: string, detailsField?: string}>) => {
+    const hasAnyContent = questions.some(q => record?.[q.field] || (q.detailsField && record?.[q.detailsField]));
+    
+    if (!hasAnyContent) return null;
+
+    return (
+      <div className="mb-6 print:mb-4">
+        <h3 className="text-lg font-semibold text-white print:text-black mb-4 border-b border-slate-600 print:border-gray-300 pb-2">
+          {title}
+        </h3>
+        <div className="space-y-3 print:space-y-2">
+          {questions.map(({ question, field, detailsField }) => 
+            renderQuestionAnswer(question, record?.[field], detailsField)
+          ).filter(Boolean)}
+        </div>
+      </div>
+    );
+  };
+
+  const getEVQuestions = () => [
+    {
+      title: "Battery & Charging",
+      questions: [
+        { question: "Charging Issues at Home", field: "charging_issues_home", detailsField: "charging_issues_home_details" },
+        { question: "Charging Issues at Public Stations", field: "charging_issues_public", detailsField: "charging_issues_public_details" },
+        { question: "Charger Type", field: "charger_type" },
+        { question: "Aftermarket Charger", field: "aftermarket_charger", detailsField: "aftermarket_details" },
+        { question: "Failed/Incomplete Charges", field: "failed_charges", detailsField: "failed_charges_details" },
+        { question: "Range Drop", field: "range_drop", detailsField: "range_drop_details" },
+        { question: "Battery Warnings", field: "battery_warnings", detailsField: "battery_warnings_details" },
+        { question: "Power Loss/EV Power Limited", field: "power_loss", detailsField: "power_loss_details" },
+        { question: "Usual Charge Level", field: "usual_charge_level" },
+        { question: "DC Fast Charging Frequency", field: "dc_fast_frequency" },
+        { question: "Charge Rate Drop", field: "charge_rate_drop" }
+      ]
+    },
+    {
+      title: "Drivetrain & Performance",
+      questions: [
+        { question: "Consistent Acceleration", field: "consistent_acceleration", detailsField: "acceleration_details" },
+        { question: "Whining/Grinding Noises", field: "whining_noises", detailsField: "whining_details" },
+        { question: "Jerking/Hesitation", field: "jerking_hesitation", detailsField: "jerking_details" }
+      ]
+    },
+    {
+      title: "NVH (Noise, Vibration, Harshness)",
+      questions: [
+        { question: "Vibrations", field: "vibrations", detailsField: "vibrations_details" },
+        { question: "Noises During Actions", field: "noises_actions", detailsField: "noises_actions_details" },
+        { question: "Rattles/Thumps", field: "rattles_roads", detailsField: "rattles_details" }
+      ]
+    },
+    {
+      title: "Climate Control",
+      questions: [
+        { question: "HVAC Performance", field: "hvac_performance", detailsField: "hvac_details" },
+        { question: "Smells/Noises from Vents", field: "smells_noises", detailsField: "smells_noises_details" },
+        { question: "Defogger Performance", field: "defogger_performance", detailsField: "defogger_details" }
+      ]
+    },
+    {
+      title: "Electrical & Software",
+      questions: [
+        { question: "Infotainment Glitches", field: "infotainment_glitches", detailsField: "infotainment_details" },
+        { question: "OTA Updates", field: "ota_updates" },
+        { question: "Features Broken After Update", field: "broken_features", detailsField: "broken_features_details" },
+        { question: "Light Flicker/Abnormal Behavior", field: "light_flicker", detailsField: "light_flicker_details" }
+      ]
+    },
+    {
+      title: "Regenerative Braking",
+      questions: [
+        { question: "Smooth Regenerative Braking", field: "smooth_regen", detailsField: "smooth_regen_details" },
+        { question: "Regen Strength Different", field: "regen_strength", detailsField: "regen_strength_details" },
+        { question: "Deceleration Noises", field: "deceleration_noises", detailsField: "deceleration_noises_details" }
+      ]
+    },
+    {
+      title: "Driving Conditions",
+      questions: [
+        { question: "Issue Conditions", field: "issue_conditions" },
+        { question: "Other Conditions", field: "other_conditions" },
+        { question: "Towing/High Load", field: "towing_high_load" }
+      ]
+    },
+    {
+      title: "Driving Mode",
+      questions: [
+        { question: "Primary Mode", field: "primary_mode" },
+        { question: "Modes Differences", field: "modes_differences", detailsField: "modes_differences_details" },
+        { question: "Specific Mode Issues", field: "specific_mode_issues", detailsField: "specific_mode_details" },
+        { question: "Mode Switching Lags", field: "mode_switching_lags", detailsField: "mode_switching_details" }
+      ]
+    },
+    {
+      title: "Environmental",
+      questions: [
+        { question: "Temperature During Issue", field: "temperature_during_issue" },
+        { question: "Vehicle Parked", field: "vehicle_parked" },
+        { question: "Time of Day", field: "time_of_day" },
+        { question: "HVAC Weather Difference", field: "hvac_weather_difference", detailsField: "hvac_weather_details" },
+        { question: "Range/Regen vs Temperature", field: "range_regen_temp" },
+        { question: "Moisture in Charging Port", field: "moisture_charging_port" }
+      ]
+    }
+  ];
+
+  const getPHEVQuestions = () => [
+    {
+      title: "Fuel Type & Usage",
+      questions: [
+        { question: "Fuel Type", field: "fuel_type" },
+        { question: "Fuel Source", field: "fuel_source" },
+        { question: "Petrol vs EV Usage", field: "petrol_vs_ev_usage" },
+        { question: "Fuel Economy Change", field: "fuel_economy_change", detailsField: "fuel_economy_details" }
+      ]
+    },
+    {
+      title: "Battery & Charging",
+      questions: [
+        { question: "Battery Charging", field: "battery_charging", detailsField: "battery_charging_details" },
+        { question: "Charger Type", field: "charger_type" },
+        { question: "Aftermarket Charger", field: "aftermarket_charger", detailsField: "aftermarket_details" },
+        { question: "EV Range as Expected", field: "ev_range_expected", detailsField: "ev_range_details" },
+        { question: "Excessive ICE Operation", field: "excessive_ice_operation", detailsField: "ice_operation_details" },
+        { question: "Usual Charge Level", field: "usual_charge_level" },
+        { question: "DC Fast Frequency", field: "dc_fast_frequency" },
+        { question: "DC Fast Duration", field: "dc_fast_duration" },
+        { question: "Charge Rate Drop", field: "charge_rate_drop", detailsField: "charge_rate_details" }
+      ]
+    },
+    {
+      title: "Hybrid Operation",
+      questions: [
+        { question: "Switching Lags/Delays", field: "switching_lags", detailsField: "switching_details" },
+        { question: "Engine Start in EV Mode", field: "engine_start_ev_mode", detailsField: "engine_start_details" },
+        { question: "Abnormal Vibrations", field: "abnormal_vibrations", detailsField: "vibrations_details" }
+      ]
+    },
+    {
+      title: "Engine & Drivetrain",
+      questions: [
+        { question: "Acceleration Issues", field: "acceleration_issues", detailsField: "acceleration_details" },
+        { question: "Engine Sound Different", field: "engine_sound", detailsField: "engine_sound_details" },
+        { question: "Burning Smell", field: "burning_smell", detailsField: "burning_smell_details" },
+        { question: "Misfires/Rough Running", field: "misfires", detailsField: "misfires_details" }
+      ]
+    },
+    {
+      title: "NVH & Ride Quality",
+      questions: [
+        { question: "Underbody Noise", field: "underbody_noise", detailsField: "underbody_details" },
+        { question: "Road Condition Noises", field: "road_condition_noises", detailsField: "road_condition_details" }
+      ]
+    },
+    {
+      title: "Climate Control",
+      questions: [
+        { question: "HVAC Effectiveness", field: "hvac_effectiveness", detailsField: "hvac_details" },
+        { question: "Fan Sounds/Noises", field: "fan_sounds", detailsField: "fan_details" },
+        { question: "Temperature Regulation", field: "temperature_regulation", detailsField: "temperature_details" }
+      ]
+    },
+    {
+      title: "Efficiency",
+      questions: [
+        { question: "Fuel Consumption", field: "fuel_consumption", detailsField: "fuel_consumption_details" },
+        { question: "Average Electric Range", field: "average_electric_range" }
+      ]
+    },
+    {
+      title: "Software & Instrument Cluster",
+      questions: [
+        { question: "Infotainment Glitches", field: "infotainment_glitches", detailsField: "infotainment_details" },
+        { question: "OTA Updates", field: "ota_updates" },
+        { question: "Features Broken After Update", field: "broken_features", detailsField: "broken_features_details" },
+        { question: "Light Flicker/Abnormal Behavior", field: "light_flicker", detailsField: "light_flicker_details" }
+      ]
+    },
+    {
+      title: "Regenerative Braking",
+      questions: [
+        { question: "Smooth Regenerative Braking", field: "smooth_regen", detailsField: "smooth_regen_details" },
+        { question: "Regen Strength Different", field: "regen_strength", detailsField: "regen_strength_details" },
+        { question: "Deceleration Noises", field: "deceleration_noises", detailsField: "deceleration_noises_details" }
+      ]
+    },
+    {
+      title: "Driving Load & Towing",
+      questions: [
+        { question: "Towing Issues", field: "towing_issues", detailsField: "towing_details" },
+        { question: "Heavy Load Behavior", field: "heavy_load_behavior", detailsField: "heavy_load_details" }
+      ]
+    },
+    {
+      title: "Driving-Mode Behavior",
+      questions: [
+        { question: "Regular Modes", field: "regular_modes" },
+        { question: "Inconsistent Performance", field: "inconsistent_performance", detailsField: "inconsistent_details" },
+        { question: "Sport Mode Power", field: "sport_mode_power", detailsField: "sport_mode_details" },
+        { question: "Eco/EV Mode Limit", field: "eco_ev_mode_limit", detailsField: "eco_ev_mode_details" },
+        { question: "Mode Noise", field: "mode_noise", detailsField: "mode_noise_details" },
+        { question: "Mode Warnings", field: "mode_warnings", detailsField: "mode_warnings_details" }
+      ]
+    },
+    {
+      title: "Environmental & Climate Conditions",
+      questions: [
+        { question: "Temperature During Issue", field: "temperature_during_issue" },
+        { question: "Vehicle Parked", field: "vehicle_parked" },
+        { question: "Time of Day", field: "time_of_day" },
+        { question: "HVAC Weather Difference", field: "hvac_weather_difference", detailsField: "hvac_weather_details" },
+        { question: "Range/Regen vs Temperature", field: "range_regen_temp", detailsField: "range_regen_details" },
+        { question: "Moisture in Charging Port", field: "moisture_charging_port" }
+      ]
+    }
+  ];
 
   if (loading) {
     return (
@@ -291,6 +434,8 @@ const PrintSummary = () => {
     );
   }
 
+  const questionSections = record.record_type === 'ev' ? getEVQuestions() : getPHEVQuestions();
+
   return (
     <div className="min-h-screen bg-slate-900">
       {/* Header - Hidden in print */}
@@ -306,7 +451,7 @@ const PrintSummary = () => {
             </button>
             <div>
               <h1 className="text-xl font-bold text-white">Diagnostic Summary</h1>
-              <p className="text-sm text-slate-400">Print or download diagnostic report</p>
+              <p className="text-sm text-slate-400">Complete diagnostic report with all questions and answers</p>
             </div>
           </div>
           <div className="flex space-x-3">
@@ -329,7 +474,7 @@ const PrintSummary = () => {
       </header>
 
       {/* Print Content */}
-      <div className="p-6 max-w-4xl mx-auto print:p-8 print:max-w-none">
+      <div className="p-6 max-w-6xl mx-auto print:p-8 print:max-w-none">
         {/* Header Info */}
         <div className="bg-slate-800 print:bg-white print:border print:border-gray-300 rounded-lg p-6 mb-6 print:mb-4">
           <div className="flex items-center justify-between mb-6 print:mb-4">
@@ -339,7 +484,7 @@ const PrintSummary = () => {
                 <h1 className="text-2xl font-bold text-white print:text-black">
                   {record.record_type === 'ev' ? 'EV' : 'PHEV'} Diagnostic Report
                 </h1>
-                <p className="text-slate-400 print:text-gray-600">Pre-Check Assessment Summary</p>
+                <p className="text-slate-400 print:text-gray-600">Complete Pre-Check Assessment</p>
               </div>
             </div>
             <div className="text-right">
@@ -369,56 +514,24 @@ const PrintSummary = () => {
           </div>
         </div>
 
-        {/* Issues Summary */}
-        <div className="bg-slate-800 print:bg-white print:border print:border-gray-300 rounded-lg p-6 mb-6 print:mb-4">
-          <h2 className="text-lg font-semibold text-white print:text-black mb-4 flex items-center">
-            <AlertTriangle className="w-5 h-5 mr-2 text-orange-400 print:text-orange-600" />
-            Issues Summary
+        {/* Complete Q&A Sections */}
+        <div className="bg-slate-800 print:bg-white print:border print:border-gray-300 rounded-lg p-6 print:mb-4">
+          <h2 className="text-xl font-semibold text-white print:text-black mb-6 flex items-center">
+            <CheckCircle className="w-6 h-6 mr-2 text-blue-400 print:text-blue-600" />
+            Complete Diagnostic Assessment
           </h2>
           
-          <div className="space-y-6 print:space-y-4">
-            {getSectionSummary().map((section, index) => {
-              const hasIssues = section.issues.some(issue => issue.value === 'yes');
-              
-              return (
-                <div key={index} className={`border rounded-lg p-4 ${hasIssues ? 'border-red-500/30 bg-red-500/5 print:border-red-300 print:bg-red-50' : 'border-slate-700 print:border-gray-300'}`}>
-                  <h3 className="font-medium text-white print:text-black mb-3">{section.title}</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2 print:grid-cols-2">
-                    {section.issues.map((issue, issueIndex) => (
-                      <div key={issueIndex} className="flex items-center justify-between">
-                        <span className="text-sm text-slate-300 print:text-gray-700">{issue.label}</span>
-                        {getYesNoIcon(issue.value)}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Detailed Responses */}
-        <div className="bg-slate-800 print:bg-white print:border print:border-gray-300 rounded-lg p-6 print:mb-4">
-          <h2 className="text-lg font-semibold text-white print:text-black mb-4">Detailed Responses</h2>
-          
-          <div className="space-y-4 print:space-y-3">
-            {/* Show only fields with details */}
-            {Object.entries(record).filter(([key, value]) => 
-              key.includes('_details') && value && value.toString().trim() !== ''
-            ).map(([key, value]) => (
-              <div key={key} className="border-l-4 border-blue-500 pl-4 print:border-blue-400">
-                <h4 className="font-medium text-white print:text-black text-sm mb-1">
-                  {key.replace('_details', '').replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
-                </h4>
-                <p className="text-slate-300 print:text-gray-700 text-sm">{value}</p>
-              </div>
-            ))}
+          <div className="space-y-8 print:space-y-6">
+            {questionSections.map((section, index) => 
+              renderSection(section.title, section.questions)
+            )}
           </div>
         </div>
 
         {/* Footer */}
         <div className="text-center text-sm text-slate-400 print:text-gray-600 pt-6 print:pt-4 border-t border-slate-700 print:border-gray-300">
-          <p>This report was generated by the EV Diagnostic Portal</p>
+          <p>This comprehensive report was generated by the EV Diagnostic Portal</p>
+          <p>Report ID: {record.id} | Generated on {formatDate(record.created_at)}</p>
           <p>For technical support, contact your system administrator</p>
         </div>
       </div>
