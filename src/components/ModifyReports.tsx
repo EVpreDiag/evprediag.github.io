@@ -204,7 +204,7 @@ const ModifyReports = () => {
         </div>
       </header>
 
-      <div className="p-6 max-w-6xl mx-auto">
+      
 
         {error && (
           <div className="mb-6 p-4 bg-red-900/20 border border-red-600/50 rounded-lg flex items-center space-x-2">
