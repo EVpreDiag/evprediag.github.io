@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, Printer, Download, Battery, AlertTriangle, CheckCircle } from 'lucide-react';
@@ -541,7 +540,7 @@ const PrintSummary = () => {
       </div>
 
       {/* Print-specific styles */}
-      <style jsx>{`
+      <style>{`
         @media print {
           @page {
             margin: 0.5in;
