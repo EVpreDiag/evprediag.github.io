@@ -94,7 +94,7 @@ const Index = () => {
               <ProfileManagement />
             </ProtectedRoute>
           } />
-          <Route path="/print-summary/:id" element={
+          <Route path="/print-summary/:recordId" element={
             <ProtectedRoute>
               <PrintSummary />
             </ProtectedRoute>
