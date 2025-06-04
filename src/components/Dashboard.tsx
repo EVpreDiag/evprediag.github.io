@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FileText, Search, Users, Edit, User, LogOut, AlertTriangle, CheckCircle, Clock, TrendingUp } from 'lucide-react';
@@ -14,7 +13,7 @@ interface DashboardStats {
 
 const Dashboard = () => {
   const navigate = useNavigate();
-  const { user, logout, userRole } = useAuth();
+  const { user, signOut } = useAuth();
   const [stats, setStats] = useState<DashboardStats>({
     totalRecords: 0,
     activeCases: 0,
@@ -22,6 +21,32 @@ const Dashboard = () => {
     completedToday: 0
   });
   const [loading, setLoading] = useState(true);
+  const [userRole, setUserRole] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchUserRole = async () => {
+      if (!user) return;
+      
+      try {
+        const { data, error } = await supabase
+          .from('user_roles')
+          .select('role')
+          .eq('user_id', user.id)
+          .single();
+        
+        if (error) {
+          console.error('Error fetching user role:', error);
+          return;
+        }
+        
+        setUserRole(data?.role || null);
+      } catch (error) {
+        console.error('Error fetching user role:', error);
+      }
+    };
+
+    fetchUserRole();
+  }, [user]);
 
   useEffect(() => {
     const fetchDashboardStats = async () => {
@@ -109,7 +134,7 @@ const Dashboard = () => {
 
   const handleLogout = async () => {
     try {
-      await logout();
+      await signOut();
       navigate('/auth');
     } catch (error) {
       console.error('Logout error:', error);
