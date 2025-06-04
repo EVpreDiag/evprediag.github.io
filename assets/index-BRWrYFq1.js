@@ -248,9 +248,10 @@ Error generating stack: `+i.message+`
             line-height: 1.2 !important;
           }
           
+          /* allow page breaks but keep sections intact within columns */
           .break-inside-avoid {
-            page-break-inside: avoid;
-            break-inside: avoid;
+            page-break-inside: auto;
+            break-inside: avoid-column;
           }
           
           .print\\:columns-2 {
