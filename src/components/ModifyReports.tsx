@@ -185,14 +185,26 @@ const ModifyReports = () => {
   }
 
   return (
-    <div className="min-h-screen bg-slate-900 p-6">
-      <div className="max-w-6xl mx-auto">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-white mb-2">Modify Reports</h1>
-          <p className="text-slate-400">
-            {isAdmin() ? 'Edit and manage all diagnostic reports' : 'Edit and manage your diagnostic reports'}
-          </p>
+    <div className="min-h-screen bg-slate-900">
+      <header className="bg-slate-800 border-b border-slate-700 px-6 py-4">
+        <div className="max-w-6xl mx-auto flex items-center space-x-4">
+          <button
+            onClick={() => navigate('/dashboard')}
+            className="flex items-center space-x-2 text-slate-300 hover:text-white transition-colors"
+          >
+            <ArrowLeft className="w-5 h-5" />
+            <span>Back to Dashboard</span>
+          </button>
+          <div>
+            <h1 className="text-xl font-bold text-white">Search Diagnostic Records</h1>
+            <p className="text-sm text-slate-400">
+              {isAdmin() ? 'Search all diagnostic records': 'Search your diagnostic records'}
+            </p>
+          </div>
         </div>
+      </header>
+
+      <div className="p-6 max-w-6xl mx-auto">
 
         {error && (
           <div className="mb-6 p-4 bg-red-900/20 border border-red-600/50 rounded-lg flex items-center space-x-2">
