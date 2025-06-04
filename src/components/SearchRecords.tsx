@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Search, FileText, Calendar, User } from 'lucide-react';
@@ -129,8 +128,9 @@ const SearchRecords = () => {
     });
   };
 
-  const handlePrint = (recordId: string) => {
-    navigate(`/print-summary/${recordId}`);
+  const handlePrint = (recordId: string, recordType: 'ev' | 'phev') => {
+    console.log('Navigating to print summary for record:', recordId, 'type:', recordType);
+    navigate(`/print-summary/${recordId}?type=${recordType}`);
   };
 
   if (loading) {
@@ -314,7 +314,7 @@ const SearchRecords = () => {
                     </div>
                     <div className="flex space-x-3">
                       <button
-                        onClick={() => handlePrint(record.id)}
+                        onClick={() => handlePrint(record.id, record.record_type)}
                         className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors flex items-center space-x-2"
                       >
                         <FileText className="w-4 h-4" />

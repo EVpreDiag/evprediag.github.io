@@ -1,7 +1,6 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Edit, Save, FileText, Calendar, User, Trash2, Search, ChevronDown, ChevronRight } from 'lucide-react';
+import { ArrowLeft, Edit, Save, FileText, Calendar, User, Trash2, Search, ChevronDown, ChevronRight, CheckCircle, AlertCircle } from 'lucide-react';
 import { supabase } from '../integrations/supabase/client';
 
 interface DiagnosticRecord {
@@ -31,6 +30,8 @@ const ModifyReports = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [saveSuccess, setSaveSuccess] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchRecords = async () => {
@@ -124,10 +125,13 @@ const ModifyReports = () => {
   };
 
   const handleEditRecord = (record: DiagnosticRecord) => {
+    console.log('Editing record:', record);
     setSelectedRecord(record);
     setEditForm(record);
     setIsEditing(true);
     setExpandedSections(['general']); // Start with general section expanded
+    setSaveSuccess(false);
+    setSaveError(null);
   };
 
   const handleSaveChanges = async () => {
@@ -135,37 +139,82 @@ const ModifyReports = () => {
 
     try {
       setSaving(true);
-      setError(null);
+      setSaveError(null);
+      setSaveSuccess(false);
+
+      console.log('Saving changes for record:', selectedRecord.id);
+      console.log('Edit form data:', editForm);
 
       const tableName = selectedRecord.record_type === 'ev' ? 'ev_diagnostic_records' : 'phev_diagnostic_records';
       
-      // Update the record in the database
-      const { error: updateError } = await supabase
-        .from(tableName)
-        .update({
-          ...editForm,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', selectedRecord.id);
+      // Prepare update data based on record type
+      let updateData: any = {
+        customer_name: editForm.customer_name,
+        vin: editForm.vin,
+        ro_number: editForm.ro_number,
+        mileage: editForm.mileage,
+        technician_id: editForm.technician_id,
+        updated_at: new Date().toISOString()
+      };
 
-      if (updateError) throw updateError;
+      // Handle make/model fields based on record type
+      if (selectedRecord.record_type === 'ev') {
+        updateData.make_model = editForm.make_model;
+      } else {
+        updateData.vehicle_make = editForm.vehicle_make;
+        updateData.model = editForm.model;
+      }
+
+      console.log('Update data prepared:', updateData);
+      console.log('Updating table:', tableName);
+
+      // Update the record in the database
+      const { error: updateError, data: updatedData } = await supabase
+        .from(tableName)
+        .update(updateData)
+        .eq('id', selectedRecord.id)
+        .select()
+        .single();
+
+      if (updateError) {
+        console.error('Update error:', updateError);
+        throw updateError;
+      }
+
+      console.log('Successfully updated record:', updatedData);
 
       // Update local state
-      const updatedRecords = records.map(record => 
-        record.id === selectedRecord.id 
-          ? { ...record, ...editForm, updated_at: new Date().toISOString() }
-          : record
-      );
+      const updatedRecords = records.map(record => {
+        if (record.id === selectedRecord.id) {
+          const updatedRecord = {
+            ...record,
+            ...updateData,
+            make_model: selectedRecord.record_type === 'ev' 
+              ? updateData.make_model 
+              : `${updateData.vehicle_make || ''} ${updateData.model || ''}`.trim()
+          };
+          return updatedRecord;
+        }
+        return record;
+      });
 
       setRecords(updatedRecords);
       setFilteredRecords(updatedRecords);
       
-      setIsEditing(false);
-      setSelectedRecord(null);
-      setEditForm({});
+      // Show success message
+      setSaveSuccess(true);
+      
+      // Close the edit form after a short delay to show success message
+      setTimeout(() => {
+        setIsEditing(false);
+        setSelectedRecord(null);
+        setEditForm({});
+        setSaveSuccess(false);
+      }, 1500);
+
     } catch (err) {
       console.error('Error updating record:', err);
-      setError('Failed to update record');
+      setSaveError(err instanceof Error ? err.message : 'Failed to update record');
     } finally {
       setSaving(false);
     }
@@ -201,6 +250,8 @@ const ModifyReports = () => {
     setIsEditing(false);
     setSelectedRecord(null);
     setEditForm({});
+    setSaveSuccess(false);
+    setSaveError(null);
   };
 
   const handleFieldChange = (field: string, value: string) => {
@@ -433,8 +484,24 @@ const ModifyReports = () => {
           <div className="bg-slate-800 rounded-lg border border-slate-700 w-full max-w-6xl max-h-[90vh] overflow-y-auto">
             <div className="p-6 border-b border-slate-700">
               <h3 className="text-lg font-semibold text-white">Edit Diagnostic Report</h3>
-              <p className="text-sm text-slate-400">Modify all diagnostic report details</p>
+              <p className="text-sm text-slate-400">Modify diagnostic report details</p>
             </div>
+            
+            {/* Success/Error Messages */}
+            {saveSuccess && (
+              <div className="mx-6 mt-4 bg-green-600/20 border border-green-600/30 rounded-lg p-4 flex items-center space-x-3">
+                <CheckCircle className="w-5 h-5 text-green-400" />
+                <p className="text-green-400">Record updated successfully! Closing editor...</p>
+              </div>
+            )}
+            
+            {saveError && (
+              <div className="mx-6 mt-4 bg-red-600/20 border border-red-600/30 rounded-lg p-4 flex items-center space-x-3">
+                <AlertCircle className="w-5 h-5 text-red-400" />
+                <p className="text-red-400">{saveError}</p>
+              </div>
+            )}
+
             <div className="p-6 space-y-6">
               {/* General Information */}
               {renderSection("General Information", "general", (
@@ -507,29 +574,15 @@ const ModifyReports = () => {
                       className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                     />
                   </div>
-                </div>
-              ))}
-
-              {/* Battery & Charging */}
-              {renderSection("Battery & Charging", "battery", (
-                <div className="space-y-6">
-                  {selectedRecord.record_type === 'ev' ? (
-                    <>
-                      {renderYesNoQuestion("Charging issues at home?", "charging_issues_home", "charging_issues_home_details")}
-                      {renderYesNoQuestion("Charging issues at public stations?", "charging_issues_public", "charging_issues_public_details")}
-                      {renderYesNoQuestion("Failed charging sessions?", "failed_charges", "failed_charges_details")}
-                      {renderYesNoQuestion("Range drop issues?", "range_drop", "range_drop_details")}
-                      {renderYesNoQuestion("Battery warnings/alerts?", "battery_warnings", "battery_warnings_details")}
-                      {renderYesNoQuestion("Power loss during acceleration?", "power_loss", "power_loss_details")}
-                    </>
-                  ) : (
-                    <>
-                      {renderYesNoQuestion("Battery charging properly?", "battery_charging", "battery_charging_details")}
-                      {renderYesNoQuestion("EV range as expected?", "ev_range_expected", "ev_range_details")}
-                      {renderYesNoQuestion("Excessive ICE operation?", "excessive_ice_operation", "ice_operation_details")}
-                      {renderYesNoQuestion("Charge rate drop?", "charge_rate_drop", "charge_rate_details")}
-                    </>
-                  )}
+                  <div>
+                    <label className="block text-sm font-medium text-slate-300 mb-2">Technician ID</label>
+                    <input
+                      type="text"
+                      value={editForm.technician_id || ''}
+                      onChange={(e) => handleFieldChange('technician_id', e.target.value)}
+                      className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
                 </div>
               ))}
 
@@ -548,13 +601,18 @@ const ModifyReports = () => {
               </button>
               <button
                 onClick={handleSaveChanges}
-                disabled={saving}
+                disabled={saving || saveSuccess}
                 className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors flex items-center space-x-2 disabled:opacity-50"
               >
                 {saving ? (
                   <>
                     <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
                     <span>Saving...</span>
+                  </>
+                ) : saveSuccess ? (
+                  <>
+                    <CheckCircle className="w-4 h-4" />
+                    <span>Saved!</span>
                   </>
                 ) : (
                   <>
