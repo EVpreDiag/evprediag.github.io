@@ -1,8 +1,8 @@
+
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Search, FileText, Calendar, User } from 'lucide-react';
 import { supabase } from '../integrations/supabase/client';
-import { useTechnicianNames } from '../hooks/useTechnicianNames';
 
 interface DiagnosticRecord {
   id: string;
@@ -26,7 +26,6 @@ const SearchRecords = () => {
   const [filteredRecords, setFilteredRecords] = useState<DiagnosticRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const { getTechnicianName } = useTechnicianNames();
 
   useEffect(() => {
     const fetchRecords = async () => {
@@ -305,7 +304,7 @@ const SearchRecords = () => {
                         </div>
                         <div className="flex items-center space-x-2">
                           <User className="w-4 h-4 text-slate-400" />
-                          <span className="text-slate-300">{getTechnicianName(record.technician_id)}</span>
+                          <span className="text-slate-300">{record.technician_id}</span>
                         </div>
                       </div>
                       <div className="flex items-center space-x-2 mt-2 text-sm">

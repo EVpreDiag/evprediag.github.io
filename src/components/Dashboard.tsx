@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+
+import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { 
@@ -16,94 +17,10 @@ import {
   Shield,
   Edit
 } from 'lucide-react';
-import { supabase } from '../integrations/supabase/client';
 
 const Dashboard = () => {
   const { user, profile, userRoles, hasRole, isAdmin, signOut } = useAuth();
   const navigate = useNavigate();
-  const [stats, setStats] = useState({
-    formsCompleted: 0,
-    activeCases: 0,
-    criticalIssues: 0
-  });
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const fetchStats = async () => {
-      try {
-        setLoading(true);
-
-        // Fetch total forms completed (both EV and PHEV)
-        const { data: evRecords, error: evError } = await supabase
-          .from('ev_diagnostic_records')
-          .select('id, created_at');
-
-        const { data: phevRecords, error: phevError } = await supabase
-          .from('phev_diagnostic_records')
-          .select('id, created_at');
-
-        if (evError) throw evError;
-        if (phevError) throw phevError;
-
-        const totalForms = (evRecords?.length || 0) + (phevRecords?.length || 0);
-
-        // Calculate active cases (forms created in the last 7 days)
-        const sevenDaysAgo = new Date();
-        sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-
-        const recentEV = evRecords?.filter(record => 
-          new Date(record.created_at) >= sevenDaysAgo
-        ).length || 0;
-
-        const recentPHEV = phevRecords?.filter(record => 
-          new Date(record.created_at) >= sevenDaysAgo
-        ).length || 0;
-
-        const activeCases = recentEV + recentPHEV;
-
-        // Calculate critical issues (forms with battery warnings, power loss, etc.)
-        let criticalIssues = 0;
-
-        // Check EV records for critical issues
-        if (evRecords && evRecords.length > 0) {
-          const { data: evCritical, error: evCriticalError } = await supabase
-            .from('ev_diagnostic_records')
-            .select('battery_warnings, power_loss, failed_charges')
-            .or('battery_warnings.eq.yes,power_loss.eq.yes,failed_charges.eq.yes');
-
-          if (!evCriticalError) {
-            criticalIssues += evCritical?.length || 0;
-          }
-        }
-
-        // Check PHEV records for critical issues
-        if (phevRecords && phevRecords.length > 0) {
-          const { data: phevCritical, error: phevCriticalError } = await supabase
-            .from('phev_diagnostic_records')
-            .select('excessive_ice_operation, misfires, burning_smell')
-            .or('excessive_ice_operation.eq.yes,misfires.eq.yes,burning_smell.eq.yes');
-
-          if (!phevCriticalError) {
-            criticalIssues += phevCritical?.length || 0;
-          }
-        }
-
-        setStats({
-          formsCompleted: totalForms,
-          activeCases: activeCases,
-          criticalIssues: criticalIssues
-        });
-
-      } catch (err) {
-        console.error('Error fetching dashboard stats:', err);
-        // Keep default values on error
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchStats();
-  }, []);
 
   const handleLogout = async () => {
     await signOut();
@@ -161,25 +78,10 @@ const Dashboard = () => {
     }
   ];
 
-  const dashboardStats = [
-    { 
-      label: 'Forms Completed', 
-      value: loading ? '...' : stats.formsCompleted.toString(), 
-      icon: BarChart3, 
-      color: 'text-blue-400' 
-    },
-    { 
-      label: 'Active Cases', 
-      value: loading ? '...' : stats.activeCases.toString(), 
-      icon: Car, 
-      color: 'text-green-400' 
-    },
-    { 
-      label: 'Critical Issues', 
-      value: loading ? '...' : stats.criticalIssues.toString(), 
-      icon: Zap, 
-      color: 'text-red-400' 
-    }
+  const stats = [
+    { label: 'Forms Completed', value: '24', icon: BarChart3, color: 'text-blue-400' },
+    { label: 'Active Cases', value: '8', icon: Car, color: 'text-green-400' },
+    { label: 'Critical Issues', value: '3', icon: Zap, color: 'text-red-400' }
   ];
 
   const getRoleDisplayName = (role: string) => {
@@ -263,7 +165,7 @@ const Dashboard = () => {
 
         {/* Stats Row */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          {dashboardStats.map((stat, index) => (
+          {stats.map((stat, index) => (
             <div key={index} className="bg-slate-800 rounded-lg p-6 border border-slate-700">
               <div className="flex items-center justify-between">
                 <div>

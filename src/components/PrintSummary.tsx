@@ -1,8 +1,8 @@
+
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Printer, FileText, Calendar, User, Car, Battery, Settings } from 'lucide-react';
+import { ArrowLeft, Printer, Download, Battery, AlertTriangle } from 'lucide-react';
 import { supabase } from '../integrations/supabase/client';
-import { useTechnicianNames } from '../hooks/useTechnicianNames';
 
 interface DiagnosticRecord {
   id: string;
@@ -20,41 +20,36 @@ interface DiagnosticRecord {
 }
 
 const PrintSummary = () => {
-  const { recordId } = useParams<{ recordId: string }>();
+  const { id } = useParams();
   const navigate = useNavigate();
   const [record, setRecord] = useState<DiagnosticRecord | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const { getTechnicianName } = useTechnicianNames();
 
   useEffect(() => {
     const fetchRecord = async () => {
-      if (!recordId) {
+      if (!id) {
         setError('No record ID provided');
         setLoading(false);
         return;
       }
 
       try {
-        setLoading(true);
-        setError(null);
-
-        // Try to fetch from EV records first
+        // Try to fetch from EV diagnostic records first
         const { data: evRecord, error: evError } = await supabase
           .from('ev_diagnostic_records')
           .select('*')
-          .eq('id', recordId)
+          .eq('id', id)
           .maybeSingle();
-
-        if (evError && evError.code !== 'PGRST116') {
-          throw evError;
-        }
 
         if (evRecord) {
           setRecord({
             ...evRecord,
-            record_type: 'ev',
-            make_model: evRecord.make_model || ''
+            customerName: evRecord.customer_name,
+            makeModel: evRecord.make_model,
+            createdAt: evRecord.created_at,
+            technician: evRecord.technician_id || 'Unknown',
+            record_type: 'ev'
           });
           setLoading(false);
           return;
@@ -64,33 +59,43 @@ const PrintSummary = () => {
         const { data: phevRecord, error: phevError } = await supabase
           .from('phev_diagnostic_records')
           .select('*')
-          .eq('id', recordId)
+          .eq('id', id)
           .maybeSingle();
-
-        if (phevError && phevError.code !== 'PGRST116') {
-          throw phevError;
-        }
 
         if (phevRecord) {
           setRecord({
             ...phevRecord,
-            record_type: 'phev',
-            make_model: `${phevRecord.vehicle_make || ''} ${phevRecord.model || ''}`.trim()
+            customerName: phevRecord.customer_name,
+            makeModel: `${phevRecord.vehicle_make || ''} ${phevRecord.model || ''}`.trim(),
+            createdAt: phevRecord.created_at,
+            technician: phevRecord.technician_id || 'Unknown',
+            record_type: 'phev'
           });
-        } else {
-          setError('Record not found');
+          setLoading(false);
+          return;
         }
 
+        // If not found in either table
+        setError('Record not found');
+        setLoading(false);
       } catch (err) {
         console.error('Error fetching record:', err);
-        setError('Failed to load record');
-      } finally {
+        setError('Failed to fetch record');
         setLoading(false);
       }
     };
 
     fetchRecord();
-  }, [recordId]);
+  }, [id]);
+
+  const handlePrint = () => {
+    window.print();
+  };
+
+  const handleDownload = () => {
+    // In a real application, this would generate and download a PDF
+    alert('PDF download functionality would be implemented here');
+  };
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
@@ -102,53 +107,124 @@ const PrintSummary = () => {
     });
   };
 
-  const getDisplayValue = (value: any): string => {
-    if (value === null || value === undefined || value === '') {
-      return 'Not specified';
-    }
-    if (Array.isArray(value)) {
-      return value.length > 0 ? value.join(', ') : 'Not specified';
-    }
-    return String(value);
+  const getYesNoIcon = (value: string) => {
+    if (value === 'yes') return <span className="text-red-500 font-bold">⚠ YES</span>;
+    if (value === 'no') return <span className="text-green-500">✓ NO</span>;
+    return <span className="text-slate-400">-</span>;
   };
 
-  const renderYesNoField = (label: string, value: any, details?: any) => {
-    const displayValue = getDisplayValue(value);
-    const hasDetails = details && getDisplayValue(details) !== 'Not specified';
+  const getSectionSummary = () => {
+    if (!record) return [];
     
-    return (
-      <div className="mb-4">
-        <div className="flex items-center justify-between mb-1">
-          <span className="text-slate-300 font-medium">{label}</span>
-          <span className={`px-2 py-1 rounded text-sm ${
-            displayValue === 'yes' ? 'bg-red-600/20 text-red-400' :
-            displayValue === 'no' ? 'bg-green-600/20 text-green-400' :
-            'bg-slate-600/20 text-slate-400'
-          }`}>
-            {displayValue === 'yes' ? 'Yes' : displayValue === 'no' ? 'No' : displayValue}
-          </span>
-        </div>
-        {hasDetails && (
-          <div className="ml-4 p-2 bg-slate-700/50 rounded text-sm text-slate-300">
-            <strong>Details:</strong> {getDisplayValue(details)}
-          </div>
-        )}
-      </div>
-    );
-  };
-
-  const renderInfoCard = (title: string, icon: React.ReactNode, children: React.ReactNode) => (
-    <div className="bg-slate-800 rounded-lg p-6 border border-slate-700 mb-6">
-      <h3 className="text-lg font-semibold text-white mb-4 flex items-center">
-        {icon}
-        <span className="ml-2">{title}</span>
-      </h3>
-      {children}
-    </div>
-  );
-
-  const handlePrint = () => {
-    window.print();
+    if (record.record_type === 'ev') {
+      return [
+        {
+          title: 'Battery & Charging Issues',
+          issues: [
+            { label: 'Charging Issues at Home', value: record.charging_issues_home },
+            { label: 'Charging Issues at Public Stations', value: record.charging_issues_public },
+            { label: 'Failed/Incomplete Charges', value: record.failed_charges },
+            { label: 'Range Drop', value: record.range_drop },
+            { label: 'Battery Warnings', value: record.battery_warnings },
+            { label: 'Power Loss/EV Power Limited', value: record.power_loss }
+          ]
+        },
+        {
+          title: 'Drivetrain & Performance',
+          issues: [
+            { label: 'Inconsistent Acceleration', value: record.consistent_acceleration === 'no' ? 'yes' : 'no' },
+            { label: 'Whining/Grinding Noises', value: record.whining_noises },
+            { label: 'Jerking/Hesitation', value: record.jerking_hesitation }
+          ]
+        },
+        {
+          title: 'NVH (Noise, Vibration, Harshness)',
+          issues: [
+            { label: 'Vibrations', value: record.vibrations },
+            { label: 'Noises During Actions', value: record.noises_actions },
+            { label: 'Rattles/Thumps', value: record.rattles_roads }
+          ]
+        },
+        {
+          title: 'Climate Control',
+          issues: [
+            { label: 'HVAC Performance Issues', value: record.hvac_performance === 'no' ? 'yes' : 'no' },
+            { label: 'Smells/Noises from Vents', value: record.smells_noises },
+            { label: 'Defogger Issues', value: record.defogger_performance === 'no' ? 'yes' : 'no' }
+          ]
+        },
+        {
+          title: 'Electrical & Software',
+          issues: [
+            { label: 'Infotainment Glitches', value: record.infotainment_glitches },
+            { label: 'Features Broken After Update', value: record.broken_features },
+            { label: 'Light Flicker/Abnormal Behavior', value: record.light_flicker }
+          ]
+        },
+        {
+          title: 'Regenerative Braking',
+          issues: [
+            { label: 'Rough Regenerative Braking', value: record.smooth_regen === 'no' ? 'yes' : 'no' },
+            { label: 'Regen Strength Different', value: record.regen_strength },
+            { label: 'Deceleration Noises', value: record.deceleration_noises }
+          ]
+        }
+      ];
+    } else {
+      // PHEV sections
+      return [
+        {
+          title: 'Battery & Charging Issues',
+          issues: [
+            { label: 'Battery Charging Issues', value: record.battery_charging === 'no' ? 'yes' : 'no' },
+            { label: 'EV Range Not As Expected', value: record.ev_range_expected === 'no' ? 'yes' : 'no' },
+            { label: 'Excessive ICE Operation', value: record.excessive_ice_operation },
+            { label: 'Charge Rate Drop', value: record.charge_rate_drop }
+          ]
+        },
+        {
+          title: 'Hybrid Operation',
+          issues: [
+            { label: 'Switching Lags/Delays', value: record.switching_lags },
+            { label: 'Engine Start in EV Mode', value: record.engine_start_ev_mode },
+            { label: 'Abnormal Vibrations', value: record.abnormal_vibrations }
+          ]
+        },
+        {
+          title: 'Engine & Drivetrain',
+          issues: [
+            { label: 'Acceleration Issues', value: record.acceleration_issues },
+            { label: 'Engine Sound Different', value: record.engine_sound },
+            { label: 'Burning Smell', value: record.burning_smell },
+            { label: 'Misfires/Rough Running', value: record.misfires }
+          ]
+        },
+        {
+          title: 'Climate Control',
+          issues: [
+            { label: 'HVAC Effectiveness Issues', value: record.hvac_effectiveness === 'no' ? 'yes' : 'no' },
+            { label: 'Fan Sounds/Noises', value: record.fan_sounds },
+            { label: 'Temperature Regulation Issues', value: record.temperature_regulation === 'no' ? 'yes' : 'no' }
+          ]
+        },
+        {
+          title: 'Electrical & Software',
+          issues: [
+            { label: 'Infotainment Glitches', value: record.infotainment_glitches },
+            { label: 'Features Broken After Update', value: record.broken_features },
+            { label: 'Light Flicker/Abnormal Behavior', value: record.light_flicker }
+          ]
+        },
+        {
+          title: 'Regenerative Braking',
+          issues: [
+            { label: 'Rough Regenerative Braking', value: record.smooth_regen === 'no' ? 'yes' : 'no' },
+            { label: 'Regen Strength Different', value: record.regen_strength },
+            { label: 'Deceleration Noises', value: record.deceleration_noises }
+          ]
+        }
+      ];
+    }
   };
 
   if (loading) {
@@ -156,8 +232,8 @@ const PrintSummary = () => {
       <div className="min-h-screen bg-slate-900 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-400 mx-auto mb-4"></div>
-          <h2 className="text-xl font-bold text-white mb-2">Loading Report</h2>
-          <p className="text-slate-400">Fetching diagnostic report...</p>
+          <h2 className="text-xl font-bold text-white mb-2">Loading Record</h2>
+          <p className="text-slate-400">Fetching diagnostic record...</p>
         </div>
       </div>
     );
@@ -167,14 +243,13 @@ const PrintSummary = () => {
     return (
       <div className="min-h-screen bg-slate-900 flex items-center justify-center">
         <div className="text-center">
-          <FileText className="w-16 h-16 text-slate-600 mx-auto mb-4" />
-          <h2 className="text-xl font-bold text-white mb-2">Report Not Found</h2>
-          <p className="text-slate-400 mb-4">{error || 'The requested report could not be found.'}</p>
+          <h2 className="text-xl font-bold text-white mb-2">Record Not Found</h2>
+          <p className="text-slate-400 mb-4">{error || 'The requested diagnostic record could not be found.'}</p>
           <button
-            onClick={() => navigate('/dashboard')}
+            onClick={() => navigate('/search-records')}
             className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
           >
-            Back to Dashboard
+            Back to Search
           </button>
         </div>
       </div>
@@ -183,7 +258,7 @@ const PrintSummary = () => {
 
   return (
     <div className="min-h-screen bg-slate-900">
-      {/* Header - Hidden when printing */}
+      {/* Header - Hidden in print */}
       <header className="bg-slate-800 border-b border-slate-700 px-6 py-4 print:hidden">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-4">
@@ -195,130 +270,121 @@ const PrintSummary = () => {
               <span>Back to Search</span>
             </button>
             <div>
-              <h1 className="text-xl font-bold text-white">Diagnostic Report Summary</h1>
-              <p className="text-sm text-slate-400">Customer: {record.customer_name}</p>
+              <h1 className="text-xl font-bold text-white">Diagnostic Summary</h1>
+              <p className="text-sm text-slate-400">Print or download diagnostic report</p>
             </div>
           </div>
-          <button
-            onClick={handlePrint}
-            className="flex items-center space-x-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
-          >
-            <Printer className="w-5 h-5" />
-            <span>Print Report</span>
-          </button>
+          <div className="flex space-x-3">
+            <button
+              onClick={handleDownload}
+              className="flex items-center space-x-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors"
+            >
+              <Download className="w-5 h-5" />
+              <span>Download PDF</span>
+            </button>
+            <button
+              onClick={handlePrint}
+              className="flex items-center space-x-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+            >
+              <Printer className="w-5 h-5" />
+              <span>Print</span>
+            </button>
+          </div>
         </div>
       </header>
 
-      {/* Print Header - Only visible when printing */}
-      <div className="hidden print:block print:mb-6">
-        <div className="text-center border-b-2 border-slate-300 pb-4">
-          <h1 className="text-2xl font-bold text-slate-900">EV Diagnostic Report</h1>
-          <p className="text-slate-600 mt-2">Generated on {formatDate(new Date().toISOString())}</p>
+      {/* Print Content */}
+      <div className="p-6 max-w-4xl mx-auto print:p-8 print:max-w-none">
+        {/* Header Info */}
+        <div className="bg-slate-800 print:bg-white print:border print:border-gray-300 rounded-lg p-6 mb-6 print:mb-4">
+          <div className="flex items-center justify-between mb-6 print:mb-4">
+            <div className="flex items-center space-x-3">
+              <Battery className="w-8 h-8 text-blue-400 print:text-blue-600" />
+              <div>
+                <h1 className="text-2xl font-bold text-white print:text-black">
+                  {record.record_type === 'ev' ? 'EV' : 'PHEV'} Diagnostic Report
+                </h1>
+                <p className="text-slate-400 print:text-gray-600">Pre-Check Assessment Summary</p>
+              </div>
+            </div>
+            <div className="text-right">
+              <p className="text-sm text-slate-400 print:text-gray-600">Generated: {formatDate(record.createdAt)}</p>
+              <p className="text-sm text-slate-400 print:text-gray-600">Technician: {record.technician}</p>
+            </div>
+          </div>
+
+          {/* Vehicle Info */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 print:grid-cols-4">
+            <div>
+              <label className="block text-xs font-medium text-slate-400 print:text-gray-600 uppercase tracking-wider mb-1">Customer</label>
+              <p className="text-white print:text-black font-medium">{record.customerName}</p>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-slate-400 print:text-gray-600 uppercase tracking-wider mb-1">VIN</label>
+              <p className="text-white print:text-black font-mono">{record.vin}</p>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-slate-400 print:text-gray-600 uppercase tracking-wider mb-1">RO Number</label>
+              <p className="text-white print:text-black">{record.ro_number}</p>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-slate-400 print:text-gray-600 uppercase tracking-wider mb-1">Make/Model</label>
+              <p className="text-white print:text-black">{record.makeModel}</p>
+            </div>
+          </div>
         </div>
-      </div>
 
-      <div className="p-6 print:p-8 print:text-slate-900">
-        {/* Basic Information */}
-        {renderInfoCard("Vehicle Information", <Car className="w-5 h-5 text-blue-400" />, (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <span className="text-slate-400 print:text-slate-600">Customer Name:</span>
-              <p className="text-white print:text-slate-900 font-medium">{record.customer_name}</p>
-            </div>
-            <div>
-              <span className="text-slate-400 print:text-slate-600">VIN:</span>
-              <p className="text-white print:text-slate-900 font-mono">{record.vin}</p>
-            </div>
-            <div>
-              <span className="text-slate-400 print:text-slate-600">RO Number:</span>
-              <p className="text-white print:text-slate-900 font-medium">{record.ro_number}</p>
-            </div>
-            <div>
-              <span className="text-slate-400 print:text-slate-600">Make/Model:</span>
-              <p className="text-white print:text-slate-900 font-medium">{record.make_model}</p>
-            </div>
-            <div>
-              <span className="text-slate-400 print:text-slate-600">Mileage:</span>
-              <p className="text-white print:text-slate-900 font-medium">{getDisplayValue(record.mileage)}</p>
-            </div>
-            <div>
-              <span className="text-slate-400 print:text-slate-600">Vehicle Type:</span>
-              <p className="text-white print:text-slate-900 font-medium">
-                {record.record_type === 'ev' ? 'Electric Vehicle (EV)' : 'Plug-in Hybrid Electric Vehicle (PHEV)'}
-              </p>
-            </div>
+        {/* Issues Summary */}
+        <div className="bg-slate-800 print:bg-white print:border print:border-gray-300 rounded-lg p-6 mb-6 print:mb-4">
+          <h2 className="text-lg font-semibold text-white print:text-black mb-4 flex items-center">
+            <AlertTriangle className="w-5 h-5 mr-2 text-orange-400 print:text-orange-600" />
+            Issues Summary
+          </h2>
+          
+          <div className="space-y-6 print:space-y-4">
+            {getSectionSummary().map((section, index) => {
+              const hasIssues = section.issues.some(issue => issue.value === 'yes');
+              
+              return (
+                <div key={index} className={`border rounded-lg p-4 ${hasIssues ? 'border-red-500/30 bg-red-500/5 print:border-red-300 print:bg-red-50' : 'border-slate-700 print:border-gray-300'}`}>
+                  <h3 className="font-medium text-white print:text-black mb-3">{section.title}</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2 print:grid-cols-2">
+                    {section.issues.map((issue, issueIndex) => (
+                      <div key={issueIndex} className="flex items-center justify-between">
+                        <span className="text-sm text-slate-300 print:text-gray-700">{issue.label}</span>
+                        {getYesNoIcon(issue.value)}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
           </div>
-        ))}
+        </div>
 
-        {/* Report Information */}
-        {renderInfoCard("Report Information", <FileText className="w-5 h-5 text-green-400" />, (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <span className="text-slate-400 print:text-slate-600">Technician:</span>
-              <p className="text-white print:text-slate-900 font-medium">{getTechnicianName(record.technician_id)}</p>
-            </div>
-            <div>
-              <span className="text-slate-400 print:text-slate-600">Date Created:</span>
-              <p className="text-white print:text-slate-900 font-medium">{formatDate(record.created_at)}</p>
-            </div>
+        {/* Detailed Responses */}
+        <div className="bg-slate-800 print:bg-white print:border print:border-gray-300 rounded-lg p-6 print:mb-4">
+          <h2 className="text-lg font-semibold text-white print:text-black mb-4">Detailed Responses</h2>
+          
+          <div className="space-y-4 print:space-y-3">
+            {/* Show only fields with details */}
+            {Object.entries(record).filter(([key, value]) => 
+              key.includes('_details') && value && value.toString().trim() !== ''
+            ).map(([key, value]) => (
+              <div key={key} className="border-l-4 border-blue-500 pl-4 print:border-blue-400">
+                <h4 className="font-medium text-white print:text-black text-sm mb-1">
+                  {key.replace('_details', '').replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                </h4>
+                <p className="text-slate-300 print:text-gray-700 text-sm">{value}</p>
+              </div>
+            ))}
           </div>
-        ))}
+        </div>
 
-        {/* Battery & Charging Issues */}
-        {renderInfoCard("Battery & Charging", <Battery className="w-5 h-5 text-yellow-400" />, (
-          <div className="space-y-3">
-            {record.record_type === 'ev' ? (
-              <>
-                {renderYesNoField("Charging issues at home", record.charging_issues_home, record.charging_issues_home_details)}
-                {renderYesNoField("Charging issues at public stations", record.charging_issues_public, record.charging_issues_public_details)}
-                {renderYesNoField("Failed charging sessions", record.failed_charges, record.failed_charges_details)}
-                {renderYesNoField("Range drop issues", record.range_drop, record.range_drop_details)}
-                {renderYesNoField("Battery warnings/alerts", record.battery_warnings, record.battery_warnings_details)}
-                {renderYesNoField("Power loss during acceleration", record.power_loss, record.power_loss_details)}
-              </>
-            ) : (
-              <>
-                {renderYesNoField("Battery charging properly", record.battery_charging, record.battery_charging_details)}
-                {renderYesNoField("EV range as expected", record.ev_range_expected, record.ev_range_details)}
-                {renderYesNoField("Excessive ICE operation", record.excessive_ice_operation, record.ice_operation_details)}
-                {renderYesNoField("Charge rate drop", record.charge_rate_drop, record.charge_rate_details)}
-              </>
-            )}
-          </div>
-        ))}
-
-        {/* Performance Issues */}
-        {renderInfoCard("Performance & Drivetrain", <Settings className="w-5 h-5 text-purple-400" />, (
-          <div className="space-y-3">
-            {record.record_type === 'ev' ? (
-              <>
-                {renderYesNoField("Consistent acceleration", record.consistent_acceleration, record.acceleration_details)}
-                {renderYesNoField("Whining noises", record.whining_noises, record.whining_details)}
-                {renderYesNoField("Jerking/hesitation", record.jerking_hesitation, record.jerking_details)}
-                {renderYesNoField("Vibrations", record.vibrations, record.vibrations_details)}
-                {renderYesNoField("Smooth regeneration", record.smooth_regen, record.smooth_regen_details)}
-                {renderYesNoField("Deceleration noises", record.deceleration_noises, record.deceleration_noises_details)}
-              </>
-            ) : (
-              <>
-                {renderYesNoField("Acceleration issues", record.acceleration_issues, record.acceleration_details)}
-                {renderYesNoField("Abnormal vibrations", record.abnormal_vibrations, record.vibrations_details)}
-                {renderYesNoField("Engine sound normal", record.engine_sound, record.engine_sound_details)}
-                {renderYesNoField("Any misfires", record.misfires, record.misfires_details)}
-                {renderYesNoField("Smooth regeneration", record.smooth_regen, record.smooth_regen_details)}
-              </>
-            )}
-          </div>
-        ))}
-
-        {/* Additional sections would go here... */}
-        
-        {/* Print Footer - Only visible when printing */}
-        <div className="hidden print:block print:mt-8 print:pt-4 print:border-t print:border-slate-300">
-          <div className="text-center text-sm text-slate-600">
-            <p>This report was generated electronically and contains diagnostic information as of {formatDate(record.created_at)}</p>
-            <p className="mt-1">Report ID: {record.id}</p>
-          </div>
+        {/* Footer */}
+        <div className="text-center text-sm text-slate-400 print:text-gray-600 pt-6 print:pt-4 border-t border-slate-700 print:border-gray-300">
+          <p>This report was generated by the EV Diagnostic Portal</p>
+          <p>For technical support, contact your system administrator</p>
         </div>
       </div>
     </div>
