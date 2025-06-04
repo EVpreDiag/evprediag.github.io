@@ -1,8 +1,8 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Edit, Save, FileText, Calendar, User, Trash2, Search, ChevronDown, ChevronRight } from 'lucide-react';
 import { supabase } from '../integrations/supabase/client';
+import { useTechnicianNames } from '../hooks/useTechnicianNames';
 
 interface DiagnosticRecord {
   id: string;
@@ -31,6 +31,7 @@ const ModifyReports = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const { getTechnicianName } = useTechnicianNames();
 
   useEffect(() => {
     const fetchRecords = async () => {
@@ -248,6 +249,30 @@ const ModifyReports = () => {
     </div>
   );
 
+  const renderTextInput = (label: string, field: string) => (
+    <div>
+      <label className="block text-sm font-medium text-slate-300 mb-2">{label}</label>
+      <input
+        type="text"
+        value={editForm[field] || ''}
+        onChange={(e) => handleFieldChange(field, e.target.value)}
+        className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+      />
+    </div>
+  );
+
+  const renderTextarea = (label: string, field: string, rows = 3) => (
+    <div>
+      <label className="block text-sm font-medium text-slate-300 mb-2">{label}</label>
+      <textarea
+        value={editForm[field] || ''}
+        onChange={(e) => handleFieldChange(field, e.target.value)}
+        className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+        rows={rows}
+      />
+    </div>
+  );
+
   const renderSection = (title: string, sectionKey: string, children: React.ReactNode) => (
     <div className="border border-slate-600 rounded-lg overflow-hidden">
       <button
@@ -395,7 +420,7 @@ const ModifyReports = () => {
                         </div>
                         <div className="flex items-center space-x-2">
                           <User className="w-4 h-4 text-slate-400" />
-                          <span className="text-slate-300">{record.technician_id}</span>
+                          <span className="text-slate-300">{getTechnicianName(record.technician_id)}</span>
                         </div>
                       </div>
                       <div className="flex items-center space-x-2 mt-2 text-sm">
@@ -433,80 +458,25 @@ const ModifyReports = () => {
           <div className="bg-slate-800 rounded-lg border border-slate-700 w-full max-w-6xl max-h-[90vh] overflow-y-auto">
             <div className="p-6 border-b border-slate-700">
               <h3 className="text-lg font-semibold text-white">Edit Diagnostic Report</h3>
-              <p className="text-sm text-slate-400">Modify all diagnostic report details</p>
+              <p className="text-sm text-slate-400">Modify comprehensive diagnostic report details</p>
             </div>
             <div className="p-6 space-y-6">
               {/* General Information */}
               {renderSection("General Information", "general", (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-slate-300 mb-2">Customer Name</label>
-                    <input
-                      type="text"
-                      value={editForm.customer_name || ''}
-                      onChange={(e) => handleFieldChange('customer_name', e.target.value)}
-                      className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-slate-300 mb-2">VIN</label>
-                    <input
-                      type="text"
-                      value={editForm.vin || ''}
-                      onChange={(e) => handleFieldChange('vin', e.target.value)}
-                      className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-slate-300 mb-2">RO Number</label>
-                    <input
-                      type="text"
-                      value={editForm.ro_number || ''}
-                      onChange={(e) => handleFieldChange('ro_number', e.target.value)}
-                      className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
+                  {renderTextInput("Customer Name", "customer_name")}
+                  {renderTextInput("VIN", "vin")}
+                  {renderTextInput("RO Number", "ro_number")}
                   {selectedRecord.record_type === 'ev' ? (
-                    <div>
-                      <label className="block text-sm font-medium text-slate-300 mb-2">Make/Model</label>
-                      <input
-                        type="text"
-                        value={editForm.make_model || ''}
-                        onChange={(e) => handleFieldChange('make_model', e.target.value)}
-                        className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      />
-                    </div>
+                    renderTextInput("Make/Model", "make_model")
                   ) : (
                     <>
-                      <div>
-                        <label className="block text-sm font-medium text-slate-300 mb-2">Vehicle Make</label>
-                        <input
-                          type="text"
-                          value={editForm.vehicle_make || ''}
-                          onChange={(e) => handleFieldChange('vehicle_make', e.target.value)}
-                          className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-slate-300 mb-2">Model</label>
-                        <input
-                          type="text"
-                          value={editForm.model || ''}
-                          onChange={(e) => handleFieldChange('model', e.target.value)}
-                          className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        />
-                      </div>
+                      {renderTextInput("Vehicle Make", "vehicle_make")}
+                      {renderTextInput("Model", "model")}
                     </>
                   )}
-                  <div>
-                    <label className="block text-sm font-medium text-slate-300 mb-2">Mileage</label>
-                    <input
-                      type="text"
-                      value={editForm.mileage || ''}
-                      onChange={(e) => handleFieldChange('mileage', e.target.value)}
-                      className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
+                  {renderTextInput("Mileage", "mileage")}
+                  {renderTextInput("Technician ID", "technician_id")}
                 </div>
               ))}
 
@@ -521,6 +491,8 @@ const ModifyReports = () => {
                       {renderYesNoQuestion("Range drop issues?", "range_drop", "range_drop_details")}
                       {renderYesNoQuestion("Battery warnings/alerts?", "battery_warnings", "battery_warnings_details")}
                       {renderYesNoQuestion("Power loss during acceleration?", "power_loss", "power_loss_details")}
+                      {renderTextInput("Usual charge level", "usual_charge_level")}
+                      {renderTextInput("Charge rate drop", "charge_rate_drop")}
                     </>
                   ) : (
                     <>
@@ -528,15 +500,106 @@ const ModifyReports = () => {
                       {renderYesNoQuestion("EV range as expected?", "ev_range_expected", "ev_range_details")}
                       {renderYesNoQuestion("Excessive ICE operation?", "excessive_ice_operation", "ice_operation_details")}
                       {renderYesNoQuestion("Charge rate drop?", "charge_rate_drop", "charge_rate_details")}
+                      {renderTextInput("Usual charge level", "usual_charge_level")}
                     </>
                   )}
                 </div>
               ))}
 
-              {/* Show simplified form for basic field editing - full diagnostic editing would require much more complex logic */}
-              <div className="text-sm text-slate-400 p-4 bg-slate-700/50 rounded-lg">
-                <p>Note: This is a simplified edit form for basic information. For complete diagnostic data editing, please create a new record.</p>
-              </div>
+              {/* Performance & Drivetrain */}
+              {renderSection("Performance & Drivetrain", "performance", (
+                <div className="space-y-6">
+                  {selectedRecord.record_type === 'ev' ? (
+                    <>
+                      {renderYesNoQuestion("Consistent acceleration?", "consistent_acceleration", "acceleration_details")}
+                      {renderYesNoQuestion("Whining noises?", "whining_noises", "whining_details")}
+                      {renderYesNoQuestion("Jerking/hesitation?", "jerking_hesitation", "jerking_details")}
+                      {renderYesNoQuestion("Vibrations?", "vibrations", "vibrations_details")}
+                      {renderYesNoQuestion("Smooth regeneration?", "smooth_regen", "smooth_regen_details")}
+                      {renderTextInput("Regeneration strength", "regen_strength")}
+                      {renderYesNoQuestion("Deceleration noises?", "deceleration_noises", "deceleration_noises_details")}
+                    </>
+                  ) : (
+                    <>
+                      {renderYesNoQuestion("Acceleration issues?", "acceleration_issues", "acceleration_details")}
+                      {renderYesNoQuestion("Abnormal vibrations?", "abnormal_vibrations", "vibrations_details")}
+                      {renderYesNoQuestion("Engine sound normal?", "engine_sound", "engine_sound_details")}
+                      {renderYesNoQuestion("Any misfires?", "misfires", "misfires_details")}
+                      {renderYesNoQuestion("Smooth regeneration?", "smooth_regen", "smooth_regen_details")}
+                      {renderTextInput("Regeneration strength", "regen_strength")}
+                    </>
+                  )}
+                </div>
+              ))}
+
+              {/* Climate & Comfort */}
+              {renderSection("Climate & Comfort", "climate", (
+                <div className="space-y-6">
+                  {selectedRecord.record_type === 'ev' ? (
+                    <>
+                      {renderYesNoQuestion("HVAC performance good?", "hvac_performance", "hvac_details")}
+                      {renderYesNoQuestion("Any smells/noises?", "smells_noises", "smells_noises_details")}
+                      {renderYesNoQuestion("Defogger working?", "defogger_performance", "defogger_details")}
+                    </>
+                  ) : (
+                    <>
+                      {renderYesNoQuestion("HVAC effective?", "hvac_effectiveness", "hvac_details")}
+                      {renderYesNoQuestion("Fan sounds normal?", "fan_sounds", "fan_details")}
+                      {renderYesNoQuestion("Temperature regulation good?", "temperature_regulation", "temperature_details")}
+                      {renderYesNoQuestion("Any burning smell?", "burning_smell", "burning_smell_details")}
+                    </>
+                  )}
+                </div>
+              ))}
+
+              {/* Electronics & Features */}
+              {renderSection("Electronics & Features", "electronics", (
+                <div className="space-y-6">
+                  {renderYesNoQuestion("Infotainment glitches?", "infotainment_glitches", "infotainment_details")}
+                  {renderTextInput("OTA updates", "ota_updates")}
+                  {renderYesNoQuestion("Broken features?", "broken_features", "broken_features_details")}
+                  {renderYesNoQuestion("Light flicker issues?", "light_flicker", "light_flicker_details")}
+                </div>
+              ))}
+
+              {/* Additional sections for PHEV */}
+              {selectedRecord.record_type === 'phev' && (
+                <>
+                  {renderSection("Fuel Usage", "fuel", (
+                    <div className="space-y-6">
+                      {renderTextInput("Fuel type", "fuel_type")}
+                      {renderTextInput("Fuel source", "fuel_source")}
+                      {renderTextInput("Petrol vs EV usage", "petrol_vs_ev_usage")}
+                      {renderYesNoQuestion("Fuel economy change?", "fuel_economy_change", "fuel_economy_details")}
+                      {renderTextInput("Fuel consumption", "fuel_consumption")}
+                      {renderTextInput("Average electric range", "average_electric_range")}
+                    </div>
+                  ))}
+                  
+                  {renderSection("Mode Performance", "modes", (
+                    <div className="space-y-6">
+                      {renderYesNoQuestion("Sport mode power good?", "sport_mode_power", "sport_mode_details")}
+                      {renderYesNoQuestion("Eco/EV mode limited?", "eco_ev_mode_limit", "eco_ev_mode_details")}
+                      {renderYesNoQuestion("Mode switching lags?", "switching_lags", "switching_details")}
+                      {renderYesNoQuestion("Engine starts in EV mode?", "engine_start_ev_mode", "engine_start_details")}
+                      {renderYesNoQuestion("Mode noise issues?", "mode_noise", "mode_noise_details")}
+                      {renderYesNoQuestion("Mode warnings?", "mode_warnings", "mode_warnings_details")}
+                    </div>
+                  ))}
+                </>
+              )}
+
+              {/* Conditions & Environment */}
+              {renderSection("Conditions & Environment", "conditions", (
+                <div className="space-y-6">
+                  {renderTextInput("Temperature during issue", "temperature_during_issue")}
+                  {renderTextInput("Time of day", "time_of_day")}
+                  {renderTextInput("Vehicle parked where", "vehicle_parked")}
+                  {renderYesNoQuestion("HVAC/weather difference?", "hvac_weather_difference", "hvac_weather_details")}
+                  {renderYesNoQuestion("Range/regen affected by temp?", "range_regen_temp", "range_regen_details")}
+                  {renderYesNoQuestion("Moisture in charging port?", "moisture_charging_port")}
+                </div>
+              ))}
             </div>
             <div className="p-6 border-t border-slate-700 flex justify-end space-x-3">
               <button
