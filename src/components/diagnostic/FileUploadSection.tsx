@@ -1,51 +1,79 @@
 
 import React from 'react';
-import { Upload } from 'lucide-react';
-import { FormData } from '../../types/diagnosticForm';
+import { Upload, X } from 'lucide-react';
 
 interface FileUploadSectionProps {
-  formData: FormData;
+  formData: { uploadedFiles: File[] };
   onFileUpload: (files: FileList | null) => void;
 }
 
-const FileUploadSection: React.FC<FileUploadSectionProps> = ({ formData, onFileUpload }) => (
-  <div className="space-y-6">
-    <div>
-      <label className="block text-sm font-medium text-slate-300 mb-2">
-        Upload photos, dash screenshots, or videos
-      </label>
-      <div className="border-2 border-dashed border-slate-600 rounded-lg p-6 text-center">
-        <Upload className="w-12 h-12 text-slate-400 mx-auto mb-4" />
-        <p className="text-slate-400 mb-4">Click to upload or drag and drop files here</p>
-        <input
-          type="file"
-          multiple
-          accept="image/*,video/*"
-          onChange={(e) => onFileUpload(e.target.files)}
-          className="hidden"
-          id="file-upload"
-        />
-        <label
-          htmlFor="file-upload"
-          className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg cursor-pointer inline-block"
-        >
-          Choose Files
+const FileUploadSection: React.FC<FileUploadSectionProps> = ({ formData, onFileUpload }) => {
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    onFileUpload(e.target.files);
+  };
+
+  const removeFile = (index: number) => {
+    // This would need to be handled by the parent component
+    // For now, we'll just show the files
+  };
+
+  return (
+    <div className="space-y-4">
+      <div>
+        <label className="block text-sm font-medium text-slate-300 mb-2">
+          Upload Evidence (Photos, Videos, Documents)
         </label>
+        <div className="border-2 border-dashed border-slate-600 rounded-lg p-6 text-center hover:border-slate-500 transition-colors">
+          <Upload className="mx-auto h-12 w-12 text-slate-400 mb-4" />
+          <div className="space-y-2">
+            <p className="text-slate-300">
+              Drag and drop files here, or{' '}
+              <label className="text-blue-400 hover:text-blue-300 cursor-pointer underline">
+                browse
+                <input
+                  type="file"
+                  multiple
+                  accept="image/*,video/*,.pdf,.doc,.docx"
+                  onChange={handleFileChange}
+                  className="hidden"
+                />
+              </label>
+            </p>
+            <p className="text-sm text-slate-500">
+              Supports: Images, Videos, PDF, Word documents
+            </p>
+          </div>
+        </div>
       </div>
+
       {formData.uploadedFiles.length > 0 && (
-        <div className="mt-4">
-          <p className="text-sm text-slate-300 mb-2">Uploaded files:</p>
-          <ul className="space-y-1">
+        <div>
+          <h4 className="text-sm font-medium text-slate-300 mb-2">Uploaded Files:</h4>
+          <div className="space-y-2">
             {formData.uploadedFiles.map((file, index) => (
-              <li key={index} className="text-sm text-slate-400">
-                {file.name} ({Math.round(file.size / 1024)}KB)
-              </li>
+              <div key={index} className="flex items-center justify-between bg-slate-700 p-3 rounded-lg">
+                <div className="flex items-center space-x-3">
+                  <div className="text-slate-300">
+                    <span className="font-medium">{file.name}</span>
+                    <span className="text-sm text-slate-400 ml-2">
+                      ({(file.size / 1024 / 1024).toFixed(2)} MB)
+                    </span>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => removeFile(index)}
+                  className="text-slate-400 hover:text-red-400 transition-colors"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
             ))}
-          </ul>
+          </div>
         </div>
       )}
     </div>
-  </div>
-);
+  );
+};
 
 export default FileUploadSection;
