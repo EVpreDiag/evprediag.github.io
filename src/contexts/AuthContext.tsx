@@ -27,7 +27,7 @@ interface AuthContextType {
   isAdmin: () => boolean;
   assignRole: (userId: string, role: UserRole) => Promise<{ error: any }>;
   removeRole: (userId: string, role: UserRole) => Promise<{ error: any }>;
-  fetchUserRoles: () => Promise<void>;
+  fetchUserRoles: (userId?: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -43,14 +43,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
+        console.log('Auth state changed:', event, session?.user?.id);
         setSession(session);
         setUser(session?.user ?? null);
         
         if (session?.user) {
-          // Fetch user profile and roles
+          // Use setTimeout to avoid potential Supabase client deadlocks
           setTimeout(async () => {
             await fetchUserProfile(session.user.id);
-            await fetchUserRoles();
+            await fetchUserRoles(session.user.id);
           }, 0);
         } else {
           setProfile(null);
@@ -63,12 +64,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     // Get initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
+      console.log('Initial session check:', session?.user?.id);
       setSession(session);
       setUser(session?.user ?? null);
+      
       if (session?.user) {
         fetchUserProfile(session.user.id);
-        fetchUserRoles();
+        fetchUserRoles(session.user.id);
       }
+      
       setLoading(false);
     });
 
@@ -77,6 +81,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const fetchUserProfile = async (userId: string) => {
     try {
+      console.log('Fetching profile for user:', userId);
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
@@ -88,27 +93,36 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return;
       }
 
+      console.log('Profile fetched:', data);
       setProfile(data);
     } catch (error) {
       console.error('Error fetching profile:', error);
     }
   };
 
-  const fetchUserRoles = async () => {
-    if (!user) return;
+  const fetchUserRoles = async (userId?: string) => {
+    const fetchId = userId || user?.id;
+    
+    if (!fetchId) {
+      console.log('No user ID available for fetching roles');
+      return;
+    }
 
     try {
+      console.log('Fetching roles for user:', fetchId);
       const { data, error } = await supabase
         .from('user_roles')
         .select('role')
-        .eq('user_id', user.id);
+        .eq('user_id', fetchId);
 
       if (error) {
         console.error('Error fetching user roles:', error);
         return;
       }
 
-      setUserRoles(data?.map(item => item.role) || []);
+      const roles = data?.map(item => item.role as UserRole) || [];
+      console.log('Roles fetched:', roles);
+      setUserRoles(roles);
     } catch (error) {
       console.error('Error fetching user roles:', error);
     }

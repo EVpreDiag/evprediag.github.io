@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { Shield } from 'lucide-react';
@@ -17,7 +17,15 @@ const RoleProtectedRoute: React.FC<RoleProtectedRouteProps> = ({
   requiredRoles = [], 
   requireAnyRole = true 
 }) => {
-  const { isAuthenticated, loading, userRoles } = useAuth();
+  const { isAuthenticated, loading, userRoles, user, fetchUserRoles } = useAuth();
+
+  // Ensure roles are loaded when component mounts
+  useEffect(() => {
+    if (isAuthenticated && user?.id && userRoles.length === 0) {
+      console.log('RoleProtectedRoute: Refreshing user roles for', user.id);
+      fetchUserRoles(user.id);
+    }
+  }, [isAuthenticated, user?.id, userRoles.length]);
 
   if (loading) {
     return (
@@ -36,10 +44,15 @@ const RoleProtectedRoute: React.FC<RoleProtectedRouteProps> = ({
     return <>{children}</>;
   }
 
+  console.log('User roles in RoleProtectedRoute:', userRoles);
+  console.log('Required roles:', requiredRoles);
+
   // Check if user has required roles
   const hasRequiredRole = requireAnyRole
     ? requiredRoles.some(role => userRoles.includes(role))
     : requiredRoles.every(role => userRoles.includes(role));
+
+  console.log('Has required role?', hasRequiredRole);
 
   if (!hasRequiredRole) {
     return (
