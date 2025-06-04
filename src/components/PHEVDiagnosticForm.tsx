@@ -963,12 +963,12 @@ const PHEVDiagnosticForm = () => {
             {isSubmitting ? (
               <>
                 <Loader2 className="w-5 h-5 animate-spin" />
-                <span>Saving...</span>
+                <span>{isEditMode ? 'Updating...' : 'Saving...'}</span>
               </>
             ) : (
               <>
                 <Save className="w-5 h-5" />
-                <span>Save & Print</span>
+                <span>{isEditMode ? 'Update & Print' : 'Save & Print'}</span>
               </>
             )}
           </button>
