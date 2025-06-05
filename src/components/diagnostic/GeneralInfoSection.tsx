@@ -35,11 +35,21 @@ const GeneralInfoSection: React.FC<FormProps> = ({ formData, onInputChange }) =>
       />
     </div>
     <div>
-      <label className="block text-sm font-medium text-slate-300 mb-2">Make/Model</label>
+      <label className="block text-sm font-medium text-slate-300 mb-2">Vehicle Make</label>
       <input
         type="text"
-        value={formData.makeModel}
-        onChange={(e) => onInputChange('makeModel', e.target.value)}
+        value={formData.vehicleMake}
+        onChange={(e) => onInputChange('vehicleMake', e.target.value)}
+        className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white"
+        required
+      />
+    </div>
+    <div>
+      <label className="block text-sm font-medium text-slate-300 mb-2">Model</label>
+      <input
+        type="text"
+        value={formData.model}
+        onChange={(e) => onInputChange('model', e.target.value)}
         className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white"
         required
       />

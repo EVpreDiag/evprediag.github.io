@@ -4,7 +4,8 @@ export interface FormData {
   customerName: string;
   vin: string;
   roNumber: string;
-  makeModel: string;
+  vehicleMake: string;
+  model: string;
   mileage: string;
   
   // Battery & Charging
