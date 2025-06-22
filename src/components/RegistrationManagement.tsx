@@ -31,13 +31,14 @@ interface RegistrationRequest {
 
 const RegistrationManagement = () => {
   const navigate = useNavigate();
-  const { isSuperAdmin } = useAuth();
+  const { isSuperAdmin, user } = useAuth();
   const [requests, setRequests] = useState<RegistrationRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedRequest, setSelectedRequest] = useState<RegistrationRequest | null>(null);
   const [showRejectModal, setShowRejectModal] = useState(false);
   const [rejectionReason, setRejectionReason] = useState('');
-  const [processingId, setProcessingId] = useState<string | null>(null);
+  const [processing, setProcessing] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!isSuperAdmin()) {
@@ -71,70 +72,97 @@ const RegistrationManagement = () => {
   };
 
   const handleApprove = async (request: RegistrationRequest) => {
-    if (!request.email_verified) {
-      alert('Cannot approve: Email not verified');
-      return;
-    }
-
-    if (!request.password_hash) {
-      alert('Cannot approve: No password set');
-      return;
-    }
-
-    setProcessingId(request.id);
     try {
-      // Create station first
+      setProcessing(request.id);
+
+      // Create the station first
       const { data: stationData, error: stationError } = await supabase
         .from('stations')
         .insert({
           name: request.company_name,
           address: request.address,
           phone: request.contact_phone,
-          email: request.contact_email
+          email: request.contact_email,
+          created_by: user?.id
         })
         .select()
         .single();
 
       if (stationError) throw stationError;
 
-      // Create invitation instead of direct user creation
-      const { data: invitationData, error: invitationError } = await supabase
-        .rpc('create_station_invitation', {
-          _registration_id: request.id,
-          _email: request.contact_email
+      // Create auth user for the station admin
+      const { data: authData, error: authError } = await supabase.auth.admin.createUser({
+        email: request.contact_email,
+        password: 'temp_password_' + Math.random().toString(36).slice(-8),
+        email_confirm: true,
+        user_metadata: {
+          full_name: request.contact_person_name,
+          username: request.contact_email,
+          station_id: stationData.id
+        }
+      });
+
+      if (authError) throw authError;
+
+      // Update the user's profile with station association
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .update({ 
+          station_id: stationData.id,
+          full_name: request.contact_person_name 
+        })
+        .eq('id', authData.user.id);
+
+      if (profileError) throw profileError;
+
+      // Assign station_admin role (not admin)
+      const { error: roleError } = await supabase
+        .from('user_roles')
+        .insert({
+          user_id: authData.user.id,
+          role: 'station_admin',
+          station_id: stationData.id,
+          assigned_by: user?.id
         });
 
-      if (invitationError) throw invitationError;
+      if (roleError) throw roleError;
 
-      // Update registration request status
+      // Update the registration request status
       const { error: updateError } = await supabase
         .from('station_registration_requests')
         .update({
           status: 'approved',
-          approved_by: (await supabase.auth.getUser()).data.user?.id,
-          approved_at: new Date().toISOString()
+          approved_by: user?.id,
+          approved_at: new Date().toISOString(),
+          admin_user_id: authData.user.id
         })
         .eq('id', request.id);
 
       if (updateError) throw updateError;
 
-      // In a real implementation, send invitation email here
-      console.log(`Invitation would be sent to: ${request.contact_email}`);
-      console.log(`Station created: ${stationData.name}`);
+      // Send invitation using the existing function
+      const { error: inviteError } = await supabase.rpc('create_station_invitation', {
+        _registration_id: request.id,
+        _email: request.contact_email
+      });
+
+      if (inviteError) {
+        console.error('Warning: Failed to send invitation:', inviteError);
+      }
 
       await fetchRequests();
     } catch (error) {
       console.error('Error approving registration:', error);
-      alert('Failed to approve registration. Please try again.');
+      setError('Failed to approve registration. Please try again.');
     } finally {
-      setProcessingId(null);
+      setProcessing(null);
     }
   };
 
   const handleReject = async () => {
     if (!selectedRequest || !rejectionReason.trim()) return;
 
-    setProcessingId(selectedRequest.id);
+    setProcessing(selectedRequest.id);
     try {
       const { error } = await supabase
         .from('station_registration_requests')
@@ -155,7 +183,7 @@ const RegistrationManagement = () => {
     } catch (error) {
       console.error('Error rejecting registration:', error);
     } finally {
-      setProcessingId(null);
+      setProcessing(null);
     }
   };
 
@@ -346,7 +374,7 @@ const RegistrationManagement = () => {
                               <>
                                 <button
                                   onClick={() => handleApprove(request)}
-                                  disabled={processingId === request.id}
+                                  disabled={processing === request.id}
                                   className="p-2 text-green-400 hover:text-green-300 disabled:opacity-50 transition-colors"
                                   title="Approve"
                                 >
@@ -357,7 +385,7 @@ const RegistrationManagement = () => {
                                     setSelectedRequest(request);
                                     setShowRejectModal(true);
                                   }}
-                                  disabled={processingId === request.id}
+                                  disabled={processing === request.id}
                                   className="p-2 text-red-400 hover:text-red-300 disabled:opacity-50 transition-colors"
                                   title="Reject"
                                 >
@@ -539,10 +567,10 @@ const RegistrationManagement = () => {
                   </button>
                   <button
                     onClick={() => handleApprove(selectedRequest)}
-                    disabled={processingId === selectedRequest.id}
+                    disabled={processing === selectedRequest.id}
                     className="px-4 py-2 bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white rounded-lg transition-colors"
                   >
-                    {processingId === selectedRequest.id ? 'Approving...' : 'Approve & Send Invitation'}
+                    {processing === selectedRequest.id ? 'Approving...' : 'Approve & Send Invitation'}
                   </button>
                 </>
               )}
@@ -588,10 +616,10 @@ const RegistrationManagement = () => {
               </button>
               <button
                 onClick={handleReject}
-                disabled={!rejectionReason.trim() || processingId === selectedRequest.id}
+                disabled={!rejectionReason.trim() || processing === selectedRequest.id}
                 className="px-4 py-2 bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white rounded-lg transition-colors"
               >
-                {processingId === selectedRequest.id ? 'Rejecting...' : 'Reject Request'}
+                {processing === selectedRequest.id ? 'Rejecting...' : 'Reject Request'}
               </button>
             </div>
           </div>

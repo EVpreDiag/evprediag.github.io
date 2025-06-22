@@ -1,1 +1,10 @@
+
 project_id = "drqkmdkagyrkdkfhfuwz"
+
+[auth]
+enabled = true
+additional_redirect_urls = ["https://localhost:3000"]
+jwt_expiry = 3600
+
+[functions.validate-station]
+verify_jwt = false

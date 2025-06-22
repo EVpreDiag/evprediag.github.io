@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
@@ -28,6 +27,11 @@ const StationManagement = () => {
     phone: '',
     email: ''
   });
+
+  const copyStationId = (stationId: string) => {
+    navigator.clipboard.writeText(stationId);
+    // You could add a toast notification here if desired
+  };
 
   useEffect(() => {
     if (!isSuperAdmin()) {
@@ -197,7 +201,18 @@ const StationManagement = () => {
                   <div className="flex items-center justify-between">
                     <div className="flex-1">
                       <h3 className="text-white font-medium mb-2">{station.name}</h3>
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-slate-400">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-slate-400 mb-4">
+                        <div className="bg-slate-700 rounded px-3 py-2">
+                          <span className="text-slate-500">Station ID:</span>{' '}
+                          <code className="text-blue-300 font-mono text-xs">{station.id}</code>
+                          <button
+                            onClick={() => copyStationId(station.id)}
+                            className="ml-2 text-slate-400 hover:text-white transition-colors"
+                            title="Copy Station ID"
+                          >
+                            📋
+                          </button>
+                        </div>
                         {station.address && (
                           <div>
                             <span className="text-slate-500">Address:</span> {station.address}
@@ -214,7 +229,7 @@ const StationManagement = () => {
                           </div>
                         )}
                       </div>
-                      <div className="text-xs text-slate-500 mt-2">
+                      <div className="text-xs text-slate-500">
                         Created: {new Date(station.created_at).toLocaleDateString()}
                       </div>
                     </div>

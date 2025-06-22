@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { supabase } from '../integrations/supabase/client';
-import { Building, User, Mail, Lock, MapPin, CheckCircle } from 'lucide-react';
+import { Building, User, Mail, Lock, MapPin, CheckCircle, Hash } from 'lucide-react';
 import { sendVerificationEmail } from '../utils/emailUtils';
 
 interface EnhancedSignupProps {
@@ -11,16 +11,18 @@ interface EnhancedSignupProps {
 
 const EnhancedSignup: React.FC<EnhancedSignupProps> = ({ onSignupSuccess, onSwitchToLogin }) => {
   const [loading, setLoading] = useState(false);
-  const [step, setStep] = useState<'initial' | 'new_station' | 'existing_station' | 'verification'>('initial');
+  const [validatingStation, setValidatingStation] = useState(false);
+  const [step, setStep] = useState<'initial' | 'station_info' | 'verification'>('initial');
   const [formData, setFormData] = useState({
     email: '',
     password: '',
     fullName: '',
     stationName: '',
     stationId: '',
-    isNewStation: true
+    isJoiningExisting: true
   });
   const [error, setError] = useState('');
+  const [stationValidated, setStationValidated] = useState(false);
   const [verificationUrl, setVerificationUrl] = useState('');
 
   const handleInitialSubmit = async (e: React.FormEvent) => {
@@ -29,17 +31,50 @@ const EnhancedSignup: React.FC<EnhancedSignupProps> = ({ onSignupSuccess, onSwit
       setError('Please fill in all required fields');
       return;
     }
-    setStep('new_station');
+    setStep('station_info');
   };
 
-  const handleStationChoice = (isNew: boolean) => {
-    setFormData(prev => ({ ...prev, isNewStation: isNew }));
-    setStep(isNew ? 'new_station' : 'existing_station');
+  const validateStationInfo = async () => {
+    if (!formData.stationName || !formData.stationId) {
+      setError('Please enter both station name and station ID');
+      return;
+    }
+
+    setValidatingStation(true);
+    setError('');
+
+    try {
+      const { data, error } = await supabase.functions.invoke('validate-station', {
+        body: {
+          station_name: formData.stationName,
+          station_id: formData.stationId
+        }
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      if (!data?.valid) {
+        setError(data?.error || 'Invalid station name and ID combination');
+        setStationValidated(false);
+        return;
+      }
+
+      setStationValidated(true);
+      setError('');
+    } catch (error: any) {
+      console.error('Station validation error:', error);
+      setError('Failed to validate station information. Please try again.');
+      setStationValidated(false);
+    } finally {
+      setValidatingStation(false);
+    }
   };
 
   const sendVerificationFirst = async () => {
-    if (!formData.stationName) {
-      setError('Please enter a station name');
+    if (!stationValidated) {
+      setError('Please validate station information first');
       return;
     }
 
@@ -61,73 +96,12 @@ const EnhancedSignup: React.FC<EnhancedSignupProps> = ({ onSignupSuccess, onSwit
     }
   };
 
-  const checkStationExists = async (stationName: string) => {
-    const { data, error } = await supabase
-      .from('stations')
-      .select('id')
-      .ilike('name', stationName)
-      .single();
-    
-    if (error && error.code !== 'PGRST116') {
-      throw error;
-    }
-    
-    return data?.id || null;
-  };
-
-  const createStationWithUser = async (stationName: string, userId: string, userEmail: string) => {
-    // Create the station
-    const { data: stationData, error: stationError } = await supabase
-      .from('stations')
-      .insert({
-        name: stationName,
-        email: userEmail,
-        created_by: userId
-      })
-      .select()
-      .single();
-
-    if (stationError) throw stationError;
-
-    // Update user profile with station
-    const { error: profileError } = await supabase
-      .from('profiles')
-      .update({ station_id: stationData.id })
-      .eq('id', userId);
-
-    if (profileError) throw profileError;
-
-    // Create pending station admin role
-    const { error: roleError } = await supabase
-      .from('user_roles')
-      .insert({
-        user_id: userId,
-        role: 'station_admin',
-        station_id: stationData.id
-      });
-
-    if (roleError) throw roleError;
-
-    return stationData.id;
-  };
-
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError('');
 
     try {
-      // Check if station exists when joining existing
-      if (!formData.isNewStation) {
-        const existingStationId = await checkStationExists(formData.stationName);
-        
-        if (!existingStationId) {
-          setError('Station not found. Please check the station name or create a new station.');
-          setLoading(false);
-          return;
-        }
-      }
-
       // Sign up the user with email verification required
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: formData.email,
@@ -137,8 +111,8 @@ const EnhancedSignup: React.FC<EnhancedSignupProps> = ({ onSignupSuccess, onSwit
           data: {
             full_name: formData.fullName,
             username: formData.email,
-            station_name: formData.stationName,
-            is_new_station: formData.isNewStation
+            station_id: formData.stationId,
+            station_name: formData.stationName
           }
         }
       });
@@ -146,20 +120,11 @@ const EnhancedSignup: React.FC<EnhancedSignupProps> = ({ onSignupSuccess, onSwit
       if (authError) throw authError;
 
       if (authData.user) {
-        if (formData.isNewStation) {
-          // Create new station with pending admin
-          await createStationWithUser(formData.stationName, authData.user.id, formData.email);
-        } else {
-          // Link to existing station
-          const existingStationId = await checkStationExists(formData.stationName);
-          
-          if (existingStationId) {
-            await supabase
-              .from('profiles')
-              .update({ station_id: existingStationId })
-              .eq('id', authData.user.id);
-          }
-        }
+        // Update user profile with station association
+        await supabase
+          .from('profiles')
+          .update({ station_id: formData.stationId })
+          .eq('id', authData.user.id);
 
         onSignupSuccess?.();
       }
@@ -178,7 +143,7 @@ const EnhancedSignup: React.FC<EnhancedSignupProps> = ({ onSignupSuccess, onSwit
         <h2 className="text-2xl font-bold text-white mb-4">Check Your Email</h2>
         <p className="text-slate-400 mb-6">
           We've sent a verification email to <strong>{formData.email}</strong>. 
-          Please check your inbox and click the verification link to continue with account creation.
+          Please check your inbox and click the verification link to complete your account creation.
         </p>
         
         {verificationUrl && (
@@ -197,7 +162,7 @@ const EnhancedSignup: React.FC<EnhancedSignupProps> = ({ onSignupSuccess, onSwit
 
         <div className="flex space-x-4">
           <button
-            onClick={() => setStep('new_station')}
+            onClick={() => setStep('station_info')}
             className="flex-1 px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg transition-colors"
           >
             Back to Form
@@ -219,7 +184,7 @@ const EnhancedSignup: React.FC<EnhancedSignupProps> = ({ onSignupSuccess, onSwit
       <div className="max-w-md mx-auto bg-slate-800 rounded-lg border border-slate-700 p-8">
         <div className="text-center mb-6">
           <h2 className="text-2xl font-bold text-white mb-2">Create Account</h2>
-          <p className="text-slate-400">Join the EV diagnostic network</p>
+          <p className="text-slate-400">Join an existing service station</p>
         </div>
 
         <form onSubmit={handleInitialSubmit} className="space-y-4">
@@ -299,75 +264,71 @@ const EnhancedSignup: React.FC<EnhancedSignupProps> = ({ onSignupSuccess, onSwit
     <div className="max-w-md mx-auto bg-slate-800 rounded-lg border border-slate-700 p-8">
       <div className="text-center mb-6">
         <h2 className="text-2xl font-bold text-white mb-2">Station Information</h2>
-        <p className="text-slate-400">Choose your station setup</p>
+        <p className="text-slate-400">Enter your station details to join</p>
       </div>
-
-      {step === 'new_station' && (
-        <div className="space-y-4 mb-6">
-          <div className="grid grid-cols-2 gap-4">
-            <button
-              onClick={() => handleStationChoice(true)}
-              className={`p-4 border rounded-lg transition-colors ${
-                formData.isNewStation 
-                  ? 'border-blue-500 bg-blue-600/20 text-blue-300' 
-                  : 'border-slate-600 text-slate-400 hover:border-slate-500'
-              }`}
-            >
-              <Building className="w-8 h-8 mx-auto mb-2" />
-              <div className="text-sm font-medium">New Station</div>
-              <div className="text-xs">Create new station</div>
-            </button>
-            <button
-              onClick={() => handleStationChoice(false)}
-              className={`p-4 border rounded-lg transition-colors ${
-                !formData.isNewStation 
-                  ? 'border-blue-500 bg-blue-600/20 text-blue-300' 
-                  : 'border-slate-600 text-slate-400 hover:border-slate-500'
-              }`}
-            >
-              <MapPin className="w-8 h-8 mx-auto mb-2" />
-              <div className="text-sm font-medium">Join Existing</div>
-              <div className="text-xs">Join existing station</div>
-            </button>
-          </div>
-        </div>
-      )}
 
       <form onSubmit={(e) => { e.preventDefault(); sendVerificationFirst(); }} className="space-y-4">
         <div>
           <label className="block text-sm font-medium text-slate-300 mb-2">
             <Building className="w-4 h-4 inline mr-2" />
-            {formData.isNewStation ? 'Station Name' : 'Station Name'}
+            Station Name
           </label>
           <input
             type="text"
             value={formData.stationName}
-            onChange={(e) => setFormData(prev => ({ ...prev, stationName: e.target.value }))}
+            onChange={(e) => {
+              setFormData(prev => ({ ...prev, stationName: e.target.value }));
+              setStationValidated(false);
+            }}
             className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-            placeholder={formData.isNewStation ? 'Enter your station name' : 'Enter existing station name'}
+            placeholder="Enter the exact station name"
             required
           />
         </div>
 
-        {!formData.isNewStation && (
-          <div className="bg-blue-900/20 border border-blue-600/50 rounded-lg p-3">
-            <p className="text-blue-400 text-sm">
-              You're joining an existing station. Your account will need approval from the station administrator.
-            </p>
-          </div>
-        )}
+        <div>
+          <label className="block text-sm font-medium text-slate-300 mb-2">
+            <Hash className="w-4 h-4 inline mr-2" />
+            Station ID
+          </label>
+          <input
+            type="text"
+            value={formData.stationId}
+            onChange={(e) => {
+              setFormData(prev => ({ ...prev, stationId: e.target.value }));
+              setStationValidated(false);
+            }}
+            className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono text-sm"
+            placeholder="Enter the station ID"
+            required
+          />
+          <p className="text-slate-500 text-xs mt-1">
+            Get the Station ID from your station administrator
+          </p>
+        </div>
 
-        {formData.isNewStation && (
-          <div className="bg-yellow-900/20 border border-yellow-600/50 rounded-lg p-3">
-            <p className="text-yellow-400 text-sm">
-              Creating a new station requires super admin approval. You'll be notified once approved.
+        <div className="flex space-x-2">
+          <button
+            type="button"
+            onClick={validateStationInfo}
+            disabled={validatingStation || !formData.stationName || !formData.stationId}
+            className="flex-1 py-2 bg-yellow-600 hover:bg-yellow-700 disabled:opacity-50 text-white rounded-lg transition-colors"
+          >
+            {validatingStation ? 'Validating...' : 'Validate Station'}
+          </button>
+        </div>
+
+        {stationValidated && (
+          <div className="bg-green-900/20 border border-green-600/50 rounded-lg p-3">
+            <p className="text-green-400 text-sm">
+              ✓ Station information validated successfully!
             </p>
           </div>
         )}
 
         <div className="bg-blue-900/20 border border-blue-600/50 rounded-lg p-3">
           <p className="text-blue-400 text-sm">
-            <strong>Next Step:</strong> We'll send you an email verification link before creating your account.
+            <strong>Note:</strong> You'll join as a regular user. Your station administrator will assign your role after account creation.
           </p>
         </div>
 
@@ -387,7 +348,7 @@ const EnhancedSignup: React.FC<EnhancedSignupProps> = ({ onSignupSuccess, onSwit
           </button>
           <button
             type="submit"
-            disabled={loading}
+            disabled={loading || !stationValidated}
             className="flex-1 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-lg transition-colors"
           >
             {loading ? 'Sending...' : 'Send Verification'}
