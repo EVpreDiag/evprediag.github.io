@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../integrations/supabase/client';
 import { ArrowLeft, Eye, Check, X, Building, User, Mail, Phone, MapPin, Globe, Calendar, FileText, Send } from 'lucide-react';
+import { createStationUserAccount } from '../utils/stationSetupUtils';
 
 interface RegistrationRequest {
   id: string;
@@ -89,23 +90,24 @@ const RegistrationManagement = () => {
 
       if (stationError) throw stationError;
 
-      // Send magic link invitation instead of creating user directly
-      const { error: inviteError } = await supabase.auth.signInWithOtp({
-        email: request.contact_email,
-        options: {
-          emailRedirectTo: `${window.location.origin}/dashboard?setup=station&station_id=${stationData.id}`,
-          data: {
-            full_name: request.contact_person_name,
-            station_id: stationData.id,
-            role: 'station_admin',
-            company_name: request.company_name
-          }
-        }
-      });
+      // Create user account for the station admin
+      const { success, error: userError } = await createStationUserAccount(
+        {
+          id: request.id,
+          company_name: request.company_name,
+          contact_person_name: request.contact_person_name,
+          contact_email: request.contact_email,
+          contact_phone: request.contact_phone,
+          address: request.address,
+          password_hash: request.password_hash
+        },
+        stationData.id,
+        user?.id || ''
+      );
 
-      if (inviteError) {
-        console.error('Failed to send invitation:', inviteError);
-        throw new Error('Failed to send invitation email');
+      if (!success || userError) {
+        console.error('Failed to create user account:', userError);
+        throw new Error('Failed to create user account for station admin');
       }
 
       // Update the registration request status
@@ -116,12 +118,13 @@ const RegistrationManagement = () => {
           approved_by: user?.id,
           approved_at: new Date().toISOString(),
           invitation_sent: true,
-          email_verified: true // Will be verified when they click magic link
+          email_verified: true
         })
         .eq('id', request.id);
 
       if (updateError) throw updateError;
 
+      console.log('Station approval completed successfully');
       await fetchRequests();
     } catch (error) {
       console.error('Error approving registration:', error);
