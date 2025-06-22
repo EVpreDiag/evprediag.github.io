@@ -5,7 +5,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { Shield } from 'lucide-react';
 
 // Import UserRole type from AuthContext to ensure consistency
-type UserRole = 'admin' | 'technician' | 'front_desk' | 'super_admin';
+type UserRole = 'admin' | 'technician' | 'front_desk' | 'super_admin' | 'station_admin';
 
 interface RoleProtectedRouteProps {
   children: React.ReactNode;

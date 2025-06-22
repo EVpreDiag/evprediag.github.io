@@ -588,6 +588,72 @@ export type Database = {
           },
         ]
       }
+      station_registration_requests: {
+        Row: {
+          address: string | null
+          admin_user_id: string | null
+          approved_at: string | null
+          approved_by: string | null
+          business_type: string | null
+          city: string | null
+          company_name: string
+          contact_email: string
+          contact_person_name: string
+          contact_phone: string | null
+          created_at: string
+          description: string | null
+          id: string
+          rejection_reason: string | null
+          state: string | null
+          status: string
+          updated_at: string
+          website: string | null
+          zip_code: string | null
+        }
+        Insert: {
+          address?: string | null
+          admin_user_id?: string | null
+          approved_at?: string | null
+          approved_by?: string | null
+          business_type?: string | null
+          city?: string | null
+          company_name: string
+          contact_email: string
+          contact_person_name: string
+          contact_phone?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          rejection_reason?: string | null
+          state?: string | null
+          status?: string
+          updated_at?: string
+          website?: string | null
+          zip_code?: string | null
+        }
+        Update: {
+          address?: string | null
+          admin_user_id?: string | null
+          approved_at?: string | null
+          approved_by?: string | null
+          business_type?: string | null
+          city?: string | null
+          company_name?: string
+          contact_email?: string
+          contact_person_name?: string
+          contact_phone?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          rejection_reason?: string | null
+          state?: string | null
+          status?: string
+          updated_at?: string
+          website?: string | null
+          zip_code?: string | null
+        }
+        Relationships: []
+      }
       stations: {
         Row: {
           address: string | null
@@ -683,6 +749,10 @@ export type Database = {
         Returns: boolean
       }
       is_admin: {
+        Args: { user_id: string }
+        Returns: boolean
+      }
+      is_station_admin: {
         Args: { user_id: string }
         Returns: boolean
       }

@@ -1,10 +1,11 @@
+
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../integrations/supabase/client';
 import { ArrowLeft, Users, Plus, Edit, Trash2, Shield, User, Filter, Mail, Building } from 'lucide-react';
 
-type UserRole = 'admin' | 'technician' | 'front_desk' | 'super_admin';
+type UserRole = 'admin' | 'technician' | 'front_desk' | 'super_admin' | 'station_admin';
 type FilterType = 'all' | 'with_roles' | 'without_roles' | 'without_profiles';
 
 interface SystemUser {
@@ -27,7 +28,7 @@ interface Station {
 
 const UserManagement = () => {
   const navigate = useNavigate();
-  const { isAdmin, isSuperAdmin, assignRole, removeRole } = useAuth();
+  const { isAdmin, isSuperAdmin, isStationAdmin, assignRole, removeRole, profile } = useAuth();
   const [users, setUsers] = useState<SystemUser[]>([]);
   const [stations, setStations] = useState<Station[]>([]);
   const [filteredUsers, setFilteredUsers] = useState<SystemUser[]>([]);
@@ -38,12 +39,12 @@ const UserManagement = () => {
   const [activeFilter, setActiveFilter] = useState<FilterType>('all');
 
   useEffect(() => {
-    if (!isAdmin() && !isSuperAdmin()) {
+    if (!isAdmin() && !isSuperAdmin() && !isStationAdmin()) {
       return;
     }
     fetchStations();
     fetchUsers();
-  }, [isAdmin, isSuperAdmin]);
+  }, [isAdmin, isSuperAdmin, isStationAdmin]);
 
   useEffect(() => {
     filterUsers();
@@ -68,15 +69,22 @@ const UserManagement = () => {
       setLoading(true);
       console.log('Fetching users from profiles and user_roles tables...');
       
-      // Fetch all profiles with station information
-      const { data: profiles, error: profilesError } = await supabase
+      // Build query based on user role
+      let profilesQuery = supabase
         .from('profiles')
         .select(`
           *,
           stations (
             name
           )
-        `)
+        `);
+
+      // If station admin, only show users from their station
+      if (isStationAdmin() && !isSuperAdmin() && !isAdmin()) {
+        profilesQuery = profilesQuery.eq('station_id', profile?.station_id);
+      }
+
+      const { data: profiles, error: profilesError } = await profilesQuery
         .order('created_at', { ascending: false });
 
       if (profilesError) {
@@ -86,10 +94,12 @@ const UserManagement = () => {
 
       console.log('Profiles fetched:', profiles);
 
-      // Fetch roles for all users
+      // Fetch roles for all users (or filtered users)
+      const userIds = profiles?.map(p => p.id) || [];
       const { data: userRoles, error: rolesError } = await supabase
         .from('user_roles')
-        .select('user_id, role');
+        .select('user_id, role')
+        .in('user_id', userIds);
 
       if (rolesError) {
         console.error('Error fetching user roles:', rolesError);
@@ -148,8 +158,11 @@ const UserManagement = () => {
     let stationId = null;
     
     // If assigning admin, technician, or front_desk role and user is super admin, use selected station
-    if (isSuperAdmin() && ['admin', 'technician', 'front_desk'].includes(role) && selectedStationId) {
+    if (isSuperAdmin() && ['admin', 'technician', 'front_desk', 'station_admin'].includes(role) && selectedStationId) {
       stationId = selectedStationId;
+    } else if (isStationAdmin() && ['technician', 'front_desk'].includes(role)) {
+      // Station admins can only assign roles within their station
+      stationId = profile?.station_id;
     }
 
     const { error } = await assignRole(userId, role, stationId);
@@ -198,6 +211,7 @@ const UserManagement = () => {
     switch (role) {
       case 'admin': return 'bg-purple-600/20 text-purple-400';
       case 'super_admin': return 'bg-red-600/20 text-red-400';
+      case 'station_admin': return 'bg-pink-600/20 text-pink-400';
       case 'technician': return 'bg-blue-600/20 text-blue-400';
       case 'front_desk': return 'bg-green-600/20 text-green-400';
       default: return 'bg-gray-600/20 text-gray-400';
@@ -208,6 +222,7 @@ const UserManagement = () => {
     switch (role) {
       case 'admin': return 'Administrator';
       case 'super_admin': return 'Super Admin';
+      case 'station_admin': return 'Station Admin';
       case 'technician': return 'Technician';
       case 'front_desk': return 'Front Desk';
       default: return role;
@@ -236,14 +251,16 @@ const UserManagement = () => {
 
   const getAvailableRoles = (): UserRole[] => {
     if (isSuperAdmin()) {
-      return ['admin', 'technician', 'front_desk', 'super_admin'];
+      return ['admin', 'technician', 'front_desk', 'super_admin', 'station_admin'];
     } else if (isAdmin()) {
+      return ['technician', 'front_desk'];
+    } else if (isStationAdmin()) {
       return ['technician', 'front_desk'];
     }
     return [];
   };
 
-  if (!isAdmin() && !isSuperAdmin()) {
+  if (!isAdmin() && !isSuperAdmin() && !isStationAdmin()) {
     return (
       <div className="min-h-screen bg-slate-900 flex items-center justify-center">
         <div className="text-center">
@@ -284,7 +301,9 @@ const UserManagement = () => {
             </button>
             <div>
               <h1 className="text-xl font-bold text-white">User Management</h1>
-              <p className="text-sm text-slate-400">Manage user accounts and assign roles</p>
+              <p className="text-sm text-slate-400">
+                {isStationAdmin() ? 'Manage users in your station' : 'Manage user accounts and assign roles'}
+              </p>
             </div>
           </div>
         </div>
@@ -333,10 +352,10 @@ const UserManagement = () => {
           <div className="bg-slate-800 rounded-lg p-4 border border-slate-700">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-slate-400 text-sm">Administrators</p>
-                <p className="text-2xl font-bold text-white">{users.filter(u => u.roles.includes('admin')).length}</p>
+                <p className="text-slate-400 text-sm">Station Admins</p>
+                <p className="text-2xl font-bold text-white">{users.filter(u => u.roles.includes('station_admin')).length}</p>
               </div>
-              <Shield className="w-8 h-8 text-purple-400" />
+              <Shield className="w-8 h-8 text-pink-400" />
             </div>
           </div>
           <div className="bg-slate-800 rounded-lg p-4 border border-slate-700">
@@ -508,7 +527,7 @@ const UserManagement = () => {
                     <div key={role} className="flex items-center justify-between">
                       <div>
                         <span className="text-white font-medium">{getRoleDisplayName(role)}</span>
-                        {isSuperAdmin() && ['admin', 'technician', 'front_desk'].includes(role) && (
+                        {isSuperAdmin() && ['admin', 'technician', 'front_desk', 'station_admin'].includes(role) && (
                           <p className="text-xs text-slate-500">Requires station assignment</p>
                         )}
                       </div>
@@ -524,7 +543,10 @@ const UserManagement = () => {
                           <button
                             onClick={() => handleAssignRole(selectedUser.id, role)}
                             className="px-3 py-1 bg-green-600 hover:bg-green-700 text-white text-sm rounded transition-colors"
-                            disabled={isSuperAdmin() && ['admin', 'technician', 'front_desk'].includes(role) && !selectedStationId}
+                            disabled={
+                              (isSuperAdmin() && ['admin', 'technician', 'front_desk', 'station_admin'].includes(role) && !selectedStationId) ||
+                              (isStationAdmin() && !['technician', 'front_desk'].includes(role))
+                            }
                           >
                             Assign
                           </button>

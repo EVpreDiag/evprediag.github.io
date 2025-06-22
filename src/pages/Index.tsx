@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import AuthPage from '../components/AuthPage';
@@ -7,6 +8,8 @@ import PHEVDiagnosticForm from '../components/PHEVDiagnosticForm';
 import SearchRecords from '../components/SearchRecords';
 import UserManagement from '../components/UserManagement';
 import StationManagement from '../components/StationManagement';
+import StationRegistration from '../components/StationRegistration';
+import RegistrationManagement from '../components/RegistrationManagement';
 import PrintSummary from '../components/PrintSummary';
 import ProfileManagement from '../components/ProfileManagement';
 import ModifyReports from '../components/ModifyReports';
@@ -51,6 +54,7 @@ const Index = () => {
               <AuthPage />
             </PublicRoute>
           } />
+          <Route path="/register-station" element={<StationRegistration />} />
           <Route path="/dashboard" element={
             <ProtectedRoute>
               <Dashboard />
@@ -58,14 +62,14 @@ const Index = () => {
           } />
           <Route path="/diagnostic-form" element={
             <ProtectedRoute>
-              <RoleProtectedRoute requiredRoles={['admin', 'technician', 'front_desk']}>
+              <RoleProtectedRoute requiredRoles={['admin', 'technician', 'front_desk', 'station_admin']}>
                 <DiagnosticForm />
               </RoleProtectedRoute>
             </ProtectedRoute>
           } />
           <Route path="/phev-diagnostic-form" element={
             <ProtectedRoute>
-              <RoleProtectedRoute requiredRoles={['admin', 'technician', 'front_desk']}>
+              <RoleProtectedRoute requiredRoles={['admin', 'technician', 'front_desk', 'station_admin']}>
                 <PHEVDiagnosticForm />
               </RoleProtectedRoute>
             </ProtectedRoute>
@@ -77,14 +81,14 @@ const Index = () => {
           } />
           <Route path="/modify-reports" element={
             <ProtectedRoute>
-              <RoleProtectedRoute requiredRoles={['admin', 'technician']}>
+              <RoleProtectedRoute requiredRoles={['admin', 'technician', 'station_admin']}>
                 <ModifyReports />
               </RoleProtectedRoute>
             </ProtectedRoute>
           } />
           <Route path="/user-management" element={
             <ProtectedRoute>
-              <RoleProtectedRoute requiredRoles={['admin']}>
+              <RoleProtectedRoute requiredRoles={['admin', 'station_admin']}>
                 <UserManagement />
               </RoleProtectedRoute>
             </ProtectedRoute>
@@ -93,6 +97,13 @@ const Index = () => {
             <ProtectedRoute>
               <RoleProtectedRoute requiredRoles={['super_admin']}>
                 <StationManagement />
+              </RoleProtectedRoute>
+            </ProtectedRoute>
+          } />
+          <Route path="/registration-management" element={
+            <ProtectedRoute>
+              <RoleProtectedRoute requiredRoles={['super_admin']}>
+                <RegistrationManagement />
               </RoleProtectedRoute>
             </ProtectedRoute>
           } />

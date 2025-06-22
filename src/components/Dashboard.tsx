@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
@@ -15,11 +16,12 @@ import {
   User,
   Shield,
   Edit,
-  Building
+  Building,
+  UserPlus
 } from 'lucide-react';
 
 const Dashboard = () => {
-  const { user, profile, userRoles, hasRole, isAdmin, isSuperAdmin, signOut } = useAuth();
+  const { user, profile, userRoles, hasRole, isAdmin, isSuperAdmin, isStationAdmin, signOut } = useAuth();
   const navigate = useNavigate();
 
   const handleLogout = async () => {
@@ -34,7 +36,7 @@ const Dashboard = () => {
       icon: Battery,
       path: '/diagnostic-form',
       color: 'from-blue-600 to-blue-700',
-      available: hasRole('admin') || hasRole('technician') || hasRole('front_desk') || isSuperAdmin()
+      available: hasRole('admin') || hasRole('technician') || hasRole('front_desk') || hasRole('station_admin') || isSuperAdmin()
     },
     {
       title: 'PHEV Diagnostic Form',
@@ -42,7 +44,7 @@ const Dashboard = () => {
       icon: Plug,
       path: '/phev-diagnostic-form',
       color: 'from-emerald-600 to-emerald-700',
-      available: hasRole('admin') || hasRole('technician') || hasRole('front_desk') || isSuperAdmin()
+      available: hasRole('admin') || hasRole('technician') || hasRole('front_desk') || hasRole('station_admin') || isSuperAdmin()
     },
     {
       title: 'Search Records',
@@ -58,7 +60,7 @@ const Dashboard = () => {
       icon: Edit,
       path: '/modify-reports',
       color: 'from-orange-600 to-orange-700',
-      available: hasRole('admin') || hasRole('technician') || isSuperAdmin()
+      available: hasRole('admin') || hasRole('technician') || hasRole('station_admin') || isSuperAdmin()
     },
     {
       title: 'User Management',
@@ -66,7 +68,7 @@ const Dashboard = () => {
       icon: Users,
       path: '/user-management',
       color: 'from-purple-600 to-purple-700',
-      available: isAdmin() || isSuperAdmin()
+      available: isAdmin() || isStationAdmin() || isSuperAdmin()
     },
     {
       title: 'Station Management',
@@ -74,6 +76,14 @@ const Dashboard = () => {
       icon: Building,
       path: '/station-management',
       color: 'from-indigo-600 to-indigo-700',
+      available: isSuperAdmin()
+    },
+    {
+      title: 'Registration Management',
+      description: 'Review and approve station registration requests',
+      icon: UserPlus,
+      path: '/registration-management',
+      color: 'from-pink-600 to-pink-700',
       available: isSuperAdmin()
     },
     {
@@ -96,6 +106,7 @@ const Dashboard = () => {
     switch (role) {
       case 'admin': return 'Administrator';
       case 'super_admin': return 'Super Admin';
+      case 'station_admin': return 'Station Admin';
       case 'technician': return 'Technician';
       case 'front_desk': return 'Front Desk';
       default: return role;
@@ -106,6 +117,7 @@ const Dashboard = () => {
     switch (role) {
       case 'admin': return 'bg-purple-600/20 text-purple-400';
       case 'super_admin': return 'bg-red-600/20 text-red-400';
+      case 'station_admin': return 'bg-pink-600/20 text-pink-400';
       case 'technician': return 'bg-blue-600/20 text-blue-400';
       case 'front_desk': return 'bg-green-600/20 text-green-400';
       default: return 'bg-gray-600/20 text-gray-400';
@@ -208,7 +220,7 @@ const Dashboard = () => {
         </div>
 
         {/* Quick Actions */}
-        {(hasRole('admin') || hasRole('technician') || hasRole('front_desk') || isSuperAdmin()) && (
+        {(hasRole('admin') || hasRole('technician') || hasRole('front_desk') || hasRole('station_admin') || isSuperAdmin()) && (
           <div className="mt-8 bg-slate-800 rounded-lg p-6 border border-slate-700">
             <h3 className="text-lg font-semibold text-white mb-4 flex items-center">
               <Settings className="w-5 h-5 mr-2" />
@@ -229,7 +241,7 @@ const Dashboard = () => {
                 <Plug className="w-5 h-5 text-emerald-400" />
                 <span className="text-white">Start PHEV Diagnostic</span>
               </button>
-              {(hasRole('admin') || hasRole('technician') || isSuperAdmin()) && (
+              {(hasRole('admin') || hasRole('technician') || hasRole('station_admin') || isSuperAdmin()) && (
                 <button 
                   onClick={() => navigate('/modify-reports')}
                   className="flex items-center space-x-3 p-3 bg-slate-700/50 rounded-lg hover:bg-slate-700 transition-colors text-left"
@@ -239,13 +251,22 @@ const Dashboard = () => {
                 </button>
               )}
               {isSuperAdmin() && (
-                <button 
-                  onClick={() => navigate('/station-management')}
-                  className="flex items-center space-x-3 p-3 bg-slate-700/50 rounded-lg hover:bg-slate-700 transition-colors text-left"
-                >
-                  <Building className="w-5 h-5 text-indigo-400" />
-                  <span className="text-white">Manage Stations</span>
-                </button>
+                <>
+                  <button 
+                    onClick={() => navigate('/station-management')}
+                    className="flex items-center space-x-3 p-3 bg-slate-700/50 rounded-lg hover:bg-slate-700 transition-colors text-left"
+                  >
+                    <Building className="w-5 h-5 text-indigo-400" />
+                    <span className="text-white">Manage Stations</span>
+                  </button>
+                  <button 
+                    onClick={() => navigate('/registration-management')}
+                    className="flex items-center space-x-3 p-3 bg-slate-700/50 rounded-lg hover:bg-slate-700 transition-colors text-left"
+                  >
+                    <UserPlus className="w-5 h-5 text-pink-400" />
+                    <span className="text-white">Registration Requests</span>
+                  </button>
+                </>
               )}
             </div>
           </div>
