@@ -1,7 +1,8 @@
+
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../integrations/supabase/client';
-import { ArrowLeft, Search, FileText, Calendar, User, Car, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, Search, FileText, Calendar, User, Car, AlertTriangle, Building } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { secureLog, sanitizeInput, validateVIN, validateRONumber } from '../utils/securityUtils';
 
@@ -15,17 +16,46 @@ interface SearchRecord {
   model?: string;
   created_at: string;
   technician_id: string;
+  station_id?: string;
+  station_name?: string;
   record_type: 'EV' | 'PHEV';
 }
 
+interface Station {
+  id: string;
+  name: string;
+}
+
 const SearchRecords = () => {
-  const { user, isAdmin } = useAuth();
+  const { user, isAdmin, isSuperAdmin } = useAuth();
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState('');
   const [searchType, setSearchType] = useState<'vin' | 'ro' | 'customer'>('vin');
+  const [selectedStationId, setSelectedStationId] = useState<string>('');
+  const [stations, setStations] = useState<Station[]>([]);
   const [records, setRecords] = useState<SearchRecord[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (isSuperAdmin()) {
+      fetchStations();
+    }
+  }, [isSuperAdmin]);
+
+  const fetchStations = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('stations')
+        .select('id, name')
+        .order('name');
+
+      if (error) throw error;
+      setStations(data || []);
+    } catch (error) {
+      console.error('Error fetching stations:', error);
+    }
+  };
 
   const validateSearchInput = (term: string, type: 'vin' | 'ro' | 'customer'): boolean => {
     if (!term.trim()) return false;
@@ -62,11 +92,16 @@ const SearchRecords = () => {
       // Search EV records
       let evQuery = supabase
         .from('ev_diagnostic_records')
-        .select('id, vin, ro_number, customer_name, make_model, created_at, technician_id');
+        .select(`
+          id, vin, ro_number, customer_name, make_model, created_at, technician_id, station_id,
+          stations!ev_diagnostic_records_station_id_fkey(name)
+        `);
 
       // Apply RLS-compatible filtering
-      if (!isAdmin()) {
+      if (!isSuperAdmin()) {
         evQuery = evQuery.eq('technician_id', user.id);
+      } else if (selectedStationId) {
+        evQuery = evQuery.eq('station_id', selectedStationId);
       }
 
       switch (searchType) {
@@ -91,10 +126,15 @@ const SearchRecords = () => {
       // Search PHEV records
       let phevQuery = supabase
         .from('phev_diagnostic_records')
-        .select('id, vin, ro_number, customer_name, vehicle_make, model, created_at, technician_id');
+        .select(`
+          id, vin, ro_number, customer_name, vehicle_make, model, created_at, technician_id, station_id,
+          stations!phev_diagnostic_records_station_id_fkey(name)
+        `);
 
-      if (!isAdmin()) {
+      if (!isSuperAdmin()) {
         phevQuery = phevQuery.eq('technician_id', user.id);
+      } else if (selectedStationId) {
+        phevQuery = phevQuery.eq('station_id', selectedStationId);
       }
 
       switch (searchType) {
@@ -121,12 +161,14 @@ const SearchRecords = () => {
         ...(evData || []).map(record => ({
           ...record,
           record_type: 'EV' as const,
-          make_model: record.make_model || 'Unknown'
+          make_model: record.make_model || 'Unknown',
+          station_name: record.stations?.name || 'Unknown Station'
         })),
         ...(phevData || []).map(record => ({
           ...record,
           record_type: 'PHEV' as const,
-          make_model: `${record.vehicle_make || ''} ${record.model || ''}`.trim() || 'Unknown'
+          make_model: `${record.vehicle_make || ''} ${record.model || ''}`.trim() || 'Unknown',
+          station_name: record.stations?.name || 'Unknown Station'
         }))
       ];
 
@@ -168,18 +210,37 @@ const SearchRecords = () => {
           <div>
             <h1 className="text-xl font-bold text-white">Search Diagnostic Records</h1>
             <p className="text-sm text-slate-400">
-              {isAdmin() ? 'Search all diagnostic records' : 'Search your diagnostic records'}
+              {isSuperAdmin() ? 'Search all diagnostic records' : 'Search your diagnostic records'}
             </p>
           </div>
         </div>
       </header>
 
       <div className="p-6 max-w-6xl mx-auto">
-
         {/* Search Controls */}
         <div className="bg-slate-800 rounded-lg p-6 mb-6 border border-slate-700">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div className="md:col-span-1">
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+            {isSuperAdmin() && (
+              <div className="md:col-span-1">
+                <label className="block text-sm font-medium text-slate-300 mb-2">
+                  Station
+                </label>
+                <select
+                  value={selectedStationId}
+                  onChange={(e) => setSelectedStationId(e.target.value)}
+                  className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+                  <option value="">All Stations</option>
+                  {stations.map((station) => (
+                    <option key={station.id} value={station.id}>
+                      {station.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+            
+            <div className={isSuperAdmin() ? "md:col-span-1" : "md:col-span-1"}>
               <label className="block text-sm font-medium text-slate-300 mb-2">
                 Search By
               </label>
@@ -194,7 +255,7 @@ const SearchRecords = () => {
               </select>
             </div>
             
-            <div className="md:col-span-2">
+            <div className={isSuperAdmin() ? "md:col-span-2" : "md:col-span-2"}>
               <label className="block text-sm font-medium text-slate-300 mb-2">
                 Search Term
               </label>
@@ -209,7 +270,7 @@ const SearchRecords = () => {
               />
             </div>
             
-            <div className="md:col-span-1 flex items-end">
+            <div className={isSuperAdmin() ? "md:col-span-1" : "md:col-span-1"} + " flex items-end">
               <button
                 onClick={searchRecords}
                 disabled={loading || !searchTerm.trim()}
@@ -256,6 +317,12 @@ const SearchRecords = () => {
                           {record.record_type}
                         </span>
                         <h3 className="text-white font-medium">{record.customer_name}</h3>
+                        {isSuperAdmin() && (
+                          <span className="inline-flex items-center px-2 py-1 text-xs bg-slate-700 text-slate-300 rounded-full">
+                            <Building className="w-3 h-3 mr-1" />
+                            {record.station_name}
+                          </span>
+                        )}
                       </div>
                       
                       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-sm">

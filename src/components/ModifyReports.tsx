@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../integrations/supabase/client';
-import { ArrowLeft, Edit, Trash2, Eye, Calendar, User, Car, AlertTriangle, Shield } from 'lucide-react';
+import { ArrowLeft, Edit, Trash2, Eye, Calendar, User, Car, AlertTriangle, Shield, Building } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { secureLog, checkRecordOwnership } from '../utils/securityUtils';
 
@@ -17,13 +17,22 @@ interface DiagnosticRecord {
   created_at: string;
   updated_at: string;
   technician_id: string;
+  station_id?: string;
+  station_name?: string;
   record_type: 'EV' | 'PHEV';
+}
+
+interface Station {
+  id: string;
+  name: string;
 }
 
 const ModifyReports = () => {
   const { user, hasRole, isAdmin, isSuperAdmin } = useAuth();
   const navigate = useNavigate();
   const [records, setRecords] = useState<DiagnosticRecord[]>([]);
+  const [stations, setStations] = useState<Station[]>([]);
+  const [selectedStationId, setSelectedStationId] = useState<string>('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
@@ -35,8 +44,25 @@ const ModifyReports = () => {
     if (!canModifyReports) {
       return;
     }
+    if (isSuperAdmin()) {
+      fetchStations();
+    }
     fetchRecords();
-  }, [user, canModifyReports]);
+  }, [user, canModifyReports, selectedStationId]);
+
+  const fetchStations = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('stations')
+        .select('id, name')
+        .order('name');
+
+      if (error) throw error;
+      setStations(data || []);
+    } catch (error) {
+      console.error('Error fetching stations:', error);
+    }
+  };
 
   const fetchRecords = async () => {
     if (!user) return;
@@ -48,12 +74,17 @@ const ModifyReports = () => {
       // Fetch EV records
       let evQuery = supabase
         .from('ev_diagnostic_records')
-        .select('id, vin, ro_number, customer_name, make_model, created_at, updated_at, technician_id')
+        .select(`
+          id, vin, ro_number, customer_name, make_model, created_at, updated_at, technician_id, station_id,
+          stations!ev_diagnostic_records_station_id_fkey(name)
+        `)
         .order('updated_at', { ascending: false });
 
       // Non-super-admins can only see their own records (enforced by RLS as well)
       if (!isSuperAdmin()) {
         evQuery = evQuery.eq('technician_id', user.id);
+      } else if (selectedStationId) {
+        evQuery = evQuery.eq('station_id', selectedStationId);
       }
 
       const { data: evData, error: evError } = await evQuery;
@@ -66,11 +97,16 @@ const ModifyReports = () => {
       // Fetch PHEV records
       let phevQuery = supabase
         .from('phev_diagnostic_records')
-        .select('id, vin, ro_number, customer_name, vehicle_make, model, created_at, updated_at, technician_id')
+        .select(`
+          id, vin, ro_number, customer_name, vehicle_make, model, created_at, updated_at, technician_id, station_id,
+          stations!phev_diagnostic_records_station_id_fkey(name)
+        `)
         .order('updated_at', { ascending: false });
 
       if (!isSuperAdmin()) {
         phevQuery = phevQuery.eq('technician_id', user.id);
+      } else if (selectedStationId) {
+        phevQuery = phevQuery.eq('station_id', selectedStationId);
       }
 
       const { data: phevData, error: phevError } = await phevQuery;
@@ -85,12 +121,14 @@ const ModifyReports = () => {
         ...(evData || []).map(record => ({
           ...record,
           record_type: 'EV' as const,
-          make_model: record.make_model || 'Unknown'
+          make_model: record.make_model || 'Unknown',
+          station_name: record.stations?.name || 'Unknown Station'
         })),
         ...(phevData || []).map(record => ({
           ...record,
           record_type: 'PHEV' as const,
-          make_model: `${record.vehicle_make || ''} ${record.model || ''}`.trim() || 'Unknown'
+          make_model: `${record.vehicle_make || ''} ${record.model || ''}`.trim() || 'Unknown',
+          station_name: record.stations?.name || 'Unknown Station'
         }))
       ];
 
@@ -206,6 +244,27 @@ const ModifyReports = () => {
       </header>
 
       <div className="p-6 max-w-6xl mx-auto">
+        {/* Station Filter for Super Admins */}
+        {isSuperAdmin() && (
+          <div className="bg-slate-800 rounded-lg p-4 mb-6 border border-slate-700">
+            <div className="flex items-center space-x-4">
+              <Building className="w-5 h-5 text-slate-400" />
+              <label className="text-sm font-medium text-slate-300">Filter by Station:</label>
+              <select
+                value={selectedStationId}
+                onChange={(e) => setSelectedStationId(e.target.value)}
+                className="px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              >
+                <option value="">All Stations</option>
+                {stations.map((station) => (
+                  <option key={station.id} value={station.id}>
+                    {station.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+        )}
 
         {error && (
           <div className="mb-6 p-4 bg-red-900/20 border border-red-600/50 rounded-lg flex items-center space-x-2">
@@ -224,6 +283,11 @@ const ModifyReports = () => {
             <div className="p-4 border-b border-slate-700">
               <h2 className="text-lg font-semibold text-white">
                 Diagnostic Reports ({records.length})
+                {selectedStationId && stations.find(s => s.id === selectedStationId) && (
+                  <span className="text-sm text-slate-400 ml-2">
+                    - {stations.find(s => s.id === selectedStationId)?.name}
+                  </span>
+                )}
               </h2>
             </div>
             
@@ -241,6 +305,12 @@ const ModifyReports = () => {
                           {record.record_type}
                         </span>
                         <h3 className="text-white font-medium">{record.customer_name}</h3>
+                        {isSuperAdmin() && (
+                          <span className="inline-flex items-center px-2 py-1 text-xs bg-slate-700 text-slate-300 rounded-full">
+                            <Building className="w-3 h-3 mr-1" />
+                            {record.station_name}
+                          </span>
+                        )}
                         {!isSuperAdmin() && record.technician_id !== user?.id && (
                           <span className="text-xs text-orange-400">(Read Only)</span>
                         )}
