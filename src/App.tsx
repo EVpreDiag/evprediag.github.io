@@ -41,7 +41,7 @@ function App() {
         <div className="App">
           <Routes>
             <Route path="/auth" element={<AuthPage />} />
-            <Route path="/register" element={<StationRegistration />} />
+            <Route path="/register-station" element={<StationRegistration />} />
             <Route path="/verify-email" element={<EmailVerification />} />
             <Route path="/" element={<Navigate to="/dashboard" />} />
             <Route path="/dashboard" element={
