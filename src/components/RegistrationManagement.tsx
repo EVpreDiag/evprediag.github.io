@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
@@ -54,7 +53,11 @@ const RegistrationManagement = () => {
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      setRequests(data || []);
+      // Type assertion to ensure status is properly typed
+      setRequests((data || []).map(request => ({
+        ...request,
+        status: request.status as 'pending' | 'approved' | 'rejected'
+      })));
     } catch (error) {
       console.error('Error fetching registration requests:', error);
     } finally {
