@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
@@ -48,40 +47,58 @@ const StationAdminApproval = () => {
       setLoading(true);
       
       // Get pending station admin roles that haven't been approved yet
-      const { data, error } = await supabase
+      const { data: rolesData, error: rolesError } = await supabase
         .from('user_roles')
         .select(`
           id,
           user_id,
           station_id,
-          assigned_at,
-          assigned_by,
-          stations (
-            name,
-            email,
-            address
-          ),
-          profiles (
-            full_name,
-            username
-          )
+          assigned_at
         `)
         .eq('role', 'station_admin')
         .is('assigned_by', null)
         .order('assigned_at', { ascending: false });
 
-      if (error) throw error;
-      
+      if (rolesError) throw rolesError;
+
+      if (!rolesData || rolesData.length === 0) {
+        setRequests([]);
+        return;
+      }
+
+      // Get station details for each role
+      const stationIds = [...new Set(rolesData.map(role => role.station_id).filter(Boolean))];
+      const { data: stationsData, error: stationsError } = await supabase
+        .from('stations')
+        .select('id, name, email, address')
+        .in('id', stationIds);
+
+      if (stationsError) throw stationsError;
+
+      // Get profile details for each user
+      const userIds = rolesData.map(role => role.user_id);
+      const { data: profilesData, error: profilesError } = await supabase
+        .from('profiles')
+        .select('id, full_name, username')
+        .in('id', userIds);
+
+      if (profilesError) throw profilesError;
+
       // Transform data to match our interface
-      const transformedData = (data || []).map(item => ({
-        id: item.id,
-        station_id: item.station_id || '',
-        user_id: item.user_id,
-        status: 'pending' as const,
-        requested_at: item.assigned_at || new Date().toISOString(),
-        stations: item.stations || { name: 'Unknown Station' },
-        profiles: item.profiles || { full_name: 'Unknown User' }
-      }));
+      const transformedData: StationAdminRequest[] = rolesData.map(role => {
+        const station = stationsData?.find(s => s.id === role.station_id) || { name: 'Unknown Station' };
+        const profile = profilesData?.find(p => p.id === role.user_id) || { full_name: 'Unknown User' };
+        
+        return {
+          id: role.id,
+          station_id: role.station_id || '',
+          user_id: role.user_id,
+          status: 'pending' as const,
+          requested_at: role.assigned_at || new Date().toISOString(),
+          stations: station,
+          profiles: profile
+        };
+      });
       
       setRequests(transformedData);
     } catch (error) {
