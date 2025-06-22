@@ -1,8 +1,7 @@
 
 import React, { useState } from 'react';
 import { supabase } from '../integrations/supabase/client';
-import { Building, User, Mail, Lock, MapPin, CheckCircle, Hash } from 'lucide-react';
-import { sendVerificationEmail } from '../utils/emailUtils';
+import { Building, User, Mail, Lock, CheckCircle, Hash } from 'lucide-react';
 
 interface EnhancedSignupProps {
   onSignupSuccess?: () => void;
@@ -12,18 +11,16 @@ interface EnhancedSignupProps {
 const EnhancedSignup: React.FC<EnhancedSignupProps> = ({ onSignupSuccess, onSwitchToLogin }) => {
   const [loading, setLoading] = useState(false);
   const [validatingStation, setValidatingStation] = useState(false);
-  const [step, setStep] = useState<'initial' | 'station_info' | 'verification'>('initial');
+  const [step, setStep] = useState<'initial' | 'station_info' | 'success'>('initial');
   const [formData, setFormData] = useState({
     email: '',
     password: '',
     fullName: '',
     stationName: '',
-    stationId: '',
-    isJoiningExisting: true
+    stationId: ''
   });
   const [error, setError] = useState('');
   const [stationValidated, setStationValidated] = useState(false);
-  const [verificationUrl, setVerificationUrl] = useState('');
 
   const handleInitialSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -72,37 +69,19 @@ const EnhancedSignup: React.FC<EnhancedSignupProps> = ({ onSignupSuccess, onSwit
     }
   };
 
-  const sendVerificationFirst = async () => {
+  const handleSignup = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
     if (!stationValidated) {
       setError('Please validate station information first');
       return;
     }
 
     setLoading(true);
-    try {
-      const result = await sendVerificationEmail(formData.email, 'user_signup');
-      
-      if (result.success) {
-        setStep('verification');
-        setVerificationUrl(result.verificationUrl || '');
-      } else {
-        setError('Failed to send verification email. Please try again.');
-      }
-    } catch (error) {
-      console.error('Error sending verification:', error);
-      setError('Failed to send verification email. Please try again.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleSignup = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
     setError('');
 
     try {
-      // Sign up the user with email verification required
+      // Sign up the user with Supabase's native email verification
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: formData.email,
         password: formData.password,
@@ -120,13 +99,7 @@ const EnhancedSignup: React.FC<EnhancedSignupProps> = ({ onSignupSuccess, onSwit
       if (authError) throw authError;
 
       if (authData.user) {
-        // Update user profile with station association
-        await supabase
-          .from('profiles')
-          .update({ station_id: formData.stationId })
-          .eq('id', authData.user.id);
-
-        onSignupSuccess?.();
+        setStep('success');
       }
     } catch (error: any) {
       console.error('Signup error:', error);
@@ -136,45 +109,24 @@ const EnhancedSignup: React.FC<EnhancedSignupProps> = ({ onSignupSuccess, onSwit
     }
   };
 
-  if (step === 'verification') {
+  if (step === 'success') {
     return (
       <div className="max-w-md mx-auto bg-slate-800 rounded-lg border border-slate-700 p-8 text-center">
         <CheckCircle className="w-16 h-16 text-green-400 mx-auto mb-4" />
         <h2 className="text-2xl font-bold text-white mb-4">Check Your Email</h2>
         <p className="text-slate-400 mb-6">
-          We've sent a verification email to <strong>{formData.email}</strong>. 
-          Please check your inbox and click the verification link to complete your account creation.
+          We've sent a confirmation email to <strong>{formData.email}</strong>. 
+          Please check your inbox and click the confirmation link to verify your account.
         </p>
-        
-        {verificationUrl && (
-          <div className="bg-slate-700 rounded-lg p-4 mb-6">
-            <p className="text-sm text-slate-400 mb-2">For testing purposes, here's your verification link:</p>
-            <a 
-              href={verificationUrl}
-              className="text-blue-400 hover:text-blue-300 text-sm break-all"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              {verificationUrl}
-            </a>
-          </div>
-        )}
-
-        <div className="flex space-x-4">
-          <button
-            onClick={() => setStep('station_info')}
-            className="flex-1 px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg transition-colors"
-          >
-            Back to Form
-          </button>
-          <button
-            onClick={handleSignup}
-            disabled={loading}
-            className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-lg transition-colors"
-          >
-            {loading ? 'Creating Account...' : 'Complete Signup'}
-          </button>
-        </div>
+        <p className="text-slate-400 mb-6">
+          After verification, you'll be able to log in. Your station administrator will assign your role.
+        </p>
+        <button
+          onClick={onSwitchToLogin}
+          className="w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+        >
+          Continue to Login
+        </button>
       </div>
     );
   }
@@ -267,7 +219,7 @@ const EnhancedSignup: React.FC<EnhancedSignupProps> = ({ onSignupSuccess, onSwit
         <p className="text-slate-400">Enter your station details to join</p>
       </div>
 
-      <form onSubmit={(e) => { e.preventDefault(); sendVerificationFirst(); }} className="space-y-4">
+      <form onSubmit={handleSignup} className="space-y-4">
         <div>
           <label className="block text-sm font-medium text-slate-300 mb-2">
             <Building className="w-4 h-4 inline mr-2" />
@@ -328,7 +280,8 @@ const EnhancedSignup: React.FC<EnhancedSignupProps> = ({ onSignupSuccess, onSwit
 
         <div className="bg-blue-900/20 border border-blue-600/50 rounded-lg p-3">
           <p className="text-blue-400 text-sm">
-            <strong>Note:</strong> You'll join as a regular user. Your station administrator will assign your role after account creation.
+            <strong>Note:</strong> After creating your account, you'll receive an email confirmation. 
+            Your station administrator will assign your role after verification.
           </p>
         </div>
 
@@ -351,7 +304,7 @@ const EnhancedSignup: React.FC<EnhancedSignupProps> = ({ onSignupSuccess, onSwit
             disabled={loading || !stationValidated}
             className="flex-1 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-lg transition-colors"
           >
-            {loading ? 'Sending...' : 'Send Verification'}
+            {loading ? 'Creating Account...' : 'Create Account'}
           </button>
         </div>
       </form>

@@ -26,7 +26,6 @@ interface RegistrationRequest {
   updated_at: string;
   email_verified: boolean;
   invitation_sent: boolean;
-  password_hash: string | null;
 }
 
 const RegistrationManagement = () => {
@@ -90,42 +89,24 @@ const RegistrationManagement = () => {
 
       if (stationError) throw stationError;
 
-      // Create auth user for the station admin
-      const { data: authData, error: authError } = await supabase.auth.admin.createUser({
+      // Send magic link invitation instead of creating user directly
+      const { error: inviteError } = await supabase.auth.signInWithOtp({
         email: request.contact_email,
-        password: 'temp_password_' + Math.random().toString(36).slice(-8),
-        email_confirm: true,
-        user_metadata: {
-          full_name: request.contact_person_name,
-          username: request.contact_email,
-          station_id: stationData.id
+        options: {
+          emailRedirectTo: `${window.location.origin}/dashboard?setup=station&station_id=${stationData.id}`,
+          data: {
+            full_name: request.contact_person_name,
+            station_id: stationData.id,
+            role: 'station_admin',
+            company_name: request.company_name
+          }
         }
       });
 
-      if (authError) throw authError;
-
-      // Update the user's profile with station association
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .update({ 
-          station_id: stationData.id,
-          full_name: request.contact_person_name 
-        })
-        .eq('id', authData.user.id);
-
-      if (profileError) throw profileError;
-
-      // Assign station_admin role (not admin)
-      const { error: roleError } = await supabase
-        .from('user_roles')
-        .insert({
-          user_id: authData.user.id,
-          role: 'station_admin',
-          station_id: stationData.id,
-          assigned_by: user?.id
-        });
-
-      if (roleError) throw roleError;
+      if (inviteError) {
+        console.error('Failed to send invitation:', inviteError);
+        throw new Error('Failed to send invitation email');
+      }
 
       // Update the registration request status
       const { error: updateError } = await supabase
@@ -134,21 +115,12 @@ const RegistrationManagement = () => {
           status: 'approved',
           approved_by: user?.id,
           approved_at: new Date().toISOString(),
-          admin_user_id: authData.user.id
+          invitation_sent: true,
+          email_verified: true // Will be verified when they click magic link
         })
         .eq('id', request.id);
 
       if (updateError) throw updateError;
-
-      // Send invitation using the existing function
-      const { error: inviteError } = await supabase.rpc('create_station_invitation', {
-        _registration_id: request.id,
-        _email: request.contact_email
-      });
-
-      if (inviteError) {
-        console.error('Warning: Failed to send invitation:', inviteError);
-      }
 
       await fetchRequests();
     } catch (error) {
@@ -169,7 +141,7 @@ const RegistrationManagement = () => {
         .update({
           status: 'rejected',
           rejection_reason: rejectionReason,
-          approved_by: (await supabase.auth.getUser()).data.user?.id,
+          approved_by: user?.id,
           approved_at: new Date().toISOString()
         })
         .eq('id', selectedRequest.id);
@@ -207,16 +179,13 @@ const RegistrationManagement = () => {
   };
 
   const getRegistrationStatus = (request: RegistrationRequest) => {
-    if (!request.email_verified) {
-      return { text: 'Email Not Verified', color: 'text-red-400' };
-    }
-    if (!request.password_hash) {
-      return { text: 'Password Not Set', color: 'text-red-400' };
-    }
     if (request.status === 'approved' && request.invitation_sent) {
       return { text: 'Invitation Sent', color: 'text-green-400' };
     }
-    return { text: 'Ready for Review', color: 'text-blue-400' };
+    if (request.status === 'pending') {
+      return { text: 'Ready for Review', color: 'text-blue-400' };
+    }
+    return { text: request.status.charAt(0).toUpperCase() + request.status.slice(1), color: 'text-slate-400' };
   };
 
   if (!isSuperAdmin()) {
@@ -269,17 +238,6 @@ const RegistrationManagement = () => {
           <div className="bg-slate-800 rounded-lg p-4 border border-slate-700">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-slate-400 text-sm">Email Verified</p>
-                <p className="text-2xl font-bold text-white">
-                  {requests.filter(r => r.email_verified).length}
-                </p>
-              </div>
-              <Mail className="w-8 h-8 text-blue-400" />
-            </div>
-          </div>
-          <div className="bg-slate-800 rounded-lg p-4 border border-slate-700">
-            <div className="flex items-center justify-between">
-              <div>
                 <p className="text-slate-400 text-sm">Approved</p>
                 <p className="text-2xl font-bold text-white">
                   {requests.filter(r => r.status === 'approved').length}
@@ -299,6 +257,17 @@ const RegistrationManagement = () => {
               <Send className="w-8 h-8 text-purple-400" />
             </div>
           </div>
+          <div className="bg-slate-800 rounded-lg p-4 border border-slate-700">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-slate-400 text-sm">Rejected</p>
+                <p className="text-2xl font-bold text-white">
+                  {requests.filter(r => r.status === 'rejected').length}
+                </p>
+              </div>
+              <X className="w-8 h-8 text-red-400" />
+            </div>
+          </div>
         </div>
 
         {/* Requests Table */}
@@ -314,7 +283,6 @@ const RegistrationManagement = () => {
                   <th className="px-6 py-3 text-left text-xs font-medium text-slate-300 uppercase tracking-wider">Company</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-slate-300 uppercase tracking-wider">Contact</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-slate-300 uppercase tracking-wider">Status</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-300 uppercase tracking-wider">Registration Status</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-slate-300 uppercase tracking-wider">Submitted</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-slate-300 uppercase tracking-wider">Actions</th>
                 </tr>
@@ -322,7 +290,7 @@ const RegistrationManagement = () => {
               <tbody className="divide-y divide-slate-700">
                 {requests.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="px-6 py-8 text-center text-slate-400">
+                    <td colSpan={5} className="px-6 py-8 text-center text-slate-400">
                       No registration requests found.
                     </td>
                   </tr>
@@ -342,7 +310,7 @@ const RegistrationManagement = () => {
                             <div className="text-sm text-white">{request.contact_person_name}</div>
                             <div className="text-sm text-slate-400 flex items-center">
                               {request.contact_email}
-                              {request.email_verified && (
+                              {request.invitation_sent && (
                                 <Check className="w-3 h-3 text-green-400 ml-1" />
                               )}
                             </div>
@@ -351,11 +319,6 @@ const RegistrationManagement = () => {
                         <td className="px-6 py-4">
                           <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(request.status)}`}>
                             {request.status.charAt(0).toUpperCase() + request.status.slice(1)}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4">
-                          <span className={`text-sm ${regStatus.color}`}>
-                            {regStatus.text}
                           </span>
                         </td>
                         <td className="px-6 py-4 text-sm text-slate-300">
@@ -370,13 +333,13 @@ const RegistrationManagement = () => {
                             >
                               <Eye className="w-4 h-4" />
                             </button>
-                            {request.status === 'pending' && request.email_verified && request.password_hash && (
+                            {request.status === 'pending' && (
                               <>
                                 <button
                                   onClick={() => handleApprove(request)}
                                   disabled={processing === request.id}
                                   className="p-2 text-green-400 hover:text-green-300 disabled:opacity-50 transition-colors"
-                                  title="Approve"
+                                  title="Approve & Send Invitation"
                                 >
                                   <Check className="w-4 h-4" />
                                 </button>
@@ -413,48 +376,6 @@ const RegistrationManagement = () => {
               <h3 className="text-lg font-semibold text-white">Registration Details</h3>
             </div>
             <div className="p-6 space-y-6">
-              {/* Security Status */}
-              <div>
-                <h4 className="text-white font-medium mb-3 flex items-center">
-                  <Mail className="w-4 h-4 mr-2" />
-                  Security Status
-                </h4>
-                <div className="grid grid-cols-2 gap-4 text-sm">
-                  <div>
-                    <span className="text-slate-400">Email Verified:</span>
-                    <p className={`flex items-center ${selectedRequest.email_verified ? 'text-green-400' : 'text-red-400'}`}>
-                      {selectedRequest.email_verified ? (
-                        <>
-                          <Check className="w-3 h-3 mr-1" />
-                          Verified
-                        </>
-                      ) : (
-                        <>
-                          <X className="w-3 h-3 mr-1" />
-                          Not Verified
-                        </>
-                      )}
-                    </p>
-                  </div>
-                  <div>
-                    <span className="text-slate-400">Password Set:</span>
-                    <p className={`flex items-center ${selectedRequest.password_hash ? 'text-green-400' : 'text-red-400'}`}>
-                      {selectedRequest.password_hash ? (
-                        <>
-                          <Check className="w-3 h-3 mr-1" />
-                          Set
-                        </>
-                      ) : (
-                        <>
-                          <X className="w-3 h-3 mr-1" />
-                          Not Set
-                        </>
-                      )}
-                    </p>
-                  </div>
-                </div>
-              </div>
-
               {/* Company Info */}
               <div>
                 <h4 className="text-white font-medium mb-3 flex items-center">
@@ -555,7 +476,7 @@ const RegistrationManagement = () => {
               </div>
             </div>
             <div className="p-6 border-t border-slate-700 flex justify-end space-x-4">
-              {selectedRequest.status === 'pending' && selectedRequest.email_verified && selectedRequest.password_hash && (
+              {selectedRequest.status === 'pending' && (
                 <>
                   <button
                     onClick={() => {
