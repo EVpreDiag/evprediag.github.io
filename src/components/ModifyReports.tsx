@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../integrations/supabase/client';
@@ -20,7 +21,7 @@ interface DiagnosticRecord {
 }
 
 const ModifyReports = () => {
-  const { user, hasRole, isAdmin } = useAuth();
+  const { user, hasRole, isAdmin, isSuperAdmin } = useAuth();
   const navigate = useNavigate();
   const [records, setRecords] = useState<DiagnosticRecord[]>([]);
   const [loading, setLoading] = useState(true);
@@ -28,7 +29,7 @@ const ModifyReports = () => {
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
 
   // Check if user has permission to modify reports
-  const canModifyReports = hasRole('admin') || hasRole('tech');
+  const canModifyReports = hasRole('admin') || hasRole('technician') || isSuperAdmin();
 
   useEffect(() => {
     if (!canModifyReports) {
@@ -50,8 +51,8 @@ const ModifyReports = () => {
         .select('id, vin, ro_number, customer_name, make_model, created_at, updated_at, technician_id')
         .order('updated_at', { ascending: false });
 
-      // Non-admins can only see their own records (enforced by RLS as well)
-      if (!isAdmin()) {
+      // Non-super-admins can only see their own records (enforced by RLS as well)
+      if (!isSuperAdmin()) {
         evQuery = evQuery.eq('technician_id', user.id);
       }
 
@@ -68,7 +69,7 @@ const ModifyReports = () => {
         .select('id, vin, ro_number, customer_name, vehicle_make, model, created_at, updated_at, technician_id')
         .order('updated_at', { ascending: false });
 
-      if (!isAdmin()) {
+      if (!isSuperAdmin()) {
         phevQuery = phevQuery.eq('technician_id', user.id);
       }
 
@@ -119,8 +120,8 @@ const ModifyReports = () => {
   const handleDelete = async (record: DiagnosticRecord) => {
     if (!user) return;
 
-    // Double-check ownership for non-admins
-    if (!isAdmin()) {
+    // Double-check ownership for non-super-admins
+    if (!isSuperAdmin()) {
       const hasOwnership = await checkRecordOwnership(
         record.id, 
         record.record_type === 'EV' ? 'ev_diagnostic_records' : 'phev_diagnostic_records'
@@ -198,7 +199,7 @@ const ModifyReports = () => {
           <div>
             <h1 className="text-xl font-bold text-white">Modify Reports</h1>
             <p className="text-sm text-slate-400">
-              {isAdmin() ? 'Edit and manage all diagnostic reports' : 'Edit and manage your diagnostic reports'}
+              {isSuperAdmin() ? 'Edit and manage all diagnostic reports' : 'Edit and manage your diagnostic reports'}
             </p>
           </div>
         </div>
@@ -240,7 +241,7 @@ const ModifyReports = () => {
                           {record.record_type}
                         </span>
                         <h3 className="text-white font-medium">{record.customer_name}</h3>
-                        {!isAdmin() && record.technician_id !== user?.id && (
+                        {!isSuperAdmin() && record.technician_id !== user?.id && (
                           <span className="text-xs text-orange-400">(Read Only)</span>
                         )}
                       </div>
@@ -274,7 +275,7 @@ const ModifyReports = () => {
                         <Eye className="w-4 h-4" />
                       </button>
                       
-                      {(isAdmin() || record.technician_id === user?.id) && (
+                      {(isSuperAdmin() || record.technician_id === user?.id) && (
                         <>
                           <button
                             onClick={() => handleEdit(record)}

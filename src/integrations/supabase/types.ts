@@ -661,11 +661,19 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      can_manage_station_roles: {
+        Args: { _user_id: string; _station_id: string }
+        Returns: boolean
+      }
       get_user_roles: {
         Args: { _user_id: string }
         Returns: {
           role: Database["public"]["Enums"]["app_role"]
         }[]
+      }
+      get_user_station: {
+        Args: { _user_id: string }
+        Returns: string
       }
       has_role: {
         Args: {
@@ -675,6 +683,10 @@ export type Database = {
         Returns: boolean
       }
       is_admin: {
+        Args: { user_id: string }
+        Returns: boolean
+      }
+      is_super_admin: {
         Args: { user_id: string }
         Returns: boolean
       }

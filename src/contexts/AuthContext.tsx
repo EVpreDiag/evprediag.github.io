@@ -9,9 +9,10 @@ interface Profile {
   username: string | null;
   full_name: string | null;
   avatar_url: string | null;
+  station_id?: string | null;
 }
 
-type UserRole = 'admin' | 'tech' | 'service_desk';
+type UserRole = 'admin' | 'technician' | 'front_desk' | 'super_admin';
 
 interface AuthContextType {
   user: User | null;
@@ -26,7 +27,8 @@ interface AuthContextType {
   updateProfile: (updates: Partial<Profile>) => Promise<{ error: any }>;
   hasRole: (role: UserRole) => boolean;
   isAdmin: () => boolean;
-  assignRole: (userId: string, role: UserRole) => Promise<{ error: any }>;
+  isSuperAdmin: () => boolean;
+  assignRole: (userId: string, role: UserRole, stationId?: string) => Promise<{ error: any }>;
   removeRole: (userId: string, role: UserRole) => Promise<{ error: any }>;
   fetchUserRoles: (userId?: string) => Promise<void>;
 }
@@ -201,11 +203,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return hasRole('admin');
   };
 
-  const assignRole = async (userId: string, role: UserRole) => {
-    if (!isAdmin()) {
+  const isSuperAdmin = (): boolean => {
+    return hasRole('super_admin');
+  };
+
+  const assignRole = async (userId: string, role: UserRole, stationId?: string) => {
+    if (!isSuperAdmin() && !isAdmin()) {
       const error = new Error('Only admins can assign roles');
       secureLog('Unauthorized role assignment attempt', 'warn');
       return { error };
+    }
+
+    // Get the current user's station if not super admin
+    let assignToStationId = stationId;
+    if (!isSuperAdmin() && !stationId) {
+      assignToStationId = profile?.station_id || null;
     }
 
     const { error } = await supabase
@@ -213,7 +225,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       .insert({
         user_id: userId,
         role: role,
-        assigned_by: user?.id
+        assigned_by: user?.id,
+        station_id: assignToStationId
       });
 
     if (error) {
@@ -226,7 +239,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const removeRole = async (userId: string, role: UserRole) => {
-    if (!isAdmin()) {
+    if (!isSuperAdmin() && !isAdmin()) {
       const error = new Error('Only admins can remove roles');
       secureLog('Unauthorized role removal attempt', 'warn');
       return { error };
@@ -261,6 +274,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       updateProfile,
       hasRole,
       isAdmin,
+      isSuperAdmin,
       assignRole,
       removeRole,
       fetchUserRoles

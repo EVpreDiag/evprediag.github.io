@@ -1,10 +1,11 @@
+
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../integrations/supabase/client';
 import { ArrowLeft, Users, Plus, Edit, Trash2, Shield, User, Filter, Mail } from 'lucide-react';
 
-type UserRole = 'admin' | 'tech' | 'service_desk';
+type UserRole = 'admin' | 'technician' | 'front_desk' | 'super_admin';
 type FilterType = 'all' | 'with_roles' | 'without_roles' | 'without_profiles';
 
 interface SystemUser {
@@ -16,11 +17,12 @@ interface SystemUser {
   roles: UserRole[];
   hasProfile: boolean;
   emailConfirmed?: boolean;
+  station_id?: string | null;
 }
 
 const UserManagement = () => {
   const navigate = useNavigate();
-  const { isAdmin, assignRole, removeRole } = useAuth();
+  const { isAdmin, isSuperAdmin, assignRole, removeRole } = useAuth();
   const [users, setUsers] = useState<SystemUser[]>([]);
   const [filteredUsers, setFilteredUsers] = useState<SystemUser[]>([]);
   const [loading, setLoading] = useState(true);
@@ -29,11 +31,11 @@ const UserManagement = () => {
   const [activeFilter, setActiveFilter] = useState<FilterType>('all');
 
   useEffect(() => {
-    if (!isAdmin()) {
+    if (!isAdmin() && !isSuperAdmin()) {
       return;
     }
     fetchUsers();
-  }, [isAdmin]);
+  }, [isAdmin, isSuperAdmin]);
 
   useEffect(() => {
     filterUsers();
@@ -80,7 +82,8 @@ const UserManagement = () => {
           created_at: profile.created_at,
           roles: roles as UserRole[],
           hasProfile: true, // All these users have profiles since we fetched from profiles table
-          emailConfirmed: undefined // This info isn't available from profiles table
+          emailConfirmed: undefined, // This info isn't available from profiles table
+          station_id: profile.station_id
         };
       });
 
@@ -147,8 +150,9 @@ const UserManagement = () => {
   const getRoleColor = (role: UserRole) => {
     switch (role) {
       case 'admin': return 'bg-purple-600/20 text-purple-400';
-      case 'tech': return 'bg-blue-600/20 text-blue-400';
-      case 'service_desk': return 'bg-green-600/20 text-green-400';
+      case 'super_admin': return 'bg-red-600/20 text-red-400';
+      case 'technician': return 'bg-blue-600/20 text-blue-400';
+      case 'front_desk': return 'bg-green-600/20 text-green-400';
       default: return 'bg-gray-600/20 text-gray-400';
     }
   };
@@ -156,8 +160,9 @@ const UserManagement = () => {
   const getRoleDisplayName = (role: UserRole) => {
     switch (role) {
       case 'admin': return 'Administrator';
-      case 'tech': return 'Technician';
-      case 'service_desk': return 'Service Desk';
+      case 'super_admin': return 'Super Admin';
+      case 'technician': return 'Technician';
+      case 'front_desk': return 'Front Desk';
       default: return role;
     }
   };
@@ -182,7 +187,16 @@ const UserManagement = () => {
     }
   };
 
-  if (!isAdmin()) {
+  const getAvailableRoles = (): UserRole[] => {
+    if (isSuperAdmin()) {
+      return ['admin', 'technician', 'front_desk', 'super_admin'];
+    } else if (isAdmin()) {
+      return ['technician', 'front_desk'];
+    }
+    return [];
+  };
+
+  if (!isAdmin() && !isSuperAdmin()) {
     return (
       <div className="min-h-screen bg-slate-900 flex items-center justify-center">
         <div className="text-center">
@@ -282,7 +296,7 @@ const UserManagement = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-slate-400 text-sm">Technicians</p>
-                <p className="text-2xl font-bold text-white">{users.filter(u => u.roles.includes('tech')).length}</p>
+                <p className="text-2xl font-bold text-white">{users.filter(u => u.roles.includes('technician')).length}</p>
               </div>
               <User className="w-8 h-8 text-blue-400" />
             </div>
@@ -409,7 +423,7 @@ const UserManagement = () => {
               )}
             </div>
             <div className="p-6 space-y-4">
-              {(['admin', 'tech', 'service_desk'] as UserRole[]).map((role) => (
+              {getAvailableRoles().map((role) => (
                 <div key={role} className="flex items-center justify-between">
                   <div>
                     <span className="text-white font-medium">{getRoleDisplayName(role)}</span>
