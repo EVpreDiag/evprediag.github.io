@@ -69,7 +69,7 @@ const Dashboard = () => {
       title: 'Print Summary',
       description: 'Print diagnostic summaries',
       icon: Printer,
-      path: '/print-summary',
+      path: '/Search',
       color: 'bg-gray-600 hover:bg-gray-700',
       show: true
     },
