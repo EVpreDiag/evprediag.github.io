@@ -35,6 +35,56 @@ const EnhancedSignup: React.FC<EnhancedSignupProps> = ({ onSignupSuccess, onSwit
     setStep(isNew ? 'new_station' : 'existing_station');
   };
 
+  const checkStationExists = async (stationName: string) => {
+    const { data, error } = await supabase
+      .from('stations')
+      .select('id')
+      .ilike('name', stationName)
+      .single();
+    
+    if (error && error.code !== 'PGRST116') {
+      throw error;
+    }
+    
+    return data?.id || null;
+  };
+
+  const createStationWithUser = async (stationName: string, userId: string, userEmail: string) => {
+    // Create the station
+    const { data: stationData, error: stationError } = await supabase
+      .from('stations')
+      .insert({
+        name: stationName,
+        email: userEmail,
+        created_by: userId
+      })
+      .select()
+      .single();
+
+    if (stationError) throw stationError;
+
+    // Update user profile with station
+    const { error: profileError } = await supabase
+      .from('profiles')
+      .update({ station_id: stationData.id })
+      .eq('id', userId);
+
+    if (profileError) throw profileError;
+
+    // Create pending station admin role
+    const { error: roleError } = await supabase
+      .from('user_roles')
+      .insert({
+        user_id: userId,
+        role: 'station_admin',
+        station_id: stationData.id
+      });
+
+    if (roleError) throw roleError;
+
+    return stationData.id;
+  };
+
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -43,10 +93,9 @@ const EnhancedSignup: React.FC<EnhancedSignupProps> = ({ onSignupSuccess, onSwit
     try {
       // Check if station exists when joining existing
       if (!formData.isNewStation) {
-        const { data: existingStation } = await supabase
-          .rpc('station_exists_by_name', { station_name: formData.stationName });
-          
-        if (!existingStation) {
+        const existingStationId = await checkStationExists(formData.stationName);
+        
+        if (!existingStationId) {
           setError('Station not found. Please check the station name or create a new station.');
           setLoading(false);
           return;
@@ -73,30 +122,15 @@ const EnhancedSignup: React.FC<EnhancedSignupProps> = ({ onSignupSuccess, onSwit
       if (authData.user) {
         if (formData.isNewStation) {
           // Create new station with pending admin
-          await supabase.rpc('create_station_with_pending_admin', {
-            station_name: formData.stationName,
-            user_id: authData.user.id,
-            user_full_name: formData.fullName,
-            user_email: formData.email
-          });
-
-          // Create admin request
-          await supabase
-            .from('station_admin_requests')
-            .insert({
-              station_id: authData.user.id, // This will be updated by the function
-              user_id: authData.user.id,
-              status: 'pending'
-            });
+          await createStationWithUser(formData.stationName, authData.user.id, formData.email);
         } else {
           // Link to existing station
-          const { data: station } = await supabase
-            .rpc('station_exists_by_name', { station_name: formData.stationName });
-            
-          if (station) {
+          const existingStationId = await checkStationExists(formData.stationName);
+          
+          if (existingStationId) {
             await supabase
               .from('profiles')
-              .update({ station_id: station })
+              .update({ station_id: existingStationId })
               .eq('id', authData.user.id);
           }
         }

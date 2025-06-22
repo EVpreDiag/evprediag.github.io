@@ -46,10 +46,16 @@ const StationAdminApproval = () => {
   const fetchRequests = async () => {
     try {
       setLoading(true);
+      
+      // Get pending station admin roles that haven't been approved yet
       const { data, error } = await supabase
-        .from('station_admin_requests')
+        .from('user_roles')
         .select(`
-          *,
+          id,
+          user_id,
+          station_id,
+          assigned_at,
+          assigned_by,
           stations (
             name,
             email,
@@ -60,10 +66,24 @@ const StationAdminApproval = () => {
             username
           )
         `)
-        .order('requested_at', { ascending: false });
+        .eq('role', 'station_admin')
+        .is('assigned_by', null)
+        .order('assigned_at', { ascending: false });
 
       if (error) throw error;
-      setRequests(data || []);
+      
+      // Transform data to match our interface
+      const transformedData = (data || []).map(item => ({
+        id: item.id,
+        station_id: item.station_id || '',
+        user_id: item.user_id,
+        status: 'pending' as const,
+        requested_at: item.assigned_at || new Date().toISOString(),
+        stations: item.stations || { name: 'Unknown Station' },
+        profiles: item.profiles || { full_name: 'Unknown User' }
+      }));
+      
+      setRequests(transformedData);
     } catch (error) {
       console.error('Error fetching admin requests:', error);
     } finally {
@@ -76,26 +96,16 @@ const StationAdminApproval = () => {
     
     setProcessingId(request.id);
     try {
-      // Approve the station admin
-      const { error: approveError } = await supabase
-        .rpc('approve_station_admin', {
-          station_id: request.station_id,
-          approving_super_admin_id: user.id
-        });
-
-      if (approveError) throw approveError;
-
-      // Update the request status
-      const { error: updateError } = await supabase
-        .from('station_admin_requests')
+      // Update the user_role to mark as approved
+      const { error } = await supabase
+        .from('user_roles')
         .update({
-          status: 'approved',
-          reviewed_by: user.id,
-          reviewed_at: new Date().toISOString()
+          assigned_by: user.id,
+          assigned_at: new Date().toISOString()
         })
         .eq('id', request.id);
 
-      if (updateError) throw updateError;
+      if (error) throw error;
 
       await fetchRequests();
     } catch (error) {
@@ -110,14 +120,10 @@ const StationAdminApproval = () => {
 
     setProcessingId(selectedRequest.id);
     try {
+      // Delete the pending admin role
       const { error } = await supabase
-        .from('station_admin_requests')
-        .update({
-          status: 'rejected',
-          rejection_reason: rejectionReason,
-          reviewed_by: user.id,
-          reviewed_at: new Date().toISOString()
-        })
+        .from('user_roles')
+        .delete()
         .eq('id', selectedRequest.id);
 
       if (error) throw error;
@@ -215,23 +221,23 @@ const StationAdminApproval = () => {
           <div className="bg-slate-800 rounded-lg p-4 border border-slate-700">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-slate-400 text-sm">Approved</p>
+                <p className="text-slate-400 text-sm">Total Stations</p>
                 <p className="text-2xl font-bold text-white">
-                  {requests.filter(r => r.status === 'approved').length}
+                  {new Set(requests.map(r => r.station_id)).size}
                 </p>
               </div>
-              <Check className="w-8 h-8 text-green-400" />
+              <Building className="w-8 h-8 text-blue-400" />
             </div>
           </div>
           <div className="bg-slate-800 rounded-lg p-4 border border-slate-700">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-slate-400 text-sm">Rejected</p>
+                <p className="text-slate-400 text-sm">Total Requests</p>
                 <p className="text-2xl font-bold text-white">
-                  {requests.filter(r => r.status === 'rejected').length}
+                  {requests.length}
                 </p>
               </div>
-              <X className="w-8 h-8 text-red-400" />
+              <User className="w-8 h-8 text-green-400" />
             </div>
           </div>
         </div>
