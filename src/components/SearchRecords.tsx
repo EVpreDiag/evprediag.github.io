@@ -270,7 +270,7 @@ const SearchRecords = () => {
               />
             </div>
             
-            <div className={isSuperAdmin() ? "md:col-span-1" : "md:col-span-1"} + " flex items-end">
+            <div className={`${isSuperAdmin() ? "md:col-span-1" : "md:col-span-1"} flex items-end`}>
               <button
                 onClick={searchRecords}
                 disabled={loading || !searchTerm.trim()}
