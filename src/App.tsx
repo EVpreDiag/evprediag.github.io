@@ -16,6 +16,7 @@ import RegistrationManagement from './components/RegistrationManagement';
 import StationAdminApproval from './components/StationAdminApproval';
 import StationRegistration from './components/StationRegistration';
 import ProfileManagement from './components/ProfileManagement';
+import EmailVerification from './components/EmailVerification';
 import RoleProtectedRoute from './components/RoleProtectedRoute';
 import { useAuth } from './contexts/AuthContext';
 
@@ -41,6 +42,7 @@ function App() {
           <Routes>
             <Route path="/auth" element={<AuthPage />} />
             <Route path="/register" element={<StationRegistration />} />
+            <Route path="/verify-email" element={<EmailVerification />} />
             <Route path="/" element={<Navigate to="/dashboard" />} />
             <Route path="/dashboard" element={
               <ProtectedRoute>

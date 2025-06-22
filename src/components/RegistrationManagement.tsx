@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../integrations/supabase/client';
-import { ArrowLeft, Eye, Check, X, Building, User, Mail, Phone, MapPin, Globe, Calendar, FileText } from 'lucide-react';
+import { ArrowLeft, Eye, Check, X, Building, User, Mail, Phone, MapPin, Globe, Calendar, FileText, Send } from 'lucide-react';
 
 interface RegistrationRequest {
   id: string;
@@ -24,6 +24,9 @@ interface RegistrationRequest {
   rejection_reason: string | null;
   created_at: string;
   updated_at: string;
+  email_verified: boolean;
+  invitation_sent: boolean;
+  password_hash: string | null;
 }
 
 const RegistrationManagement = () => {
@@ -56,7 +59,9 @@ const RegistrationManagement = () => {
       // Type assertion to ensure status is properly typed
       setRequests((data || []).map(request => ({
         ...request,
-        status: request.status as 'pending' | 'approved' | 'rejected'
+        status: request.status as 'pending' | 'approved' | 'rejected',
+        email_verified: request.email_verified || false,
+        invitation_sent: request.invitation_sent || false
       })));
     } catch (error) {
       console.error('Error fetching registration requests:', error);
@@ -66,9 +71,19 @@ const RegistrationManagement = () => {
   };
 
   const handleApprove = async (request: RegistrationRequest) => {
+    if (!request.email_verified) {
+      alert('Cannot approve: Email not verified');
+      return;
+    }
+
+    if (!request.password_hash) {
+      alert('Cannot approve: No password set');
+      return;
+    }
+
     setProcessingId(request.id);
     try {
-      // Create station
+      // Create station first
       const { data: stationData, error: stationError } = await supabase
         .from('stations')
         .insert({
@@ -82,49 +97,20 @@ const RegistrationManagement = () => {
 
       if (stationError) throw stationError;
 
-      // Create user account for station admin
-      const { data: userData, error: userError } = await supabase.auth.admin.createUser({
-        email: request.contact_email,
-        password: generateTemporaryPassword(),
-        email_confirm: true,
-        user_metadata: {
-          full_name: request.contact_person_name,
-          username: request.contact_email
-        }
-      });
-
-      if (userError) throw userError;
-
-      // Create profile for the new user
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .insert({
-          id: userData.user.id,
-          username: request.contact_email,
-          full_name: request.contact_person_name,
-          station_id: stationData.id
+      // Create invitation instead of direct user creation
+      const { data: invitationData, error: invitationError } = await supabase
+        .rpc('create_station_invitation', {
+          _registration_id: request.id,
+          _email: request.contact_email
         });
 
-      if (profileError) throw profileError;
-
-      // Assign station_admin role
-      const { error: roleError } = await supabase
-        .from('user_roles')
-        .insert({
-          user_id: userData.user.id,
-          role: 'station_admin',
-          station_id: stationData.id,
-          assigned_by: (await supabase.auth.getUser()).data.user?.id
-        });
-
-      if (roleError) throw roleError;
+      if (invitationError) throw invitationError;
 
       // Update registration request status
       const { error: updateError } = await supabase
         .from('station_registration_requests')
         .update({
           status: 'approved',
-          admin_user_id: userData.user.id,
           approved_by: (await supabase.auth.getUser()).data.user?.id,
           approved_at: new Date().toISOString()
         })
@@ -132,9 +118,14 @@ const RegistrationManagement = () => {
 
       if (updateError) throw updateError;
 
+      // In a real implementation, send invitation email here
+      console.log(`Invitation would be sent to: ${request.contact_email}`);
+      console.log(`Station created: ${stationData.name}`);
+
       await fetchRequests();
     } catch (error) {
       console.error('Error approving registration:', error);
+      alert('Failed to approve registration. Please try again.');
     } finally {
       setProcessingId(null);
     }
@@ -168,10 +159,6 @@ const RegistrationManagement = () => {
     }
   };
 
-  const generateTemporaryPassword = () => {
-    return Math.random().toString(36).slice(-8) + Math.random().toString(36).slice(-8);
-  };
-
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'pending': return 'bg-yellow-600/20 text-yellow-400';
@@ -189,6 +176,19 @@ const RegistrationManagement = () => {
       hour: '2-digit',
       minute: '2-digit'
     });
+  };
+
+  const getRegistrationStatus = (request: RegistrationRequest) => {
+    if (!request.email_verified) {
+      return { text: 'Email Not Verified', color: 'text-red-400' };
+    }
+    if (!request.password_hash) {
+      return { text: 'Password Not Set', color: 'text-red-400' };
+    }
+    if (request.status === 'approved' && request.invitation_sent) {
+      return { text: 'Invitation Sent', color: 'text-green-400' };
+    }
+    return { text: 'Ready for Review', color: 'text-blue-400' };
   };
 
   if (!isSuperAdmin()) {
@@ -226,16 +226,27 @@ const RegistrationManagement = () => {
 
       <div className="p-6">
         {/* Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
           <div className="bg-slate-800 rounded-lg p-4 border border-slate-700">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-slate-400 text-sm">Pending Requests</p>
+                <p className="text-slate-400 text-sm">Pending</p>
                 <p className="text-2xl font-bold text-white">
                   {requests.filter(r => r.status === 'pending').length}
                 </p>
               </div>
               <Calendar className="w-8 h-8 text-yellow-400" />
+            </div>
+          </div>
+          <div className="bg-slate-800 rounded-lg p-4 border border-slate-700">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-slate-400 text-sm">Email Verified</p>
+                <p className="text-2xl font-bold text-white">
+                  {requests.filter(r => r.email_verified).length}
+                </p>
+              </div>
+              <Mail className="w-8 h-8 text-blue-400" />
             </div>
           </div>
           <div className="bg-slate-800 rounded-lg p-4 border border-slate-700">
@@ -252,12 +263,12 @@ const RegistrationManagement = () => {
           <div className="bg-slate-800 rounded-lg p-4 border border-slate-700">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-slate-400 text-sm">Rejected</p>
+                <p className="text-slate-400 text-sm">Invitations Sent</p>
                 <p className="text-2xl font-bold text-white">
-                  {requests.filter(r => r.status === 'rejected').length}
+                  {requests.filter(r => r.invitation_sent).length}
                 </p>
               </div>
-              <X className="w-8 h-8 text-red-400" />
+              <Send className="w-8 h-8 text-purple-400" />
             </div>
           </div>
         </div>
@@ -275,6 +286,7 @@ const RegistrationManagement = () => {
                   <th className="px-6 py-3 text-left text-xs font-medium text-slate-300 uppercase tracking-wider">Company</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-slate-300 uppercase tracking-wider">Contact</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-slate-300 uppercase tracking-wider">Status</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-300 uppercase tracking-wider">Registration Status</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-slate-300 uppercase tracking-wider">Submitted</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-slate-300 uppercase tracking-wider">Actions</th>
                 </tr>
@@ -282,69 +294,82 @@ const RegistrationManagement = () => {
               <tbody className="divide-y divide-slate-700">
                 {requests.length === 0 ? (
                   <tr>
-                    <td colSpan={5} className="px-6 py-8 text-center text-slate-400">
+                    <td colSpan={6} className="px-6 py-8 text-center text-slate-400">
                       No registration requests found.
                     </td>
                   </tr>
                 ) : (
-                  requests.map((request) => (
-                    <tr key={request.id} className="hover:bg-slate-700/30">
-                      <td className="px-6 py-4">
-                        <div>
-                          <div className="text-sm font-medium text-white">{request.company_name}</div>
-                          <div className="text-sm text-slate-400">{request.business_type || 'Not specified'}</div>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4">
-                        <div>
-                          <div className="text-sm text-white">{request.contact_person_name}</div>
-                          <div className="text-sm text-slate-400">{request.contact_email}</div>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4">
-                        <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(request.status)}`}>
-                          {request.status.charAt(0).toUpperCase() + request.status.slice(1)}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 text-sm text-slate-300">
-                        {formatDate(request.created_at)}
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="flex space-x-2">
-                          <button
-                            onClick={() => setSelectedRequest(request)}
-                            className="p-2 text-blue-400 hover:text-blue-300 transition-colors"
-                            title="View Details"
-                          >
-                            <Eye className="w-4 h-4" />
-                          </button>
-                          {request.status === 'pending' && (
-                            <>
-                              <button
-                                onClick={() => handleApprove(request)}
-                                disabled={processingId === request.id}
-                                className="p-2 text-green-400 hover:text-green-300 disabled:opacity-50 transition-colors"
-                                title="Approve"
-                              >
-                                <Check className="w-4 h-4" />
-                              </button>
-                              <button
-                                onClick={() => {
-                                  setSelectedRequest(request);
-                                  setShowRejectModal(true);
-                                }}
-                                disabled={processingId === request.id}
-                                className="p-2 text-red-400 hover:text-red-300 disabled:opacity-50 transition-colors"
-                                title="Reject"
-                              >
-                                <X className="w-4 h-4" />
-                              </button>
-                            </>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  ))
+                  requests.map((request) => {
+                    const regStatus = getRegistrationStatus(request);
+                    return (
+                      <tr key={request.id} className="hover:bg-slate-700/30">
+                        <td className="px-6 py-4">
+                          <div>
+                            <div className="text-sm font-medium text-white">{request.company_name}</div>
+                            <div className="text-sm text-slate-400">{request.business_type || 'Not specified'}</div>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <div>
+                            <div className="text-sm text-white">{request.contact_person_name}</div>
+                            <div className="text-sm text-slate-400 flex items-center">
+                              {request.contact_email}
+                              {request.email_verified && (
+                                <Check className="w-3 h-3 text-green-400 ml-1" />
+                              )}
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(request.status)}`}>
+                            {request.status.charAt(0).toUpperCase() + request.status.slice(1)}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4">
+                          <span className={`text-sm ${regStatus.color}`}>
+                            {regStatus.text}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 text-sm text-slate-300">
+                          {formatDate(request.created_at)}
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="flex space-x-2">
+                            <button
+                              onClick={() => setSelectedRequest(request)}
+                              className="p-2 text-blue-400 hover:text-blue-300 transition-colors"
+                              title="View Details"
+                            >
+                              <Eye className="w-4 h-4" />
+                            </button>
+                            {request.status === 'pending' && request.email_verified && request.password_hash && (
+                              <>
+                                <button
+                                  onClick={() => handleApprove(request)}
+                                  disabled={processingId === request.id}
+                                  className="p-2 text-green-400 hover:text-green-300 disabled:opacity-50 transition-colors"
+                                  title="Approve"
+                                >
+                                  <Check className="w-4 h-4" />
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    setSelectedRequest(request);
+                                    setShowRejectModal(true);
+                                  }}
+                                  disabled={processingId === request.id}
+                                  className="p-2 text-red-400 hover:text-red-300 disabled:opacity-50 transition-colors"
+                                  title="Reject"
+                                >
+                                  <X className="w-4 h-4" />
+                                </button>
+                              </>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })
                 )}
               </tbody>
             </table>
@@ -360,6 +385,48 @@ const RegistrationManagement = () => {
               <h3 className="text-lg font-semibold text-white">Registration Details</h3>
             </div>
             <div className="p-6 space-y-6">
+              {/* Security Status */}
+              <div>
+                <h4 className="text-white font-medium mb-3 flex items-center">
+                  <Mail className="w-4 h-4 mr-2" />
+                  Security Status
+                </h4>
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <span className="text-slate-400">Email Verified:</span>
+                    <p className={`flex items-center ${selectedRequest.email_verified ? 'text-green-400' : 'text-red-400'}`}>
+                      {selectedRequest.email_verified ? (
+                        <>
+                          <Check className="w-3 h-3 mr-1" />
+                          Verified
+                        </>
+                      ) : (
+                        <>
+                          <X className="w-3 h-3 mr-1" />
+                          Not Verified
+                        </>
+                      )}
+                    </p>
+                  </div>
+                  <div>
+                    <span className="text-slate-400">Password Set:</span>
+                    <p className={`flex items-center ${selectedRequest.password_hash ? 'text-green-400' : 'text-red-400'}`}>
+                      {selectedRequest.password_hash ? (
+                        <>
+                          <Check className="w-3 h-3 mr-1" />
+                          Set
+                        </>
+                      ) : (
+                        <>
+                          <X className="w-3 h-3 mr-1" />
+                          Not Set
+                        </>
+                      )}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
               {/* Company Info */}
               <div>
                 <h4 className="text-white font-medium mb-3 flex items-center">
@@ -460,7 +527,7 @@ const RegistrationManagement = () => {
               </div>
             </div>
             <div className="p-6 border-t border-slate-700 flex justify-end space-x-4">
-              {selectedRequest.status === 'pending' && (
+              {selectedRequest.status === 'pending' && selectedRequest.email_verified && selectedRequest.password_hash && (
                 <>
                   <button
                     onClick={() => {
@@ -475,7 +542,7 @@ const RegistrationManagement = () => {
                     disabled={processingId === selectedRequest.id}
                     className="px-4 py-2 bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white rounded-lg transition-colors"
                   >
-                    {processingId === selectedRequest.id ? 'Approving...' : 'Approve'}
+                    {processingId === selectedRequest.id ? 'Approving...' : 'Approve & Send Invitation'}
                   </button>
                 </>
               )}

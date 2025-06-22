@@ -1,7 +1,8 @@
 
 import React, { useState } from 'react';
 import { supabase } from '../integrations/supabase/client';
-import { Building, User, Mail, Lock, MapPin } from 'lucide-react';
+import { Building, User, Mail, Lock, MapPin, CheckCircle } from 'lucide-react';
+import { sendVerificationEmail } from '../utils/emailUtils';
 
 interface EnhancedSignupProps {
   onSignupSuccess?: () => void;
@@ -10,7 +11,7 @@ interface EnhancedSignupProps {
 
 const EnhancedSignup: React.FC<EnhancedSignupProps> = ({ onSignupSuccess, onSwitchToLogin }) => {
   const [loading, setLoading] = useState(false);
-  const [step, setStep] = useState<'initial' | 'new_station' | 'existing_station'>('initial');
+  const [step, setStep] = useState<'initial' | 'new_station' | 'existing_station' | 'verification'>('initial');
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -20,6 +21,7 @@ const EnhancedSignup: React.FC<EnhancedSignupProps> = ({ onSignupSuccess, onSwit
     isNewStation: true
   });
   const [error, setError] = useState('');
+  const [verificationUrl, setVerificationUrl] = useState('');
 
   const handleInitialSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -33,6 +35,30 @@ const EnhancedSignup: React.FC<EnhancedSignupProps> = ({ onSignupSuccess, onSwit
   const handleStationChoice = (isNew: boolean) => {
     setFormData(prev => ({ ...prev, isNewStation: isNew }));
     setStep(isNew ? 'new_station' : 'existing_station');
+  };
+
+  const sendVerificationFirst = async () => {
+    if (!formData.stationName) {
+      setError('Please enter a station name');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const result = await sendVerificationEmail(formData.email, 'user_signup');
+      
+      if (result.success) {
+        setStep('verification');
+        setVerificationUrl(result.verificationUrl || '');
+      } else {
+        setError('Failed to send verification email. Please try again.');
+      }
+    } catch (error) {
+      console.error('Error sending verification:', error);
+      setError('Failed to send verification email. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const checkStationExists = async (stationName: string) => {
@@ -102,7 +128,7 @@ const EnhancedSignup: React.FC<EnhancedSignupProps> = ({ onSignupSuccess, onSwit
         }
       }
 
-      // Sign up the user
+      // Sign up the user with email verification required
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: formData.email,
         password: formData.password,
@@ -145,6 +171,49 @@ const EnhancedSignup: React.FC<EnhancedSignupProps> = ({ onSignupSuccess, onSwit
     }
   };
 
+  if (step === 'verification') {
+    return (
+      <div className="max-w-md mx-auto bg-slate-800 rounded-lg border border-slate-700 p-8 text-center">
+        <CheckCircle className="w-16 h-16 text-green-400 mx-auto mb-4" />
+        <h2 className="text-2xl font-bold text-white mb-4">Check Your Email</h2>
+        <p className="text-slate-400 mb-6">
+          We've sent a verification email to <strong>{formData.email}</strong>. 
+          Please check your inbox and click the verification link to continue with account creation.
+        </p>
+        
+        {verificationUrl && (
+          <div className="bg-slate-700 rounded-lg p-4 mb-6">
+            <p className="text-sm text-slate-400 mb-2">For testing purposes, here's your verification link:</p>
+            <a 
+              href={verificationUrl}
+              className="text-blue-400 hover:text-blue-300 text-sm break-all"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              {verificationUrl}
+            </a>
+          </div>
+        )}
+
+        <div className="flex space-x-4">
+          <button
+            onClick={() => setStep('new_station')}
+            className="flex-1 px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg transition-colors"
+          >
+            Back to Form
+          </button>
+          <button
+            onClick={handleSignup}
+            disabled={loading}
+            className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-lg transition-colors"
+          >
+            {loading ? 'Creating Account...' : 'Complete Signup'}
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   if (step === 'initial') {
     return (
       <div className="max-w-md mx-auto bg-slate-800 rounded-lg border border-slate-700 p-8">
@@ -180,6 +249,9 @@ const EnhancedSignup: React.FC<EnhancedSignupProps> = ({ onSignupSuccess, onSwit
               className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
               required
             />
+            <p className="text-slate-500 text-xs mt-1">
+              8+ characters recommended
+            </p>
           </div>
 
           <div>
@@ -261,7 +333,7 @@ const EnhancedSignup: React.FC<EnhancedSignupProps> = ({ onSignupSuccess, onSwit
         </div>
       )}
 
-      <form onSubmit={handleSignup} className="space-y-4">
+      <form onSubmit={(e) => { e.preventDefault(); sendVerificationFirst(); }} className="space-y-4">
         <div>
           <label className="block text-sm font-medium text-slate-300 mb-2">
             <Building className="w-4 h-4 inline mr-2" />
@@ -293,6 +365,12 @@ const EnhancedSignup: React.FC<EnhancedSignupProps> = ({ onSignupSuccess, onSwit
           </div>
         )}
 
+        <div className="bg-blue-900/20 border border-blue-600/50 rounded-lg p-3">
+          <p className="text-blue-400 text-sm">
+            <strong>Next Step:</strong> We'll send you an email verification link before creating your account.
+          </p>
+        </div>
+
         {error && (
           <div className="bg-red-900/20 border border-red-600/50 rounded-lg p-3">
             <p className="text-red-400 text-sm">{error}</p>
@@ -312,7 +390,7 @@ const EnhancedSignup: React.FC<EnhancedSignupProps> = ({ onSignupSuccess, onSwit
             disabled={loading}
             className="flex-1 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-lg transition-colors"
           >
-            {loading ? 'Creating...' : 'Create Account'}
+            {loading ? 'Sending...' : 'Send Verification'}
           </button>
         </div>
       </form>

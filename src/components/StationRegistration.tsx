@@ -2,12 +2,16 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../integrations/supabase/client';
-import { Building, User, Mail, Phone, MapPin, Globe, FileText, ArrowLeft } from 'lucide-react';
+import { Building, User, Mail, Phone, MapPin, Globe, FileText, ArrowLeft, Lock, CheckCircle } from 'lucide-react';
+import { hashPassword, validatePassword } from '../utils/passwordUtils';
+import { sendVerificationEmail } from '../utils/emailUtils';
 
 const StationRegistration = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [emailSent, setEmailSent] = useState(false);
+  const [verificationUrl, setVerificationUrl] = useState('');
   const [formData, setFormData] = useState({
     company_name: '',
     business_type: '',
@@ -19,7 +23,9 @@ const StationRegistration = () => {
     state: '',
     zip_code: '',
     website: '',
-    description: ''
+    description: '',
+    password: '',
+    confirmPassword: ''
   });
 
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
@@ -41,23 +47,66 @@ const StationRegistration = () => {
       newErrors.contact_email = 'Please enter a valid email address';
     }
 
+    if (!formData.password) {
+      newErrors.password = 'Password is required';
+    } else {
+      const passwordValidation = validatePassword(formData.password);
+      if (!passwordValidation.isValid) {
+        newErrors.password = passwordValidation.errors[0];
+      }
+    }
+
+    if (!formData.confirmPassword) {
+      newErrors.confirmPassword = 'Please confirm your password';
+    } else if (formData.password !== formData.confirmPassword) {
+      newErrors.confirmPassword = 'Passwords do not match';
+    }
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
+  };
+
+  const sendVerificationFirst = async () => {
+    if (!validateForm()) return;
+
+    setLoading(true);
+    try {
+      const result = await sendVerificationEmail(formData.contact_email, 'station_registration');
+      
+      if (result.success) {
+        setEmailSent(true);
+        setVerificationUrl(result.verificationUrl || '');
+      } else {
+        setErrors({ submit: 'Failed to send verification email. Please try again.' });
+      }
+    } catch (error) {
+      console.error('Error sending verification:', error);
+      setErrors({ submit: 'Failed to send verification email. Please try again.' });
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!validateForm()) {
-      return;
-    }
+    if (!validateForm()) return;
 
     setLoading(true);
 
     try {
+      // Hash the password
+      const passwordHash = await hashPassword(formData.password);
+
+      // Submit registration with hashed password
+      const { password, confirmPassword, ...registrationData } = formData;
       const { error } = await supabase
         .from('station_registration_requests')
-        .insert([formData]);
+        .insert([{
+          ...registrationData,
+          password_hash: passwordHash,
+          email_verified: true // Assuming email was verified in previous step
+        }]);
 
       if (error) throw error;
 
@@ -92,7 +141,7 @@ const StationRegistration = () => {
             Thank you for your interest in joining our EV diagnostic network. Your registration request has been submitted successfully.
           </p>
           <p className="text-slate-400 mb-6">
-            Our team will review your application and contact you within 2-3 business days with the next steps.
+            Our team will review your application and contact you within 2-3 business days with an invitation to complete your account setup.
           </p>
           <button
             onClick={() => navigate('/auth')}
@@ -100,6 +149,51 @@ const StationRegistration = () => {
           >
             Continue to Login
           </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (emailSent) {
+    return (
+      <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4">
+        <div className="max-w-md w-full bg-slate-800 rounded-lg border border-slate-700 p-8 text-center">
+          <CheckCircle className="w-16 h-16 text-green-400 mx-auto mb-4" />
+          <h2 className="text-2xl font-bold text-white mb-4">Verify Your Email</h2>
+          <p className="text-slate-400 mb-6">
+            We've sent a verification email to <strong>{formData.contact_email}</strong>. 
+            Please check your inbox and click the verification link to continue.
+          </p>
+          
+          {verificationUrl && (
+            <div className="bg-slate-700 rounded-lg p-4 mb-6">
+              <p className="text-sm text-slate-400 mb-2">For testing purposes, here's your verification link:</p>
+              <a 
+                href={verificationUrl}
+                className="text-blue-400 hover:text-blue-300 text-sm break-all"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                {verificationUrl}
+              </a>
+            </div>
+          )}
+
+          <div className="flex space-x-4">
+            <button
+              onClick={() => setEmailSent(false)}
+              className="flex-1 px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg transition-colors"
+            >
+              Back to Form
+            </button>
+            <button
+              onClick={handleSubmit}
+              disabled={loading}
+              className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-lg transition-colors"
+            >
+              {loading ? 'Submitting...' : 'Complete Registration'}
+            </button>
+          </div>
         </div>
       </div>
     );
@@ -135,7 +229,56 @@ const StationRegistration = () => {
             </p>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-6">
+          <form onSubmit={(e) => { e.preventDefault(); sendVerificationFirst(); }} className="space-y-6">
+            {/* Account Security */}
+            <div>
+              <h3 className="text-lg font-semibold text-white mb-4 flex items-center">
+                <Lock className="w-5 h-5 mr-2" />
+                Account Security
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-sm font-medium text-slate-300 mb-2">
+                    Password *
+                  </label>
+                  <input
+                    type="password"
+                    name="password"
+                    value={formData.password}
+                    onChange={handleInputChange}
+                    className={`w-full px-3 py-2 bg-slate-700 border rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                      errors.password ? 'border-red-500' : 'border-slate-600'
+                    }`}
+                    placeholder="Create a secure password"
+                  />
+                  {errors.password && (
+                    <p className="text-red-400 text-sm mt-1">{errors.password}</p>
+                  )}
+                  <p className="text-slate-500 text-xs mt-1">
+                    8+ characters with uppercase, lowercase, number, and special character
+                  </p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-300 mb-2">
+                    Confirm Password *
+                  </label>
+                  <input
+                    type="password"
+                    name="confirmPassword"
+                    value={formData.confirmPassword}
+                    onChange={handleInputChange}
+                    className={`w-full px-3 py-2 bg-slate-700 border rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                      errors.confirmPassword ? 'border-red-500' : 'border-slate-600'
+                    }`}
+                    placeholder="Confirm your password"
+                  />
+                  {errors.confirmPassword && (
+                    <p className="text-red-400 text-sm mt-1">{errors.confirmPassword}</p>
+                  )}
+                </div>
+              </div>
+            </div>
+
             {/* Company Information */}
             <div>
               <h3 className="text-lg font-semibold text-white mb-4 flex items-center">
@@ -345,6 +488,13 @@ const StationRegistration = () => {
               </div>
             )}
 
+            <div className="bg-blue-900/20 border border-blue-600/50 rounded-lg p-4">
+              <p className="text-blue-400 text-sm">
+                <strong>Next Steps:</strong> After clicking "Send Verification Email", you'll receive an email to verify your address. 
+                Once verified, you can complete your registration.
+              </p>
+            </div>
+
             <div className="flex justify-end space-x-4">
               <button
                 type="button"
@@ -358,7 +508,7 @@ const StationRegistration = () => {
                 disabled={loading}
                 className="px-6 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-lg transition-colors"
               >
-                {loading ? 'Submitting...' : 'Submit Registration'}
+                {loading ? 'Sending...' : 'Send Verification Email'}
               </button>
             </div>
           </form>

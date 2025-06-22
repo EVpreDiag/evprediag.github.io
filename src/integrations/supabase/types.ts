@@ -9,6 +9,36 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      email_verifications: {
+        Row: {
+          created_at: string
+          email: string
+          expires_at: string
+          id: string
+          verification_token: string
+          verification_type: string
+          verified_at: string | null
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          expires_at: string
+          id?: string
+          verification_token: string
+          verification_type: string
+          verified_at?: string | null
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          expires_at?: string
+          id?: string
+          verification_token?: string
+          verification_type?: string
+          verified_at?: string | null
+        }
+        Relationships: []
+      }
       ev_diagnostic_records: {
         Row: {
           acceleration_details: string | null
@@ -247,6 +277,59 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "ev_diagnostic_records_station_id_fkey"
+            columns: ["station_id"]
+            isOneToOne: false
+            referencedRelation: "stations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pending_users: {
+        Row: {
+          email: string
+          email_verified: boolean | null
+          full_name: string
+          id: string
+          password_hash: string
+          rejection_reason: string | null
+          requested_at: string
+          reviewed_at: string | null
+          reviewed_by: string | null
+          station_id: string | null
+          status: string
+          verification_token: string | null
+        }
+        Insert: {
+          email: string
+          email_verified?: boolean | null
+          full_name: string
+          id?: string
+          password_hash: string
+          rejection_reason?: string | null
+          requested_at?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          station_id?: string | null
+          status?: string
+          verification_token?: string | null
+        }
+        Update: {
+          email?: string
+          email_verified?: boolean | null
+          full_name?: string
+          id?: string
+          password_hash?: string
+          rejection_reason?: string | null
+          requested_at?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          station_id?: string | null
+          status?: string
+          verification_token?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pending_users_station_id_fkey"
             columns: ["station_id"]
             isOneToOne: false
             referencedRelation: "stations"
@@ -588,6 +671,47 @@ export type Database = {
           },
         ]
       }
+      station_invitations: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          email: string
+          expires_at: string
+          id: string
+          invitation_token: string
+          station_registration_id: string | null
+          used_at: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          email: string
+          expires_at: string
+          id?: string
+          invitation_token: string
+          station_registration_id?: string | null
+          used_at?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          email?: string
+          expires_at?: string
+          id?: string
+          invitation_token?: string
+          station_registration_id?: string | null
+          used_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "station_invitations_station_registration_id_fkey"
+            columns: ["station_registration_id"]
+            isOneToOne: false
+            referencedRelation: "station_registration_requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       station_registration_requests: {
         Row: {
           address: string | null
@@ -602,11 +726,16 @@ export type Database = {
           contact_phone: string | null
           created_at: string
           description: string | null
+          email_verified: boolean | null
           id: string
+          invitation_sent: boolean | null
+          invitation_token: string | null
+          password_hash: string | null
           rejection_reason: string | null
           state: string | null
           status: string
           updated_at: string
+          verification_token: string | null
           website: string | null
           zip_code: string | null
         }
@@ -623,11 +752,16 @@ export type Database = {
           contact_phone?: string | null
           created_at?: string
           description?: string | null
+          email_verified?: boolean | null
           id?: string
+          invitation_sent?: boolean | null
+          invitation_token?: string | null
+          password_hash?: string | null
           rejection_reason?: string | null
           state?: string | null
           status?: string
           updated_at?: string
+          verification_token?: string | null
           website?: string | null
           zip_code?: string | null
         }
@@ -644,11 +778,16 @@ export type Database = {
           contact_phone?: string | null
           created_at?: string
           description?: string | null
+          email_verified?: boolean | null
           id?: string
+          invitation_sent?: boolean | null
+          invitation_token?: string | null
+          password_hash?: string | null
           rejection_reason?: string | null
           state?: string | null
           status?: string
           updated_at?: string
+          verification_token?: string | null
           website?: string | null
           zip_code?: string | null
         }
@@ -730,6 +869,14 @@ export type Database = {
       can_manage_station_roles: {
         Args: { _user_id: string; _station_id: string }
         Returns: boolean
+      }
+      create_station_invitation: {
+        Args: { _registration_id: string; _email: string }
+        Returns: string
+      }
+      generate_token: {
+        Args: Record<PropertyKey, never>
+        Returns: string
       }
       get_user_roles: {
         Args: { _user_id: string }
