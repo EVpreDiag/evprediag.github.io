@@ -40,6 +40,11 @@ const RegistrationManagement = () => {
   const [rejectionReason, setRejectionReason] = useState('');
   const [processing, setProcessing] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [approvalResult, setApprovalResult] = useState<{
+    tempPassword?: string;
+    email?: string;
+    companyName?: string;
+  } | null>(null);
 
   useEffect(() => {
     if (!isSuperAdmin()) {
@@ -105,7 +110,7 @@ const RegistrationManagement = () => {
       if (updateError) throw updateError;
 
       // Send signup invitation email
-      const { success, error: userError } = await createStationUserAccount(
+      const result = await createStationUserAccount(
         {
           id: request.id,
           company_name: request.company_name,
@@ -119,7 +124,7 @@ const RegistrationManagement = () => {
         user?.id || ''
       );
 
-      if (success) {
+      if (result.success) {
         // Mark invitation as sent
         await supabase
           .from('station_registration_requests')
@@ -128,9 +133,16 @@ const RegistrationManagement = () => {
           })
           .eq('id', request.id);
 
+        // Show the temporary password to the admin
+        setApprovalResult({
+          tempPassword: result.tempPassword,
+          email: request.contact_email,
+          companyName: request.company_name
+        });
+
         console.log('Station approval and invitation sent successfully');
       } else {
-        console.error('Failed to send invitation:', userError);
+        console.error('Failed to send invitation:', result.error);
         setError('Station approved but failed to send invitation email. Please try sending invitation manually.');
       }
 
@@ -240,6 +252,57 @@ const RegistrationManagement = () => {
             <div className="flex items-center">
               <X className="w-5 h-5 text-red-400 mr-2" />
               <p className="text-red-400">{error}</p>
+            </div>
+          </div>
+        )}
+
+        {/* Approval Success Modal */}
+        {approvalResult && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+            <div className="bg-slate-800 rounded-lg border border-slate-700 w-full max-w-md">
+              <div className="p-6 border-b border-slate-700">
+                <h3 className="text-lg font-semibold text-white flex items-center">
+                  <Check className="w-5 h-5 text-green-400 mr-2" />
+                  Station Approved Successfully
+                </h3>
+              </div>
+              <div className="p-6 space-y-4">
+                <p className="text-slate-300">
+                  <strong>{approvalResult.companyName}</strong> has been approved and an invitation email has been sent to <strong>{approvalResult.email}</strong>.
+                </p>
+                
+                <div className="bg-blue-900/20 border border-blue-600/50 rounded-lg p-4">
+                  <p className="text-blue-400 text-sm font-medium mb-2">Temporary Login Credentials:</p>
+                  <div className="space-y-2">
+                    <div>
+                      <span className="text-slate-400">Email:</span>
+                      <p className="text-white font-mono">{approvalResult.email}</p>
+                    </div>
+                    <div>
+                      <span className="text-slate-400">Temporary Password:</span>
+                      <p className="text-white font-mono bg-slate-700 px-2 py-1 rounded">{approvalResult.tempPassword}</p>
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="bg-yellow-900/20 border border-yellow-600/50 rounded-lg p-4">
+                  <p className="text-yellow-400 text-sm">
+                    <strong>Important:</strong> The user must first confirm their email address by clicking the link in the confirmation email. After email confirmation, they can login with the temporary password above and will be prompted to set a new password.
+                  </p>
+                </div>
+                
+                <p className="text-slate-400 text-sm">
+                  Please share these credentials with the station contact person securely.
+                </p>
+              </div>
+              <div className="p-6 border-t border-slate-700 flex justify-end">
+                <button
+                  onClick={() => setApprovalResult(null)}
+                  className="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg transition-colors"
+                >
+                  Close
+                </button>
+              </div>
             </div>
           </div>
         )}

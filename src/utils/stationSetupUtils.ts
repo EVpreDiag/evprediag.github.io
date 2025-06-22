@@ -17,18 +17,21 @@ export const createStationUserAccount = async (
   approvedBy: string
 ) => {
   try {
-    // Since we can't create users with specific passwords from the frontend,
-    // we'll send a signup invitation email instead
+    // Create user account with the actual password from registration
+    // We'll need to use a temporary password since we can't use the hashed one directly
+    const tempPassword = generateTempPassword();
+    
     const { data, error } = await supabase.auth.signUp({
       email: request.contact_email,
-      password: 'TempPassword123!', // Temporary password - user will need to reset
+      password: tempPassword,
       options: {
-        emailRedirectTo: `${window.location.origin}/auth?setup=true&station=${stationId}`,
+        emailRedirectTo: `${window.location.origin}/auth?setup=true&station=${stationId}&email=${encodeURIComponent(request.contact_email)}`,
         data: {
           full_name: request.contact_person_name,
           station_id: stationId,
           station_name: request.company_name,
-          requires_password_setup: true
+          requires_password_setup: true,
+          temp_password: tempPassword // Include temp password in metadata
         }
       }
     });
@@ -38,15 +41,17 @@ export const createStationUserAccount = async (
       throw error;
     }
 
-    // If user creation was successful, we need to wait for the user to confirm their email
-    // before we can assign roles. For now, we'll create a pending role assignment.
     if (data.user) {
       console.log('User signup initiated successfully, email confirmation required');
       
-      // Note: The role assignment will need to be handled after email confirmation
-      // This could be done via a database trigger or webhook when the user confirms their email
-      
-      return { userData: data.user, success: true };
+      // Store the temporary password information for the user to reference
+      // This will be used when they confirm their email
+      return { 
+        userData: data.user, 
+        success: true, 
+        tempPassword: tempPassword,
+        message: 'Invitation sent successfully. User will receive an email with login instructions.'
+      };
     }
 
     return { userData: null, success: false, error: 'User creation failed' };
@@ -54,4 +59,25 @@ export const createStationUserAccount = async (
     console.error('Error creating station user account:', error);
     return { userData: null, success: false, error };
   }
+};
+
+// Generate a secure temporary password
+const generateTempPassword = (): string => {
+  const length = 12;
+  const charset = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*';
+  let password = '';
+  
+  // Ensure at least one of each type
+  password += 'A'; // uppercase
+  password += 'a'; // lowercase  
+  password += '1'; // number
+  password += '!'; // special char
+  
+  // Fill the rest randomly
+  for (let i = 4; i < length; i++) {
+    password += charset.charAt(Math.floor(Math.random() * charset.length));
+  }
+  
+  // Shuffle the password
+  return password.split('').sort(() => Math.random() - 0.5).join('');
 };
