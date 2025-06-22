@@ -71,7 +71,7 @@ function App() {
                 </RoleProtectedRoute>
               </ProtectedRoute>
             } />
-            <Route path="/print-summary" element={
+            <Route path="/print-summary/:type/:id" element={
               <ProtectedRoute>
                 <PrintSummary />
               </ProtectedRoute>
