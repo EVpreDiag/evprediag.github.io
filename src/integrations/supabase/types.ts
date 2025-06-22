@@ -74,6 +74,7 @@ export type Database = {
           smooth_regen_details: string | null
           specific_mode_details: string | null
           specific_mode_issues: string | null
+          station_id: string | null
           technician_id: string
           temperature_during_issue: string | null
           time_of_day: string | null
@@ -151,6 +152,7 @@ export type Database = {
           smooth_regen_details?: string | null
           specific_mode_details?: string | null
           specific_mode_issues?: string | null
+          station_id?: string | null
           technician_id: string
           temperature_during_issue?: string | null
           time_of_day?: string | null
@@ -228,6 +230,7 @@ export type Database = {
           smooth_regen_details?: string | null
           specific_mode_details?: string | null
           specific_mode_issues?: string | null
+          station_id?: string | null
           technician_id?: string
           temperature_during_issue?: string | null
           time_of_day?: string | null
@@ -241,7 +244,15 @@ export type Database = {
           whining_details?: string | null
           whining_noises?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "ev_diagnostic_records_station_id_fkey"
+            columns: ["station_id"]
+            isOneToOne: false
+            referencedRelation: "stations"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       phev_diagnostic_records: {
         Row: {
@@ -320,6 +331,7 @@ export type Database = {
           smooth_regen_details: string | null
           sport_mode_details: string | null
           sport_mode_power: string | null
+          station_id: string | null
           switching_details: string | null
           switching_lags: string | null
           technician_id: string
@@ -414,6 +426,7 @@ export type Database = {
           smooth_regen_details?: string | null
           sport_mode_details?: string | null
           sport_mode_power?: string | null
+          station_id?: string | null
           switching_details?: string | null
           switching_lags?: string | null
           technician_id: string
@@ -508,6 +521,7 @@ export type Database = {
           smooth_regen_details?: string | null
           sport_mode_details?: string | null
           sport_mode_power?: string | null
+          station_id?: string | null
           switching_details?: string | null
           switching_lags?: string | null
           technician_id?: string
@@ -526,7 +540,15 @@ export type Database = {
           vibrations_details?: string | null
           vin?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "phev_diagnostic_records_station_id_fkey"
+            columns: ["station_id"]
+            isOneToOne: false
+            referencedRelation: "stations"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       profiles: {
         Row: {
@@ -534,6 +556,7 @@ export type Database = {
           created_at: string
           full_name: string | null
           id: string
+          station_id: string | null
           updated_at: string
           username: string | null
         }
@@ -542,6 +565,7 @@ export type Database = {
           created_at?: string
           full_name?: string | null
           id: string
+          station_id?: string | null
           updated_at?: string
           username?: string | null
         }
@@ -550,8 +574,50 @@ export type Database = {
           created_at?: string
           full_name?: string | null
           id?: string
+          station_id?: string | null
           updated_at?: string
           username?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "profiles_station_id_fkey"
+            columns: ["station_id"]
+            isOneToOne: false
+            referencedRelation: "stations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      stations: {
+        Row: {
+          address: string | null
+          created_at: string
+          created_by: string | null
+          email: string | null
+          id: string
+          name: string
+          phone: string | null
+          updated_at: string
+        }
+        Insert: {
+          address?: string | null
+          created_at?: string
+          created_by?: string | null
+          email?: string | null
+          id?: string
+          name: string
+          phone?: string | null
+          updated_at?: string
+        }
+        Update: {
+          address?: string | null
+          created_at?: string
+          created_by?: string | null
+          email?: string | null
+          id?: string
+          name?: string
+          phone?: string | null
+          updated_at?: string
         }
         Relationships: []
       }
@@ -561,6 +627,7 @@ export type Database = {
           assigned_by: string | null
           id: string
           role: Database["public"]["Enums"]["app_role"]
+          station_id: string | null
           user_id: string
         }
         Insert: {
@@ -568,6 +635,7 @@ export type Database = {
           assigned_by?: string | null
           id?: string
           role: Database["public"]["Enums"]["app_role"]
+          station_id?: string | null
           user_id: string
         }
         Update: {
@@ -575,9 +643,18 @@ export type Database = {
           assigned_by?: string | null
           id?: string
           role?: Database["public"]["Enums"]["app_role"]
+          station_id?: string | null
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "user_roles_station_id_fkey"
+            columns: ["station_id"]
+            isOneToOne: false
+            referencedRelation: "stations"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {
@@ -603,7 +680,13 @@ export type Database = {
       }
     }
     Enums: {
-      app_role: "admin" | "tech" | "service_desk"
+      app_role:
+        | "admin"
+        | "tech"
+        | "service_desk"
+        | "super_admin"
+        | "front_desk"
+        | "technician"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -719,7 +802,14 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["admin", "tech", "service_desk"],
+      app_role: [
+        "admin",
+        "tech",
+        "service_desk",
+        "super_admin",
+        "front_desk",
+        "technician",
+      ],
     },
   },
 } as const
