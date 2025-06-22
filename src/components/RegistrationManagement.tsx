@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
@@ -76,6 +75,7 @@ const RegistrationManagement = () => {
   const handleApprove = async (request: RegistrationRequest) => {
     try {
       setProcessing(request.id);
+      setError(null);
 
       // Create the station first
       const { data: stationData, error: stationError } = await supabase
@@ -92,7 +92,19 @@ const RegistrationManagement = () => {
 
       if (stationError) throw stationError;
 
-      // Create user account for the station admin
+      // Update the registration request status first
+      const { error: updateError } = await supabase
+        .from('station_registration_requests')
+        .update({
+          status: 'approved',
+          approved_by: user?.id,
+          approved_at: new Date().toISOString()
+        })
+        .eq('id', request.id);
+
+      if (updateError) throw updateError;
+
+      // Send signup invitation email
       const { success, error: userError } = await createStationUserAccount(
         {
           id: request.id,
@@ -107,26 +119,21 @@ const RegistrationManagement = () => {
         user?.id || ''
       );
 
-      if (!success || userError) {
-        console.error('Failed to create user account:', userError);
-        throw new Error('Failed to create user account for station admin');
+      if (success) {
+        // Mark invitation as sent
+        await supabase
+          .from('station_registration_requests')
+          .update({
+            invitation_sent: true
+          })
+          .eq('id', request.id);
+
+        console.log('Station approval and invitation sent successfully');
+      } else {
+        console.error('Failed to send invitation:', userError);
+        setError('Station approved but failed to send invitation email. Please try sending invitation manually.');
       }
 
-      // Update the registration request status
-      const { error: updateError } = await supabase
-        .from('station_registration_requests')
-        .update({
-          status: 'approved',
-          approved_by: user?.id,
-          approved_at: new Date().toISOString(),
-          invitation_sent: true,
-          email_verified: true
-        })
-        .eq('id', request.id);
-
-      if (updateError) throw updateError;
-
-      console.log('Station approval completed successfully');
       await fetchRequests();
     } catch (error) {
       console.error('Error approving registration:', error);
@@ -227,6 +234,16 @@ const RegistrationManagement = () => {
       </header>
 
       <div className="p-6">
+        {/* Error Message */}
+        {error && (
+          <div className="mb-6 bg-red-900/50 border border-red-700 rounded-lg p-4">
+            <div className="flex items-center">
+              <X className="w-5 h-5 text-red-400 mr-2" />
+              <p className="text-red-400">{error}</p>
+            </div>
+          </div>
+        )}
+
         {/* Stats */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
           <div className="bg-slate-800 rounded-lg p-4 border border-slate-700">

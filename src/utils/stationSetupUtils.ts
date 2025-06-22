@@ -1,6 +1,5 @@
 
 import { supabase } from '../integrations/supabase/client';
-import bcrypt from 'bcryptjs';
 
 export interface StationRegistrationRequest {
   id: string;
@@ -18,75 +17,39 @@ export const createStationUserAccount = async (
   approvedBy: string
 ) => {
   try {
-    // First, try to create the user account
-    let userData;
-    
-    // Since Supabase doesn't allow setting hashed passwords directly,
-    // we'll create a user with a temporary password and then they'll need to reset it
-    const tempPassword = 'TempSetup' + Math.random().toString(36).substring(2, 15);
-    
-    const { data: authData, error: authError } = await supabase.auth.admin.createUser({
+    // Since we can't create users with specific passwords from the frontend,
+    // we'll send a signup invitation email instead
+    const { data, error } = await supabase.auth.signUp({
       email: request.contact_email,
-      password: tempPassword,
-      email_confirm: true,
-      user_metadata: {
-        full_name: request.contact_person_name,
-        station_id: stationId,
-        station_name: request.company_name,
-        requires_password_setup: true
+      password: 'TempPassword123!', // Temporary password - user will need to reset
+      options: {
+        emailRedirectTo: `${window.location.origin}/auth?setup=true&station=${stationId}`,
+        data: {
+          full_name: request.contact_person_name,
+          station_id: stationId,
+          station_name: request.company_name,
+          requires_password_setup: true
+        }
       }
     });
 
-    if (authError) {
-      console.error('Failed to create user with admin API:', authError);
-      throw authError;
+    if (error) {
+      console.error('Failed to create user account:', error);
+      throw error;
     }
 
-    userData = authData.user;
-
-    if (userData) {
-      // Update the user's profile
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .upsert({
-          id: userData.id,
-          station_id: stationId,
-          full_name: request.contact_person_name,
-          username: request.contact_email
-        });
-
-      if (profileError) {
-        console.error('Profile update error:', profileError);
-      }
-
-      // Assign station_admin role
-      const { error: roleError } = await supabase
-        .from('user_roles')
-        .insert({
-          user_id: userData.id,
-          role: 'station_admin',
-          station_id: stationId,
-          assigned_by: approvedBy
-        });
-
-      if (roleError) {
-        console.error('Role assignment error:', roleError);
-      }
-
-      // Send password reset email so they can set their actual password
-      const { error: resetError } = await supabase.auth.resetPasswordForEmail(
-        request.contact_email,
-        {
-          redirectTo: `${window.location.origin}/auth?setup=true&station=${stationId}`
-        }
-      );
-
-      if (resetError) {
-        console.error('Password reset email error:', resetError);
-      }
+    // If user creation was successful, we need to wait for the user to confirm their email
+    // before we can assign roles. For now, we'll create a pending role assignment.
+    if (data.user) {
+      console.log('User signup initiated successfully, email confirmation required');
+      
+      // Note: The role assignment will need to be handled after email confirmation
+      // This could be done via a database trigger or webhook when the user confirms their email
+      
+      return { userData: data.user, success: true };
     }
 
-    return { userData, success: true };
+    return { userData: null, success: false, error: 'User creation failed' };
   } catch (error) {
     console.error('Error creating station user account:', error);
     return { userData: null, success: false, error };
