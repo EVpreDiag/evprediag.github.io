@@ -1,7 +1,6 @@
 
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { verifyEmail } from '../utils/emailUtils';
 import { CheckCircle, XCircle, Loader } from 'lucide-react';
 
 const EmailVerification = () => {
@@ -11,33 +10,23 @@ const EmailVerification = () => {
   const [message, setMessage] = useState('');
 
   useEffect(() => {
-    const token = searchParams.get('token');
-    const email = searchParams.get('email');
+    // Check if this is coming from Supabase email confirmation
+    const accessToken = searchParams.get('access_token');
+    const refreshToken = searchParams.get('refresh_token');
+    const type = searchParams.get('type');
 
-    if (!token || !email) {
-      setStatus('error');
-      setMessage('Invalid verification link');
-      return;
-    }
-
-    const verify = async () => {
-      const result = await verifyEmail(token, email);
+    if (type === 'signup' && accessToken && refreshToken) {
+      setStatus('success');
+      setMessage('Email verified successfully!');
       
-      if (result.success) {
-        setStatus('success');
-        setMessage('Email verified successfully!');
-        
-        // Redirect after 3 seconds
-        setTimeout(() => {
-          navigate('/auth');
-        }, 3000);
-      } else {
-        setStatus('error');
-        setMessage(result.error || 'Verification failed');
-      }
-    };
-
-    verify();
+      // Redirect after 3 seconds
+      setTimeout(() => {
+        navigate('/dashboard');
+      }, 3000);
+    } else {
+      setStatus('error');
+      setMessage('Invalid verification link or email already verified');
+    }
   }, [searchParams, navigate]);
 
   return (
@@ -56,14 +45,14 @@ const EmailVerification = () => {
             <CheckCircle className="w-16 h-16 text-green-400 mx-auto mb-4" />
             <h2 className="text-2xl font-bold text-white mb-4">Email Verified!</h2>
             <p className="text-slate-400 mb-4">{message}</p>
-            <p className="text-sm text-slate-500">Redirecting you to login page...</p>
+            <p className="text-sm text-slate-500">Redirecting you to dashboard...</p>
           </>
         )}
 
         {status === 'error' && (
           <>
             <XCircle className="w-16 h-16 text-red-400 mx-auto mb-4" />
-            <h2 className="text-2xl font-bold text-white mb-4">Verification Failed</h2>
+            <h2 className="text-2xl font-bold text-white mb-4">Verification Issue</h2>
             <p className="text-slate-400 mb-6">{message}</p>
             <button
               onClick={() => navigate('/auth')}
