@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Printer, Download, Battery, AlertTriangle, CheckCircle } from 'lucide-react';
 import { supabase } from '../integrations/supabase/client';
 
@@ -19,8 +19,7 @@ interface DiagnosticRecord {
 }
 
 const PrintSummary = () => {
-  const { id } = useParams();
-  const [searchParams] = useSearchParams();
+  const { type, id } = useParams<{ type?: string; id?: string }>();
   const navigate = useNavigate();
   const [record, setRecord] = useState<DiagnosticRecord | null>(null);
   const [loading, setLoading] = useState(true);
@@ -36,8 +35,8 @@ const PrintSummary = () => {
 
       try {
         console.log('Fetching record with ID:', id);
-        const recordType = searchParams.get('type');
-        console.log('Record type from URL:', recordType);
+        const recordType = type;
+        console.log('Record type from URL params:', recordType);
 
         let recordData = null;
         let finalRecordType: 'ev' | 'phev' = 'ev';
@@ -121,7 +120,7 @@ const PrintSummary = () => {
     };
 
     fetchRecord();
-  }, [id, searchParams]);
+  }, [id, type]);
 
   const handlePrint = () => {
     window.print();
