@@ -14,6 +14,7 @@ const EnhancedSignup: React.FC<EnhancedSignupProps> = ({ onSignupSuccess, onSwit
   const [formData, setFormData] = useState({
     email: '',
     password: '',
+    confirmPassword: '',
     fullName: '',
     stationName: '',
     stationId: ''
@@ -63,8 +64,18 @@ const EnhancedSignup: React.FC<EnhancedSignupProps> = ({ onSignupSuccess, onSwit
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!formData.email || !formData.password || !formData.fullName || !formData.stationName || !formData.stationId) {
+    if (!formData.email || !formData.password || !formData.confirmPassword || !formData.fullName || !formData.stationName || !formData.stationId) {
       setError('Please fill in all required fields');
+      return;
+    }
+
+    if (formData.password !== formData.confirmPassword) {
+      setError('Passwords do not match');
+      return;
+    }
+
+    if (formData.password.length < 8) {
+      setError('Password must be at least 8 characters long');
       return;
     }
 
@@ -163,6 +174,20 @@ const EnhancedSignup: React.FC<EnhancedSignupProps> = ({ onSignupSuccess, onSwit
           <p className="text-slate-500 text-xs mt-1">
             8+ characters recommended
           </p>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-slate-300 mb-2">
+            <Lock className="w-4 h-4 inline mr-2" />
+            Confirm Password
+          </label>
+          <input
+            type="password"
+            value={formData.confirmPassword}
+            onChange={(e) => setFormData(prev => ({ ...prev, confirmPassword: e.target.value }))}
+            className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+            required
+          />
         </div>
 
         <div>

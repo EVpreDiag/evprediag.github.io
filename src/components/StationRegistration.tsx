@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../integrations/supabase/client';
 import { Building, User, Mail, Phone, MapPin, Globe, FileText, ArrowLeft, CheckCircle, Lock } from 'lucide-react';
+import bcrypt from 'bcryptjs';
 
 const StationRegistration = () => {
   const navigate = useNavigate();
@@ -20,7 +21,8 @@ const StationRegistration = () => {
     zip_code: '',
     website: '',
     description: '',
-    password: ''
+    password: '',
+    confirmPassword: ''
   });
 
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
@@ -48,6 +50,12 @@ const StationRegistration = () => {
       newErrors.password = 'Password must be at least 8 characters long';
     }
 
+    if (!formData.confirmPassword.trim()) {
+      newErrors.confirmPassword = 'Please confirm your password';
+    } else if (formData.password !== formData.confirmPassword) {
+      newErrors.confirmPassword = 'Passwords do not match';
+    }
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -60,10 +68,25 @@ const StationRegistration = () => {
     setLoading(true);
 
     try {
+      // Hash the password before storing
+      const saltRounds = 10;
+      const password_hash = await bcrypt.hash(formData.password, saltRounds);
+
       const { error } = await supabase
         .from('station_registration_requests')
         .insert([{
-          ...formData,
+          company_name: formData.company_name,
+          business_type: formData.business_type,
+          contact_person_name: formData.contact_person_name,
+          contact_email: formData.contact_email,
+          contact_phone: formData.contact_phone,
+          address: formData.address,
+          city: formData.city,
+          state: formData.state,
+          zip_code: formData.zip_code,
+          website: formData.website,
+          description: formData.description,
+          password_hash: password_hash,
           email_verified: false,
           status: 'pending'
         }]);
@@ -288,6 +311,24 @@ const StationRegistration = () => {
                   <p className="text-slate-500 text-xs mt-1">
                     Password must be at least 8 characters long
                   </p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-300 mb-2">
+                    Confirm Password *
+                  </label>
+                  <input
+                    type="password"
+                    name="confirmPassword"
+                    value={formData.confirmPassword}
+                    onChange={handleInputChange}
+                    className={`w-full px-3 py-2 bg-slate-700 border rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                      errors.confirmPassword ? 'border-red-500' : 'border-slate-600'
+                    }`}
+                    placeholder="Retype your password"
+                  />
+                  {errors.confirmPassword && (
+                    <p className="text-red-400 text-sm mt-1">{errors.confirmPassword}</p>
+                  )}
                 </div>
               </div>
             </div>
