@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../integrations/supabase/client';
-import { Building, User, Mail, Phone, MapPin, Globe, FileText, ArrowLeft, CheckCircle } from 'lucide-react';
+import { Building, User, Mail, Phone, MapPin, Globe, FileText, ArrowLeft, CheckCircle, Lock } from 'lucide-react';
 
 const StationRegistration = () => {
   const navigate = useNavigate();
@@ -19,7 +19,8 @@ const StationRegistration = () => {
     state: '',
     zip_code: '',
     website: '',
-    description: ''
+    description: '',
+    password: ''
   });
 
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
@@ -41,6 +42,12 @@ const StationRegistration = () => {
       newErrors.contact_email = 'Please enter a valid email address';
     }
 
+    if (!formData.password.trim()) {
+      newErrors.password = 'Password is required';
+    } else if (formData.password.length < 8) {
+      newErrors.password = 'Password must be at least 8 characters long';
+    }
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -53,12 +60,11 @@ const StationRegistration = () => {
     setLoading(true);
 
     try {
-      // Submit registration request without password - just request for invitation
       const { error } = await supabase
         .from('station_registration_requests')
         .insert([{
           ...formData,
-          email_verified: false, // Will be verified when they accept invitation
+          email_verified: false,
           status: 'pending'
         }]);
 
@@ -93,7 +99,7 @@ const StationRegistration = () => {
             Thank you for your interest in joining our EV diagnostic network. Your registration request has been submitted successfully.
           </p>
           <p className="text-slate-400 mb-6">
-            Our team will review your application and send you an invitation email with setup instructions within 2-3 business days.
+            Our team will review your application and contact you within 2-3 business days with approval status and next steps.
           </p>
           <button
             onClick={() => navigate('/auth')}
@@ -255,6 +261,37 @@ const StationRegistration = () => {
               </div>
             </div>
 
+            {/* Account Information */}
+            <div>
+              <h3 className="text-lg font-semibold text-white mb-4 flex items-center">
+                <Lock className="w-5 h-5 mr-2" />
+                Account Information
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-sm font-medium text-slate-300 mb-2">
+                    Password *
+                  </label>
+                  <input
+                    type="password"
+                    name="password"
+                    value={formData.password}
+                    onChange={handleInputChange}
+                    className={`w-full px-3 py-2 bg-slate-700 border rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                      errors.password ? 'border-red-500' : 'border-slate-600'
+                    }`}
+                    placeholder="Enter a secure password"
+                  />
+                  {errors.password && (
+                    <p className="text-red-400 text-sm mt-1">{errors.password}</p>
+                  )}
+                  <p className="text-slate-500 text-xs mt-1">
+                    Password must be at least 8 characters long
+                  </p>
+                </div>
+              </div>
+            </div>
+
             {/* Location Information */}
             <div>
               <h3 className="text-lg font-semibold text-white mb-4 flex items-center">
@@ -348,7 +385,7 @@ const StationRegistration = () => {
 
             <div className="bg-blue-900/20 border border-blue-600/50 rounded-lg p-4">
               <p className="text-blue-400 text-sm">
-                <strong>Next Steps:</strong> After submitting, our team will review your request and send you an invitation email with account setup instructions if approved.
+                <strong>Next Steps:</strong> After submitting, our team will review your request and contact you within 2-3 business days with approval status.
               </p>
             </div>
 
