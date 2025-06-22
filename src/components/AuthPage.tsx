@@ -2,201 +2,193 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { Battery, Zap, Shield, Mail, Lock, User } from 'lucide-react';
-import { Button } from './ui/button';
-import { Input } from './ui/input';
+import { supabase } from '../integrations/supabase/client';
+import { Shield, Eye, EyeOff, ArrowRight } from 'lucide-react';
+import EnhancedSignup from './EnhancedSignup';
 
 const AuthPage = () => {
-  const [isSignUp, setIsSignUp] = useState(false);
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [fullName, setFullName] = useState('');
-  const [username, setUsername] = useState('');
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
-  const { signIn, signUp, isAuthenticated } = useAuth();
   const navigate = useNavigate();
+  const { signIn, isAuthenticated, loading } = useAuth();
+
+  const [isLogin, setIsLogin] = useState(true);
+  const [formData, setFormData] = useState({
+    email: '',
+    password: ''
+  });
+  const [showPassword, setShowPassword] = useState(false);
+  const [authLoading, setAuthLoading] = useState(false);
+  const [error, setError] = useState('');
 
   useEffect(() => {
-    if (isAuthenticated) {
+    if (isAuthenticated && !loading) {
       navigate('/dashboard');
     }
-  }, [isAuthenticated, navigate]);
+  }, [isAuthenticated, loading, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setAuthLoading(true);
     setError('');
-    setLoading(true);
 
     try {
-      if (isSignUp) {
-        const { error } = await signUp(email, password, {
-          username,
-          full_name: fullName
-        });
-        
-        if (error) {
-          if (error.message.includes('already registered')) {
-            setError('An account with this email already exists. Please sign in instead.');
-          } else {
-            setError(error.message);
-          }
-        } else {
-          setError('Please check your email to confirm your account before signing in.');
-        }
-      } else {
-        const { error } = await signIn(email, password);
-        
-        if (error) {
-          if (error.message.includes('Invalid login credentials')) {
-            setError('Invalid email or password. Please try again.');
-          } else {
-            setError(error.message);
-          }
-        }
+      // Clean up auth state before signing in
+      localStorage.clear();
+      sessionStorage.clear();
+      
+      try {
+        await supabase.auth.signOut({ scope: 'global' });
+      } catch (err) {
+        // Continue even if this fails
       }
-    } catch (err) {
-      setError('An unexpected error occurred. Please try again.');
+
+      const { error } = await signIn(formData.email, formData.password);
+      
+      if (error) {
+        throw error;
+      }
+
+      // Force page reload for clean state
+      window.location.href = '/dashboard';
+    } catch (error) {
+      console.error('Login error:', error);
+      setError(error instanceof Error ? error.message : 'Failed to sign in');
     } finally {
-      setLoading(false);
+      setAuthLoading(false);
     }
   };
 
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-800 flex items-center justify-center p-4">
-      {/* Animated background elements */}
-      <div className="absolute inset-0 overflow-hidden">
-        <div className="absolute top-1/4 left-1/4 w-64 h-64 bg-blue-500/10 rounded-full blur-3xl animate-pulse"></div>
-        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-green-500/10 rounded-full blur-3xl animate-pulse delay-1000"></div>
-      </div>
+  const handleSignupSuccess = () => {
+    setError('');
+    setIsLogin(true);
+    // Show success message
+    setError('Account created! Please check your email to verify your account, then sign in.');
+  };
 
-      <div className="relative z-10 bg-slate-800/80 backdrop-blur-lg p-8 rounded-2xl shadow-2xl border border-slate-700 w-full max-w-md">
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-slate-900 flex items-center justify-center">
+        <div className="text-white">Loading...</div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4">
+      <div className="w-full max-w-md">
         {/* Header */}
         <div className="text-center mb-8">
           <div className="flex items-center justify-center mb-4">
-            <div className="relative">
-              <Battery className="w-12 h-12 text-blue-400" />
-              <Zap className="w-6 h-6 text-green-400 absolute -top-1 -right-1" />
-            </div>
+            <Shield className="w-12 h-12 text-blue-500" />
           </div>
-          <h1 className="text-2xl font-bold text-white mb-2">EV Diagnostic Portal</h1>
-          <p className="text-slate-400">
-            {isSignUp ? 'Create your technician account' : 'Sign in to your account'}
-          </p>
+          <h1 className="text-2xl font-bold text-white mb-2">EV Diagnostic System</h1>
+          <p className="text-slate-400">Professional diagnostic tools for EV service stations</p>
         </div>
 
-        {/* Auth Form */}
-        <form onSubmit={handleSubmit} className="space-y-6">
-          {isSignUp && (
-            <>
+        {isLogin ? (
+          <div className="bg-slate-800 rounded-lg border border-slate-700 p-8">
+            <div className="text-center mb-6">
+              <h2 className="text-xl font-bold text-white mb-2">Welcome Back</h2>
+              <p className="text-slate-400">Sign in to your account</p>
+            </div>
+
+            <form onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <label htmlFor="fullName" className="block text-sm font-medium text-slate-300 mb-2">
-                  Full Name
+                <label className="block text-sm font-medium text-slate-300 mb-2">
+                  Email Address
                 </label>
-                <div className="relative">
-                  <User className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-slate-400" />
-                  <Input
-                    type="text"
-                    id="fullName"
-                    value={fullName}
-                    onChange={(e) => setFullName(e.target.value)}
-                    className="pl-10 bg-slate-700/50 border-slate-600 text-white placeholder-slate-400"
-                    placeholder="Enter your full name"
-                    required={isSignUp}
-                  />
-                </div>
+                <input
+                  type="email"
+                  value={formData.email}
+                  onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
+                  className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Enter your email"
+                  required
+                />
               </div>
 
               <div>
-                <label htmlFor="username" className="block text-sm font-medium text-slate-300 mb-2">
-                  Username
+                <label className="block text-sm font-medium text-slate-300 mb-2">
+                  Password
                 </label>
                 <div className="relative">
-                  <User className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-slate-400" />
-                  <Input
-                    type="text"
-                    id="username"
-                    value={username}
-                    onChange={(e) => setUsername(e.target.value)}
-                    className="pl-10 bg-slate-700/50 border-slate-600 text-white placeholder-slate-400"
-                    placeholder="Choose a username"
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    value={formData.password}
+                    onChange={(e) => setFormData(prev => ({ ...prev, password: e.target.value }))}
+                    className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="Enter your password"
+                    required
                   />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400 hover:text-slate-300"
+                  >
+                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
                 </div>
               </div>
-            </>
-          )}
 
-          <div>
-            <label htmlFor="email" className="block text-sm font-medium text-slate-300 mb-2">
-              Email
-            </label>
-            <div className="relative">
-              <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-slate-400" />
-              <Input
-                type="email"
-                id="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="pl-10 bg-slate-700/50 border-slate-600 text-white placeholder-slate-400"
-                placeholder="Enter your email"
-                required
-              />
+              {error && (
+                <div className={`rounded-lg p-3 ${
+                  error.includes('created') 
+                    ? 'bg-green-900/20 border border-green-600/50' 
+                    : 'bg-red-900/20 border border-red-600/50'
+                }`}>
+                  <p className={`text-sm ${
+                    error.includes('created') ? 'text-green-400' : 'text-red-400'
+                  }`}>
+                    {error}
+                  </p>
+                </div>
+              )}
+
+              <button
+                type="submit"
+                disabled={authLoading}
+                className="w-full flex items-center justify-center space-x-2 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-lg transition-colors"
+              >
+                {authLoading ? (
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <>
+                    <span>Sign In</span>
+                    <ArrowRight className="w-4 h-4" />
+                  </>
+                )}
+              </button>
+            </form>
+
+            <div className="mt-6 pt-6 border-t border-slate-700 text-center">
+              <p className="text-slate-400 text-sm mb-2">
+                Don't have an account?
+              </p>
+              <button
+                onClick={() => setIsLogin(false)}
+                className="text-blue-400 hover:text-blue-300 font-medium"
+              >
+                Create Account
+              </button>
             </div>
           </div>
+        ) : (
+          <EnhancedSignup 
+            onSignupSuccess={handleSignupSuccess}
+            onSwitchToLogin={() => setIsLogin(true)}
+          />
+        )}
 
-          <div>
-            <label htmlFor="password" className="block text-sm font-medium text-slate-300 mb-2">
-              Password
-            </label>
-            <div className="relative">
-              <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-slate-400" />
-              <Input
-                type="password"
-                id="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="pl-10 bg-slate-700/50 border-slate-600 text-white placeholder-slate-400"
-                placeholder="Enter your password"
-                required
-              />
-            </div>
-          </div>
-
-          {error && (
-            <div className="bg-red-500/10 border border-red-500/20 text-red-400 px-4 py-3 rounded-lg text-sm">
-              {error}
-            </div>
-          )}
-
-          <Button
-            type="submit"
-            disabled={loading}
-            className="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-semibold py-3 px-4 rounded-lg transition-all duration-200 flex items-center justify-center space-x-2"
-          >
-            <Shield className="w-5 h-5" />
-            <span>{loading ? 'Processing...' : (isSignUp ? 'Create Account' : 'Sign In')}</span>
-          </Button>
-        </form>
-
-        {/* Toggle between sign in and sign up */}
+        {/* Registration Link */}
         <div className="mt-6 text-center">
-          <p className="text-slate-400 text-sm">
-            {isSignUp ? 'Already have an account?' : "Don't have an account?"}
-            <button
-              type="button"
-              onClick={() => {
-                setIsSignUp(!isSignUp);
-                setError('');
-                setEmail('');
-                setPassword('');
-                setFullName('');
-                setUsername('');
-              }}
-              className="ml-2 text-blue-400 hover:text-blue-300 font-medium"
-            >
-              {isSignUp ? 'Sign In' : 'Sign Up'}
-            </button>
+          <p className="text-slate-400 text-sm mb-2">
+            Need to register a new service station?
           </p>
+          <button
+            onClick={() => navigate('/register')}
+            className="text-blue-400 hover:text-blue-300 font-medium"
+          >
+            Station Registration →
+          </button>
         </div>
       </div>
     </div>
