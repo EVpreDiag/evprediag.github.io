@@ -1,9 +1,8 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../integrations/supabase/client';
-import { ArrowLeft, Users, Plus, Edit, Trash2, Shield, User, Filter, Mail } from 'lucide-react';
+import { ArrowLeft, Users, Plus, Edit, Trash2, Shield, User, Filter, Mail, Building } from 'lucide-react';
 
 type UserRole = 'admin' | 'technician' | 'front_desk' | 'super_admin';
 type FilterType = 'all' | 'with_roles' | 'without_roles' | 'without_profiles';
@@ -18,22 +17,31 @@ interface SystemUser {
   hasProfile: boolean;
   emailConfirmed?: boolean;
   station_id?: string | null;
+  station_name?: string | null;
+}
+
+interface Station {
+  id: string;
+  name: string;
 }
 
 const UserManagement = () => {
   const navigate = useNavigate();
   const { isAdmin, isSuperAdmin, assignRole, removeRole } = useAuth();
   const [users, setUsers] = useState<SystemUser[]>([]);
+  const [stations, setStations] = useState<Station[]>([]);
   const [filteredUsers, setFilteredUsers] = useState<SystemUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [showRoleModal, setShowRoleModal] = useState(false);
   const [selectedUser, setSelectedUser] = useState<SystemUser | null>(null);
+  const [selectedStationId, setSelectedStationId] = useState<string>('');
   const [activeFilter, setActiveFilter] = useState<FilterType>('all');
 
   useEffect(() => {
     if (!isAdmin() && !isSuperAdmin()) {
       return;
     }
+    fetchStations();
     fetchUsers();
   }, [isAdmin, isSuperAdmin]);
 
@@ -41,15 +49,34 @@ const UserManagement = () => {
     filterUsers();
   }, [users, activeFilter]);
 
+  const fetchStations = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('stations')
+        .select('id, name')
+        .order('name');
+
+      if (error) throw error;
+      setStations(data || []);
+    } catch (error) {
+      console.error('Error fetching stations:', error);
+    }
+  };
+
   const fetchUsers = async () => {
     try {
       setLoading(true);
       console.log('Fetching users from profiles and user_roles tables...');
       
-      // Fetch all profiles (this contains all users who have signed up)
+      // Fetch all profiles with station information
       const { data: profiles, error: profilesError } = await supabase
         .from('profiles')
-        .select('*')
+        .select(`
+          *,
+          stations (
+            name
+          )
+        `)
         .order('created_at', { ascending: false });
 
       if (profilesError) {
@@ -76,14 +103,15 @@ const UserManagement = () => {
         
         return {
           id: profile.id,
-          email: profile.username, // In the profiles table, username often contains the email
+          email: profile.username,
           username: profile.username,
           full_name: profile.full_name,
           created_at: profile.created_at,
           roles: roles as UserRole[],
-          hasProfile: true, // All these users have profiles since we fetched from profiles table
-          emailConfirmed: undefined, // This info isn't available from profiles table
-          station_id: profile.station_id
+          hasProfile: true,
+          emailConfirmed: undefined,
+          station_id: profile.station_id,
+          station_name: profile.stations?.name || null
         };
       });
 
@@ -107,8 +135,6 @@ const UserManagement = () => {
         filtered = users.filter(user => user.roles.length === 0);
         break;
       case 'without_profiles':
-        // Since we're fetching from profiles table, all users have profiles
-        // This filter will show empty results, but we keep it for consistency
         filtered = users.filter(user => !user.hasProfile);
         break;
       default:
@@ -119,9 +145,16 @@ const UserManagement = () => {
   };
 
   const handleAssignRole = async (userId: string, role: UserRole) => {
-    const { error } = await assignRole(userId, role);
+    let stationId = null;
+    
+    // If assigning admin, technician, or front_desk role and user is super admin, use selected station
+    if (isSuperAdmin() && ['admin', 'technician', 'front_desk'].includes(role) && selectedStationId) {
+      stationId = selectedStationId;
+    }
+
+    const { error } = await assignRole(userId, role, stationId);
     if (!error) {
-      await fetchUsers(); // Refresh the list
+      await fetchUsers();
     } else {
       console.error('Error assigning role:', error);
     }
@@ -130,9 +163,23 @@ const UserManagement = () => {
   const handleRemoveRole = async (userId: string, role: UserRole) => {
     const { error } = await removeRole(userId, role);
     if (!error) {
-      await fetchUsers(); // Refresh the list
+      await fetchUsers();
     } else {
       console.error('Error removing role:', error);
+    }
+  };
+
+  const handleAssignStation = async (userId: string, stationId: string | null) => {
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ station_id: stationId })
+        .eq('id', userId);
+
+      if (error) throw error;
+      await fetchUsers();
+    } catch (error) {
+      console.error('Error assigning station:', error);
     }
   };
 
@@ -317,6 +364,7 @@ const UserManagement = () => {
                 <tr>
                   <th className="px-6 py-3 text-left text-xs font-medium text-slate-300 uppercase tracking-wider">User</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-slate-300 uppercase tracking-wider">Email</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-300 uppercase tracking-wider">Station</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-slate-300 uppercase tracking-wider">Roles</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-slate-300 uppercase tracking-wider">Status</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-slate-300 uppercase tracking-wider">Created</th>
@@ -326,7 +374,7 @@ const UserManagement = () => {
               <tbody className="divide-y divide-slate-700">
                 {filteredUsers.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="px-6 py-8 text-center text-slate-400">
+                    <td colSpan={7} className="px-6 py-8 text-center text-slate-400">
                       No users found matching the current filter.
                     </td>
                   </tr>
@@ -349,11 +397,14 @@ const UserManagement = () => {
                           <span className="text-sm text-slate-300">
                             {user.email || 'No email available'}
                           </span>
-                          {user.emailConfirmed === false && (
-                            <span className="text-xs bg-yellow-600/20 text-yellow-400 px-2 py-1 rounded">
-                              Unverified
-                            </span>
-                          )}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="flex items-center space-x-2">
+                          <Building className="w-4 h-4 text-slate-400" />
+                          <span className="text-sm text-slate-300">
+                            {user.station_name || 'No station assigned'}
+                          </span>
                         </div>
                       </td>
                       <td className="px-6 py-4">
@@ -393,6 +444,7 @@ const UserManagement = () => {
                         <button
                           onClick={() => {
                             setSelectedUser(user);
+                            setSelectedStationId(user.station_id || '');
                             setShowRoleModal(true);
                           }}
                           className="p-2 text-blue-400 hover:text-blue-300 transition-colors"
@@ -409,12 +461,12 @@ const UserManagement = () => {
         </div>
       </div>
 
-      {/* Role Assignment Modal */}
+      {/* Enhanced Role Assignment Modal */}
       {showRoleModal && selectedUser && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
           <div className="bg-slate-800 rounded-lg border border-slate-700 w-full max-w-md">
             <div className="p-6 border-b border-slate-700">
-              <h3 className="text-lg font-semibold text-white">Manage Roles</h3>
+              <h3 className="text-lg font-semibold text-white">Manage User</h3>
               <p className="text-sm text-slate-400">
                 {selectedUser.full_name || selectedUser.username || selectedUser.email || 'Unknown User'}
               </p>
@@ -422,37 +474,73 @@ const UserManagement = () => {
                 <p className="text-xs text-slate-500 mt-1">{selectedUser.email}</p>
               )}
             </div>
-            <div className="p-6 space-y-4">
-              {getAvailableRoles().map((role) => (
-                <div key={role} className="flex items-center justify-between">
-                  <div>
-                    <span className="text-white font-medium">{getRoleDisplayName(role)}</span>
-                  </div>
-                  <div>
-                    {selectedUser.roles.includes(role) ? (
-                      <button
-                        onClick={() => handleRemoveRole(selectedUser.id, role)}
-                        className="px-3 py-1 bg-red-600 hover:bg-red-700 text-white text-sm rounded transition-colors"
-                      >
-                        Remove
-                      </button>
-                    ) : (
-                      <button
-                        onClick={() => handleAssignRole(selectedUser.id, role)}
-                        className="px-3 py-1 bg-green-600 hover:bg-green-700 text-white text-sm rounded transition-colors"
-                      >
-                        Assign
-                      </button>
-                    )}
-                  </div>
+            <div className="p-6 space-y-6">
+              {/* Station Assignment (Super Admin Only) */}
+              {isSuperAdmin() && (
+                <div>
+                  <h4 className="text-white font-medium mb-3">Station Assignment</h4>
+                  <select
+                    value={selectedStationId}
+                    onChange={(e) => setSelectedStationId(e.target.value)}
+                    className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="">No station assigned</option>
+                    {stations.map((station) => (
+                      <option key={station.id} value={station.id}>
+                        {station.name}
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    onClick={() => handleAssignStation(selectedUser.id, selectedStationId || null)}
+                    className="mt-2 px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded transition-colors"
+                  >
+                    Update Station
+                  </button>
                 </div>
-              ))}
+              )}
+
+              {/* Role Management */}
+              <div>
+                <h4 className="text-white font-medium mb-3">Role Management</h4>
+                <div className="space-y-3">
+                  {getAvailableRoles().map((role) => (
+                    <div key={role} className="flex items-center justify-between">
+                      <div>
+                        <span className="text-white font-medium">{getRoleDisplayName(role)}</span>
+                        {isSuperAdmin() && ['admin', 'technician', 'front_desk'].includes(role) && (
+                          <p className="text-xs text-slate-500">Requires station assignment</p>
+                        )}
+                      </div>
+                      <div>
+                        {selectedUser.roles.includes(role) ? (
+                          <button
+                            onClick={() => handleRemoveRole(selectedUser.id, role)}
+                            className="px-3 py-1 bg-red-600 hover:bg-red-700 text-white text-sm rounded transition-colors"
+                          >
+                            Remove
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => handleAssignRole(selectedUser.id, role)}
+                            className="px-3 py-1 bg-green-600 hover:bg-green-700 text-white text-sm rounded transition-colors"
+                            disabled={isSuperAdmin() && ['admin', 'technician', 'front_desk'].includes(role) && !selectedStationId}
+                          >
+                            Assign
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
             </div>
             <div className="p-6 border-t border-slate-700">
               <button
                 onClick={() => {
                   setShowRoleModal(false);
                   setSelectedUser(null);
+                  setSelectedStationId('');
                 }}
                 className="w-full px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg transition-colors"
               >

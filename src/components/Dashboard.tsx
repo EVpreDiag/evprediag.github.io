@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
@@ -15,7 +14,8 @@ import {
   Plug,
   User,
   Shield,
-  Edit
+  Edit,
+  Building
 } from 'lucide-react';
 
 const Dashboard = () => {
@@ -67,6 +67,14 @@ const Dashboard = () => {
       path: '/user-management',
       color: 'from-purple-600 to-purple-700',
       available: isAdmin() || isSuperAdmin()
+    },
+    {
+      title: 'Station Management',
+      description: 'Manage service stations and locations',
+      icon: Building,
+      path: '/station-management',
+      color: 'from-indigo-600 to-indigo-700',
+      available: isSuperAdmin()
     },
     {
       title: 'Profile Management',
@@ -206,7 +214,7 @@ const Dashboard = () => {
               <Settings className="w-5 h-5 mr-2" />
               Quick Actions
             </h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               <button 
                 onClick={() => navigate('/diagnostic-form')}
                 className="flex items-center space-x-3 p-3 bg-slate-700/50 rounded-lg hover:bg-slate-700 transition-colors text-left"
@@ -228,6 +236,15 @@ const Dashboard = () => {
                 >
                   <Edit className="w-5 h-5 text-orange-400" />
                   <span className="text-white">Modify Reports</span>
+                </button>
+              )}
+              {isSuperAdmin() && (
+                <button 
+                  onClick={() => navigate('/station-management')}
+                  className="flex items-center space-x-3 p-3 bg-slate-700/50 rounded-lg hover:bg-slate-700 transition-colors text-left"
+                >
+                  <Building className="w-5 h-5 text-indigo-400" />
+                  <span className="text-white">Manage Stations</span>
                 </button>
               )}
             </div>

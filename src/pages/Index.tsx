@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import AuthPage from '../components/AuthPage';
@@ -7,6 +6,7 @@ import DiagnosticForm from '../components/DiagnosticForm';
 import PHEVDiagnosticForm from '../components/PHEVDiagnosticForm';
 import SearchRecords from '../components/SearchRecords';
 import UserManagement from '../components/UserManagement';
+import StationManagement from '../components/StationManagement';
 import PrintSummary from '../components/PrintSummary';
 import ProfileManagement from '../components/ProfileManagement';
 import ModifyReports from '../components/ModifyReports';
@@ -86,6 +86,13 @@ const Index = () => {
             <ProtectedRoute>
               <RoleProtectedRoute requiredRoles={['admin']}>
                 <UserManagement />
+              </RoleProtectedRoute>
+            </ProtectedRoute>
+          } />
+          <Route path="/station-management" element={
+            <ProtectedRoute>
+              <RoleProtectedRoute requiredRoles={['super_admin']}>
+                <StationManagement />
               </RoleProtectedRoute>
             </ProtectedRoute>
           } />
