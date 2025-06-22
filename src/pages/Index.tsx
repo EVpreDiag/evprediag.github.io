@@ -58,14 +58,14 @@ const Index = () => {
           } />
           <Route path="/diagnostic-form" element={
             <ProtectedRoute>
-              <RoleProtectedRoute requiredRoles={['admin', 'tech', 'service_desk']}>
+              <RoleProtectedRoute requiredRoles={['admin', 'technician', 'front_desk']}>
                 <DiagnosticForm />
               </RoleProtectedRoute>
             </ProtectedRoute>
           } />
           <Route path="/phev-diagnostic-form" element={
             <ProtectedRoute>
-              <RoleProtectedRoute requiredRoles={['admin', 'tech', 'service_desk']}>
+              <RoleProtectedRoute requiredRoles={['admin', 'technician', 'front_desk']}>
                 <PHEVDiagnosticForm />
               </RoleProtectedRoute>
             </ProtectedRoute>
@@ -77,7 +77,7 @@ const Index = () => {
           } />
           <Route path="/modify-reports" element={
             <ProtectedRoute>
-              <RoleProtectedRoute requiredRoles={['admin', 'tech']}>
+              <RoleProtectedRoute requiredRoles={['admin', 'technician']}>
                 <ModifyReports />
               </RoleProtectedRoute>
             </ProtectedRoute>
