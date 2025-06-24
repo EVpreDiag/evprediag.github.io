@@ -18,8 +18,9 @@ export const approveStationRegistration = async (requestId: string, approvedBy: 
       throw new Error(error.message || 'Failed to approve registration');
     }
 
-    if (!data.success) {
-      throw new Error(data.error || 'Registration approval failed');
+    if (!data || !data.success) {
+      console.error('Registration approval failed:', data?.error);
+      throw new Error(data?.error || 'Registration approval failed');
     }
 
     console.log('Station registration approved successfully');

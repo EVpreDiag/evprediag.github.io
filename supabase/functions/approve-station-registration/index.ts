@@ -83,22 +83,46 @@ Deno.serve(async (req) => {
 
     console.log('Created user account:', authData.user.id)
 
-    // Create profile for the user
-    const { error: profileError } = await supabaseAdmin
+    // Check if profile already exists and handle accordingly
+    const { data: existingProfile } = await supabaseAdmin
       .from('profiles')
-      .insert({
-        id: authData.user.id,
-        full_name: request.contact_person_name,
-        username: request.contact_email.split('@')[0],
-        station_id: station.id
-      })
+      .select('id')
+      .eq('id', authData.user.id)
+      .single()
 
-    if (profileError) {
-      console.error('Error creating profile:', profileError)
-      throw new Error('Failed to create user profile')
+    if (!existingProfile) {
+      // Create profile for the user only if it doesn't exist
+      const { error: profileError } = await supabaseAdmin
+        .from('profiles')
+        .insert({
+          id: authData.user.id,
+          full_name: request.contact_person_name,
+          username: request.contact_email.split('@')[0],
+          station_id: station.id
+        })
+
+      if (profileError) {
+        console.error('Error creating profile:', profileError)
+        throw new Error('Failed to create user profile')
+      }
+
+      console.log('Created user profile')
+    } else {
+      console.log('Profile already exists, updating with station info')
+      // Update existing profile with station information
+      const { error: profileUpdateError } = await supabaseAdmin
+        .from('profiles')
+        .update({
+          full_name: request.contact_person_name,
+          station_id: station.id
+        })
+        .eq('id', authData.user.id)
+
+      if (profileUpdateError) {
+        console.error('Error updating profile:', profileUpdateError)
+        throw new Error('Failed to update user profile')
+      }
     }
-
-    console.log('Created user profile')
 
     // Assign station_admin role
     const { error: roleError } = await supabaseAdmin
@@ -153,7 +177,10 @@ Deno.serve(async (req) => {
   } catch (error) {
     console.error('Error in station registration approval:', error)
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ 
+        success: false,
+        error: error.message 
+      }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 500
