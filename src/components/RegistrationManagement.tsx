@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
@@ -39,6 +38,9 @@ const RegistrationManagement = () => {
   const [rejectionReason, setRejectionReason] = useState('');
 
   useEffect(() => {
+    console.log('RegistrationManagement - isSuperAdmin:', isSuperAdmin());
+    console.log('RegistrationManagement - user:', user);
+    
     if (!isSuperAdmin()) {
       navigate('/dashboard');
       return;
@@ -62,6 +64,7 @@ const RegistrationManagement = () => {
         status: item.status as 'pending' | 'approved' | 'rejected'
       })) as RegistrationRequest[];
 
+      console.log('Fetched registration requests:', typedData);
       setRequests(typedData);
     } catch (error) {
       console.error('Error fetching registration requests:', error);
@@ -71,9 +74,14 @@ const RegistrationManagement = () => {
   };
 
   const handleApprove = async (request: RegistrationRequest) => {
-    if (!user) return;
+    if (!user) {
+      console.error('No user found for approval');
+      return;
+    }
     
+    console.log('Attempting to approve request:', request.id);
     setProcessingId(request.id);
+    
     try {
       const result = await approveStationRegistration(request.id, user.id);
       
@@ -84,7 +92,7 @@ const RegistrationManagement = () => {
       }
     } catch (error) {
       console.error('Error approving registration:', error);
-      alert('Failed to approve registration. Please try again.');
+      alert(`Failed to approve registration: ${error.message}`);
     } finally {
       setProcessingId(null);
     }
