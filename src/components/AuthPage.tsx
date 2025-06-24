@@ -32,21 +32,42 @@ const AuthPage = () => {
     }
   }, [user, navigate, isSetup, setupEmail]);
 
-  const handleLogin = async (e: React.FormEvent) => {
+  const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError('');
-    setMessage('');
 
-    const { error } = await signIn(email, password);
+    try {
+      console.log('Attempting sign in for:', email);
+      
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
 
-    if (error) {
-      setError(error.message);
-    } else {
-      setMessage('Signed in successfully!');
+      if (error) {
+        console.error('Sign in error:', error);
+        
+        if (error.message.includes('Email not confirmed')) {
+          setError('Please check your email and confirm your account before signing in.');
+        } else if (error.message.includes('Invalid login credentials')) {
+          setError('Invalid email or password. If you just received temporary credentials, make sure to use the exact password provided.');
+        } else {
+          setError(error.message);
+        }
+        return;
+      }
+
+      if (data.user) {
+        console.log('Sign in successful:', data.user.id);
+        navigate('/dashboard');
+      }
+    } catch (error) {
+      console.error('Unexpected error:', error);
+      setError('An unexpected error occurred. Please try again.');
+    } finally {
+      setLoading(false);
     }
-
-    setLoading(false);
   };
 
   const handleSignup = async (e: React.FormEvent) => {
@@ -71,20 +92,22 @@ const AuthPage = () => {
   }
 
   return (
-    <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4">
-      <div className="max-w-md w-full bg-slate-800 rounded-lg border border-slate-700 p-8">
-        <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-white mb-2">
-            {isSetup ? 'Station Setup' : 'EV Diagnostic Platform'}
-          </h1>
-          <p className="text-slate-400">
-            {isSetup 
-              ? 'Complete your station account setup' 
-              : isLogin 
-                ? 'Sign in to your account' 
-                : 'Create your account'
-            }
-          </p>
+    <div className="min-h-screen bg-slate-900 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-md w-full space-y-8">
+        <div>
+          <h2 className="mt-6 text-center text-3xl font-extrabold text-white">
+            {isSignUp ? 'Create your account' : 'Sign in to your account'}
+          </h2>
+          {!isSignUp && (
+            <div className="mt-4 text-center">
+              <p className="text-sm text-slate-400">
+                New station admin? Use the temporary credentials provided by your super administrator.
+              </p>
+              <p className="text-xs text-slate-500 mt-2">
+                You'll need to confirm your email first, then sign in with your temporary password.
+              </p>
+            </div>
+          )}
         </div>
 
         {error && (
@@ -113,7 +136,7 @@ const AuthPage = () => {
           </div>
         )}
 
-        <form onSubmit={isLogin ? handleLogin : handleSignup} className="space-y-6">
+        <form onSubmit={isLogin ? handleSignIn : handleSignup} className="space-y-6">
           {!isLogin && (
             <>
               <div>

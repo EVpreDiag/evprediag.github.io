@@ -1,80 +1,131 @@
-
-import React, { createContext, useContext, useState, useEffect } from 'react';
-import { User, Session } from '@supabase/supabase-js';
+import React, { createContext, useState, useEffect, useContext } from 'react';
+import { Session, User } from '@supabase/supabase-js';
 import { supabase } from '../integrations/supabase/client';
-import { secureLog } from '../utils/securityUtils';
 
-interface Profile {
-  id: string;
-  username: string | null;
-  full_name: string | null;
-  avatar_url: string | null;
-  station_id?: string | null;
-}
+// Define the roles that a user can have
+export type UserRole = 'admin' | 'technician' | 'front_desk' | 'super_admin' | 'station_admin';
 
-type UserRole = 'admin' | 'technician' | 'front_desk' | 'super_admin' | 'station_admin';
-
-interface AuthContextType {
-  user: User | null;
-  profile: Profile | null;
+interface AuthContextProps {
   session: Session | null;
+  user: User | null;
   userRoles: UserRole[];
-  isAuthenticated: boolean;
   loading: boolean;
-  signUp: (email: string, password: string, metadata?: { username?: string; full_name?: string }) => Promise<{ error: any }>;
-  signIn: (email: string, password: string) => Promise<{ error: any }>;
-  signOut: () => Promise<void>;
-  updateProfile: (updates: Partial<Profile>) => Promise<{ error: any }>;
+  isAuthenticated: () => boolean;
+  isAuthorized: (roles: UserRole[]) => boolean;
   hasRole: (role: UserRole) => boolean;
   isAdmin: () => boolean;
   isSuperAdmin: () => boolean;
   isStationAdmin: () => boolean;
-  assignRole: (userId: string, role: UserRole, stationId?: string) => Promise<{ error: any }>;
-  removeRole: (userId: string, role: UserRole) => Promise<{ error: any }>;
-  fetchUserRoles: (userId?: string) => Promise<void>;
+  fetchUserRoles: (userId: string) => Promise<UserRole[]>;
 }
 
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
+const AuthContext = createContext<AuthContextProps>({
+  session: null,
+  user: null,
+  userRoles: [],
+  loading: true,
+  isAuthenticated: () => false,
+  isAuthorized: () => false,
+  hasRole: () => false,
+  isAdmin: () => false,
+  isSuperAdmin: () => false,
+  isStationAdmin: () => false,
+  fetchUserRoles: async () => []
+});
 
-export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(null);
-  const [profile, setProfile] = useState<Profile | null>(null);
+export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [session, setSession] = useState<Session | null>(null);
+  const [user, setUser] = useState<User | null>(null);
   const [userRoles, setUserRoles] = useState<UserRole[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    // Set up auth state listener
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        secureLog(`Auth state changed: ${event}`, 'info');
-        setSession(session);
-        setUser(session?.user ?? null);
-        
-        if (session?.user) {
-          // Use setTimeout to avoid potential Supabase client deadlocks
-          setTimeout(async () => {
-            await fetchUserProfile(session.user.id);
-            await fetchUserRoles(session.user.id);
-          }, 0);
-        } else {
-          setProfile(null);
-          setUserRoles([]);
-        }
-        
-        setLoading(false);
-      }
-    );
+  const fetchUserRoles = async (userId: string) => {
+    try {
+      console.log('Fetching roles for user:', userId);
+      
+      // Use the database function to get user roles
+      const { data, error } = await supabase
+        .rpc('get_user_roles', { _user_id: userId });
 
+      if (error) {
+        console.error('Error fetching user roles:', error);
+        setUserRoles([]);
+        return [];
+      }
+
+      const roles = data?.map((row: any) => row.role) || [];
+      console.log('User roles fetched:', roles);
+      setUserRoles(roles);
+      return roles;
+    } catch (error) {
+      console.error('Error in fetchUserRoles:', error);
+      setUserRoles([]);
+      return [];
+    }
+  };
+
+  const isAuthenticated = (): boolean => {
+    return !!user && !!session;
+  };
+
+  const isAuthorized = (roles: UserRole[]): boolean => {
+    if (!isAuthenticated()) return false;
+    return roles.some(role => userRoles.includes(role));
+  };
+
+  const hasRole = (role: UserRole): boolean => {
+    return userRoles.includes(role);
+  };
+
+  const isAdmin = (): boolean => {
+    return userRoles.includes('admin');
+  };
+
+  const isSuperAdmin = (): boolean => {
+    return userRoles.includes('super_admin');
+  };
+
+  const isStationAdmin = (): boolean => {
+    return userRoles.includes('station_admin');
+  };
+
+  useEffect(() => {
     // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      secureLog('Initial session check completed', 'info');
+    supabase.auth.getSession().then(({ data: { session }, error }) => {
+      if (error) {
+        console.error('Error getting session:', error);
+      }
+      
+      console.log('Initial session:', session?.user?.id);
       setSession(session);
       setUser(session?.user ?? null);
       
-      if (session?.user) {
-        fetchUserProfile(session.user.id);
-        fetchUserRoles(session.user.id);
+      if (session?.user?.id) {
+        // Fetch user roles after setting session
+        fetchUserRoles(session.user.id).finally(() => {
+          setLoading(false);
+        });
+      } else {
+        setLoading(false);
+      }
+    });
+
+    // Listen for auth changes
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log('Auth state changed:', event, session?.user?.id);
+      
+      setSession(session);
+      setUser(session?.user ?? null);
+      
+      if (event === 'SIGNED_IN' && session?.user?.id) {
+        // Defer role fetching slightly to avoid potential conflicts
+        setTimeout(() => {
+          fetchUserRoles(session.user.id);
+        }, 100);
+      } else if (event === 'SIGNED_OUT') {
+        setUserRoles([]);
       }
       
       setLoading(false);
@@ -83,217 +134,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return () => subscription.unsubscribe();
   }, []);
 
-  const fetchUserProfile = async (userId: string) => {
-    try {
-      secureLog('Fetching user profile', 'info');
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', userId)
-        .single();
-
-      if (error && error.code !== 'PGRST116') {
-        secureLog('Error fetching profile', 'error', { error: error.message });
-        return;
-      }
-
-      setProfile(data);
-    } catch (error) {
-      secureLog('Exception in fetchUserProfile', 'error', error);
-    }
-  };
-
-  const fetchUserRoles = async (userId?: string) => {
-    const fetchId = userId || user?.id;
-    
-    if (!fetchId) {
-      secureLog('No user ID available for fetching roles', 'warn');
-      return;
-    }
-
-    try {
-      secureLog('Fetching user roles', 'info');
-      const { data, error } = await supabase
-        .from('user_roles')
-        .select('role')
-        .eq('user_id', fetchId);
-
-      if (error) {
-        secureLog('Error fetching user roles', 'error', { error: error.message });
-        return;
-      }
-
-      const roles = data?.map(item => item.role as UserRole) || [];
-      setUserRoles(roles);
-    } catch (error) {
-      secureLog('Exception in fetchUserRoles', 'error', error);
-    }
-  };
-
-  const signUp = async (email: string, password: string, metadata = {}) => {
-    const redirectUrl = `${window.location.origin}/dashboard`;
-    
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        emailRedirectTo: redirectUrl,
-        data: metadata
-      }
-    });
-    
-    if (error) {
-      secureLog('Sign up error', 'error', { error: error.message });
-    } else {
-      secureLog('Sign up successful', 'info');
-    }
-    
-    return { error };
-  };
-
-  const signIn = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password
-    });
-    
-    if (error) {
-      secureLog('Sign in error', 'error', { error: error.message });
-    } else {
-      secureLog('Sign in successful', 'info');
-    }
-    
-    return { error };
-  };
-
-  const signOut = async () => {
-    secureLog('User signing out', 'info');
-    await supabase.auth.signOut();
-    setUser(null);
-    setProfile(null);
-    setSession(null);
-    setUserRoles([]);
-  };
-
-  const updateProfile = async (updates: Partial<Profile>) => {
-    if (!user) return { error: new Error('No user logged in') };
-
-    const { error } = await supabase
-      .from('profiles')
-      .update({
-        ...updates,
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', user.id);
-
-    if (!error && profile) {
-      setProfile({ ...profile, ...updates });
-      secureLog('Profile updated successfully', 'info');
-    } else if (error) {
-      secureLog('Profile update error', 'error', { error: error.message });
-    }
-
-    return { error };
-  };
-
-  const hasRole = (role: UserRole): boolean => {
-    return userRoles.includes(role);
-  };
-
-  const isAdmin = (): boolean => {
-    return hasRole('admin');
-  };
-
-  const isSuperAdmin = (): boolean => {
-    return hasRole('super_admin');
-  };
-
-  const isStationAdmin = (): boolean => {
-    return hasRole('station_admin');
-  };
-
-  const assignRole = async (userId: string, role: UserRole, stationId?: string) => {
-    if (!isSuperAdmin() && !isAdmin() && !isStationAdmin()) {
-      const error = new Error('Only admins can assign roles');
-      secureLog('Unauthorized role assignment attempt', 'warn');
-      return { error };
-    }
-
-    // Get the current user's station if not super admin
-    let assignToStationId = stationId;
-    if (!isSuperAdmin() && !stationId) {
-      assignToStationId = profile?.station_id || null;
-    }
-
-    const { error } = await supabase
-      .from('user_roles')
-      .insert({
-        user_id: userId,
-        role: role,
-        assigned_by: user?.id,
-        station_id: assignToStationId
-      });
-
-    if (error) {
-      secureLog('Role assignment error', 'error', { error: error.message });
-    } else {
-      secureLog(`Role ${role} assigned to user ${userId}`, 'info');
-    }
-
-    return { error };
-  };
-
-  const removeRole = async (userId: string, role: UserRole) => {
-    if (!isSuperAdmin() && !isAdmin() && !isStationAdmin()) {
-      const error = new Error('Only admins can remove roles');
-      secureLog('Unauthorized role removal attempt', 'warn');
-      return { error };
-    }
-
-    const { error } = await supabase
-      .from('user_roles')
-      .delete()
-      .eq('user_id', userId)
-      .eq('role', role);
-
-    if (error) {
-      secureLog('Role removal error', 'error', { error: error.message });
-    } else {
-      secureLog(`Role ${role} removed from user ${userId}`, 'info');
-    }
-
-    return { error };
+  const value: AuthContextProps = {
+    session,
+    user,
+    userRoles,
+    loading,
+    isAuthenticated,
+    isAuthorized,
+    hasRole,
+    isAdmin,
+    isSuperAdmin,
+    isStationAdmin,
+    fetchUserRoles
   };
 
   return (
-    <AuthContext.Provider value={{
-      user,
-      profile,
-      session,
-      userRoles,
-      isAuthenticated: !!user,
-      loading,
-      signUp,
-      signIn,
-      signOut,
-      updateProfile,
-      hasRole,
-      isAdmin,
-      isSuperAdmin,
-      isStationAdmin,
-      assignRole,
-      removeRole,
-      fetchUserRoles
-    }}>
+    <AuthContext.Provider value={value}>
       {children}
     </AuthContext.Provider>
   );
 };
 
 export const useAuth = () => {
-  const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
-  return context;
+  return useContext(AuthContext);
 };

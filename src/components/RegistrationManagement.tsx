@@ -2,32 +2,24 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../integrations/supabase/client';
-import { ArrowLeft, Eye, Check, X, Building, User, Mail, Phone, MapPin, Globe, Calendar, FileText, Send } from 'lucide-react';
-import { createStationUserAccount } from '../utils/stationSetupUtils';
+import { approveStationRegistration, rejectStationRegistration } from '../utils/stationSetupUtils';
+import { ArrowLeft, Building, Mail, Phone, MapPin, Check, X, Calendar } from 'lucide-react';
 
 interface RegistrationRequest {
   id: string;
   company_name: string;
-  business_type: string | null;
-  contact_person_name: string;
   contact_email: string;
-  contact_phone: string | null;
-  address: string | null;
-  city: string | null;
-  state: string | null;
-  zip_code: string | null;
-  website: string | null;
-  description: string | null;
+  contact_person_name: string;
+  contact_phone: string;
+  address: string;
+  city: string;
+  state: string;
+  zip_code: string;
   status: 'pending' | 'approved' | 'rejected';
-  admin_user_id: string | null;
-  approved_by: string | null;
-  approved_at: string | null;
-  rejection_reason: string | null;
   created_at: string;
-  updated_at: string;
-  email_verified: boolean;
-  invitation_sent: boolean;
-  password_hash: string | null;
+  approved_by?: string;
+  approved_at?: string;
+  rejection_reason?: string;
 }
 
 const RegistrationManagement = () => {
@@ -35,16 +27,10 @@ const RegistrationManagement = () => {
   const { isSuperAdmin, user } = useAuth();
   const [requests, setRequests] = useState<RegistrationRequest[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedRequest, setSelectedRequest] = useState<RegistrationRequest | null>(null);
+  const [processingId, setProcessingId] = useState<string | null>(null);
   const [showRejectModal, setShowRejectModal] = useState(false);
+  const [selectedRequest, setSelectedRequest] = useState<RegistrationRequest | null>(null);
   const [rejectionReason, setRejectionReason] = useState('');
-  const [processing, setProcessing] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [approvalResult, setApprovalResult] = useState<{
-    tempPassword?: string;
-    email?: string;
-    companyName?: string;
-  } | null>(null);
 
   useEffect(() => {
     if (!isSuperAdmin()) {
@@ -63,13 +49,8 @@ const RegistrationManagement = () => {
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      // Type assertion to ensure status is properly typed
-      setRequests((data || []).map(request => ({
-        ...request,
-        status: request.status as 'pending' | 'approved' | 'rejected',
-        email_verified: request.email_verified || false,
-        invitation_sent: request.invitation_sent || false
-      })));
+
+      setRequests(data || []);
     } catch (error) {
       console.error('Error fetching registration requests:', error);
     } finally {
@@ -78,99 +59,31 @@ const RegistrationManagement = () => {
   };
 
   const handleApprove = async (request: RegistrationRequest) => {
+    if (!user) return;
+    
+    setProcessingId(request.id);
     try {
-      setProcessing(request.id);
-      setError(null);
-
-      // Create the station first
-      const { data: stationData, error: stationError } = await supabase
-        .from('stations')
-        .insert({
-          name: request.company_name,
-          address: request.address,
-          phone: request.contact_phone,
-          email: request.contact_email,
-          created_by: user?.id
-        })
-        .select()
-        .single();
-
-      if (stationError) throw stationError;
-
-      // Update the registration request status first
-      const { error: updateError } = await supabase
-        .from('station_registration_requests')
-        .update({
-          status: 'approved',
-          approved_by: user?.id,
-          approved_at: new Date().toISOString()
-        })
-        .eq('id', request.id);
-
-      if (updateError) throw updateError;
-
-      // Send signup invitation email
-      const result = await createStationUserAccount(
-        {
-          id: request.id,
-          company_name: request.company_name,
-          contact_person_name: request.contact_person_name,
-          contact_email: request.contact_email,
-          contact_phone: request.contact_phone,
-          address: request.address,
-          password_hash: request.password_hash
-        },
-        stationData.id,
-        user?.id || ''
-      );
-
+      const result = await approveStationRegistration(request.id, user.id);
+      
       if (result.success) {
-        // Mark invitation as sent
-        await supabase
-          .from('station_registration_requests')
-          .update({
-            invitation_sent: true
-          })
-          .eq('id', request.id);
-
-        // Show the temporary password to the admin
-        setApprovalResult({
-          tempPassword: result.tempPassword,
-          email: request.contact_email,
-          companyName: request.company_name
-        });
-
-        console.log('Station approval and invitation sent successfully');
-      } else {
-        console.error('Failed to send invitation:', result.error);
-        setError('Station approved but failed to send invitation email. Please try sending invitation manually.');
+        // Show success message with temporary password
+        alert(`Registration approved successfully!\n\nTemporary login credentials:\nEmail: ${request.contact_email}\nPassword: ${result.tempPassword}\n\nPlease share these credentials with the station admin. They will need to confirm their email and set a new password on first login.`);
+        await fetchRequests();
       }
-
-      await fetchRequests();
     } catch (error) {
       console.error('Error approving registration:', error);
-      setError('Failed to approve registration. Please try again.');
+      alert('Failed to approve registration. Please try again.');
     } finally {
-      setProcessing(null);
+      setProcessingId(null);
     }
   };
 
   const handleReject = async () => {
-    if (!selectedRequest || !rejectionReason.trim()) return;
+    if (!selectedRequest || !rejectionReason.trim() || !user) return;
 
-    setProcessing(selectedRequest.id);
+    setProcessingId(selectedRequest.id);
     try {
-      const { error } = await supabase
-        .from('station_registration_requests')
-        .update({
-          status: 'rejected',
-          rejection_reason: rejectionReason,
-          approved_by: user?.id,
-          approved_at: new Date().toISOString()
-        })
-        .eq('id', selectedRequest.id);
-
-      if (error) throw error;
+      await rejectStationRegistration(selectedRequest.id, user.id, rejectionReason);
 
       setShowRejectModal(false);
       setSelectedRequest(null);
@@ -178,8 +91,9 @@ const RegistrationManagement = () => {
       await fetchRequests();
     } catch (error) {
       console.error('Error rejecting registration:', error);
+      alert('Failed to reject registration. Please try again.');
     } finally {
-      setProcessing(null);
+      setProcessingId(null);
     }
   };
 
@@ -202,18 +116,21 @@ const RegistrationManagement = () => {
     });
   };
 
-  const getRegistrationStatus = (request: RegistrationRequest) => {
-    if (request.status === 'approved' && request.invitation_sent) {
-      return { text: 'Invitation Sent', color: 'text-green-400' };
-    }
-    if (request.status === 'pending') {
-      return { text: 'Ready for Review', color: 'text-blue-400' };
-    }
-    return { text: request.status.charAt(0).toUpperCase() + request.status.slice(1), color: 'text-slate-400' };
-  };
-
   if (!isSuperAdmin()) {
-    return null;
+    return (
+      <div className="min-h-screen bg-slate-900 flex items-center justify-center">
+        <div className="text-center">
+          <h2 className="text-xl font-bold text-white mb-2">Access Denied</h2>
+          <p className="text-slate-400 mb-4">Only super administrators can manage station registrations.</p>
+          <button
+            onClick={() => navigate('/dashboard')}
+            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+          >
+            Return to Dashboard
+          </button>
+        </div>
+      </div>
+    );
   }
 
   if (loading) {
@@ -226,7 +143,6 @@ const RegistrationManagement = () => {
 
   return (
     <div className="min-h-screen bg-slate-900">
-      {/* Header */}
       <header className="bg-slate-800 border-b border-slate-700 px-6 py-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-4">
@@ -238,81 +154,20 @@ const RegistrationManagement = () => {
               <span>Back to Dashboard</span>
             </button>
             <div>
-              <h1 className="text-xl font-bold text-white">Registration Management</h1>
-              <p className="text-sm text-slate-400">Review and approve station registration requests</p>
+              <h1 className="text-xl font-bold text-white">Station Registration Management</h1>
+              <p className="text-sm text-slate-400">Review and manage station registration requests</p>
             </div>
           </div>
         </div>
       </header>
 
       <div className="p-6">
-        {/* Error Message */}
-        {error && (
-          <div className="mb-6 bg-red-900/50 border border-red-700 rounded-lg p-4">
-            <div className="flex items-center">
-              <X className="w-5 h-5 text-red-400 mr-2" />
-              <p className="text-red-400">{error}</p>
-            </div>
-          </div>
-        )}
-
-        {/* Approval Success Modal */}
-        {approvalResult && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-            <div className="bg-slate-800 rounded-lg border border-slate-700 w-full max-w-md">
-              <div className="p-6 border-b border-slate-700">
-                <h3 className="text-lg font-semibold text-white flex items-center">
-                  <Check className="w-5 h-5 text-green-400 mr-2" />
-                  Station Approved Successfully
-                </h3>
-              </div>
-              <div className="p-6 space-y-4">
-                <p className="text-slate-300">
-                  <strong>{approvalResult.companyName}</strong> has been approved and an invitation email has been sent to <strong>{approvalResult.email}</strong>.
-                </p>
-                
-                <div className="bg-blue-900/20 border border-blue-600/50 rounded-lg p-4">
-                  <p className="text-blue-400 text-sm font-medium mb-2">Temporary Login Credentials:</p>
-                  <div className="space-y-2">
-                    <div>
-                      <span className="text-slate-400">Email:</span>
-                      <p className="text-white font-mono">{approvalResult.email}</p>
-                    </div>
-                    <div>
-                      <span className="text-slate-400">Temporary Password:</span>
-                      <p className="text-white font-mono bg-slate-700 px-2 py-1 rounded">{approvalResult.tempPassword}</p>
-                    </div>
-                  </div>
-                </div>
-                
-                <div className="bg-yellow-900/20 border border-yellow-600/50 rounded-lg p-4">
-                  <p className="text-yellow-400 text-sm">
-                    <strong>Important:</strong> The user must first confirm their email address by clicking the link in the confirmation email. After email confirmation, they can login with the temporary password above and will be prompted to set a new password.
-                  </p>
-                </div>
-                
-                <p className="text-slate-400 text-sm">
-                  Please share these credentials with the station contact person securely.
-                </p>
-              </div>
-              <div className="p-6 border-t border-slate-700 flex justify-end">
-                <button
-                  onClick={() => setApprovalResult(null)}
-                  className="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg transition-colors"
-                >
-                  Close
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
         {/* Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
           <div className="bg-slate-800 rounded-lg p-4 border border-slate-700">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-slate-400 text-sm">Pending</p>
+                <p className="text-slate-400 text-sm">Pending Requests</p>
                 <p className="text-2xl font-bold text-white">
                   {requests.filter(r => r.status === 'pending').length}
                 </p>
@@ -323,34 +178,23 @@ const RegistrationManagement = () => {
           <div className="bg-slate-800 rounded-lg p-4 border border-slate-700">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-slate-400 text-sm">Approved</p>
+                <p className="text-slate-400 text-sm">Total Requests</p>
+                <p className="text-2xl font-bold text-white">
+                  {requests.length}
+                </p>
+              </div>
+              <Building className="w-8 h-8 text-blue-400" />
+            </div>
+          </div>
+          <div className="bg-slate-800 rounded-lg p-4 border border-slate-700">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-slate-400 text-sm">Approved Requests</p>
                 <p className="text-2xl font-bold text-white">
                   {requests.filter(r => r.status === 'approved').length}
                 </p>
               </div>
               <Check className="w-8 h-8 text-green-400" />
-            </div>
-          </div>
-          <div className="bg-slate-800 rounded-lg p-4 border border-slate-700">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-slate-400 text-sm">Invitations Sent</p>
-                <p className="text-2xl font-bold text-white">
-                  {requests.filter(r => r.invitation_sent).length}
-                </p>
-              </div>
-              <Send className="w-8 h-8 text-purple-400" />
-            </div>
-          </div>
-          <div className="bg-slate-800 rounded-lg p-4 border border-slate-700">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-slate-400 text-sm">Rejected</p>
-                <p className="text-2xl font-bold text-white">
-                  {requests.filter(r => r.status === 'rejected').length}
-                </p>
-              </div>
-              <X className="w-8 h-8 text-red-400" />
             </div>
           </div>
         </div>
@@ -367,85 +211,97 @@ const RegistrationManagement = () => {
                 <tr>
                   <th className="px-6 py-3 text-left text-xs font-medium text-slate-300 uppercase tracking-wider">Company</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-slate-300 uppercase tracking-wider">Contact</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-300 uppercase tracking-wider">Address</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-slate-300 uppercase tracking-wider">Status</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-300 uppercase tracking-wider">Submitted</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-300 uppercase tracking-wider">Requested</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-slate-300 uppercase tracking-wider">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-700">
                 {requests.length === 0 ? (
                   <tr>
-                    <td colSpan={5} className="px-6 py-8 text-center text-slate-400">
+                    <td colSpan={6} className="px-6 py-8 text-center text-slate-400">
                       No registration requests found.
                     </td>
                   </tr>
                 ) : (
-                  requests.map((request) => {
-                    const regStatus = getRegistrationStatus(request);
-                    return (
-                      <tr key={request.id} className="hover:bg-slate-700/30">
-                        <td className="px-6 py-4">
+                  requests.map((request) => (
+                    <tr key={request.id} className="hover:bg-slate-700/30">
+                      <td className="px-6 py-4">
+                        <div className="flex items-center">
+                          <Building className="w-5 h-5 text-slate-400 mr-3" />
                           <div>
                             <div className="text-sm font-medium text-white">{request.company_name}</div>
-                            <div className="text-sm text-slate-400">{request.business_type || 'Not specified'}</div>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4">
-                          <div>
-                            <div className="text-sm text-white">{request.contact_person_name}</div>
-                            <div className="text-sm text-slate-400 flex items-center">
-                              {request.contact_email}
-                              {request.invitation_sent && (
-                                <Check className="w-3 h-3 text-green-400 ml-1" />
-                              )}
+                            <div className="text-sm text-slate-400">
+                              <a href={`https://${request.website}`} target="_blank" rel="noopener noreferrer" className="hover:text-blue-400 transition-colors">
+                                {request.website}
+                              </a>
                             </div>
                           </div>
-                        </td>
-                        <td className="px-6 py-4">
-                          <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(request.status)}`}>
-                            {request.status.charAt(0).toUpperCase() + request.status.slice(1)}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 text-sm text-slate-300">
-                          {formatDate(request.created_at)}
-                        </td>
-                        <td className="px-6 py-4">
+                        </div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <div>
+                          <div className="text-sm text-white flex items-center">
+                            <User className="w-4 h-4 text-slate-400 mr-2" />
+                            {request.contact_person_name}
+                          </div>
+                          <div className="text-sm text-slate-400 flex items-center">
+                            <Mail className="w-4 h-4 text-slate-500 mr-2" />
+                            <a href={`mailto:${request.contact_email}`} className="hover:text-blue-400 transition-colors">
+                              {request.contact_email}
+                            </a>
+                          </div>
+                          <div className="text-sm text-slate-400 flex items-center">
+                            <Phone className="w-4 h-4 text-slate-500 mr-2" />
+                            {request.contact_phone}
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 text-sm text-slate-300">
+                        <div className="flex items-center">
+                          <MapPin className="w-4 h-4 text-slate-400 mr-2" />
+                          <div>
+                            <div>{request.address}</div>
+                            <div>{`${request.city}, ${request.state} ${request.zip_code}`}</div>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(request.status)}`}>
+                          {request.status.charAt(0).toUpperCase() + request.status.slice(1)}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 text-sm text-slate-300">
+                        {formatDate(request.created_at)}
+                      </td>
+                      <td className="px-6 py-4">
+                        {request.status === 'pending' && (
                           <div className="flex space-x-2">
                             <button
-                              onClick={() => setSelectedRequest(request)}
-                              className="p-2 text-blue-400 hover:text-blue-300 transition-colors"
-                              title="View Details"
+                              onClick={() => handleApprove(request)}
+                              disabled={processingId === request.id}
+                              className="p-2 text-green-400 hover:text-green-300 disabled:opacity-50 transition-colors"
+                              title="Approve"
                             >
-                              <Eye className="w-4 h-4" />
+                              <Check className="w-4 h-4" />
                             </button>
-                            {request.status === 'pending' && (
-                              <>
-                                <button
-                                  onClick={() => handleApprove(request)}
-                                  disabled={processing === request.id}
-                                  className="p-2 text-green-400 hover:text-green-300 disabled:opacity-50 transition-colors"
-                                  title="Approve & Send Invitation"
-                                >
-                                  <Check className="w-4 h-4" />
-                                </button>
-                                <button
-                                  onClick={() => {
-                                    setSelectedRequest(request);
-                                    setShowRejectModal(true);
-                                  }}
-                                  disabled={processing === request.id}
-                                  className="p-2 text-red-400 hover:text-red-300 disabled:opacity-50 transition-colors"
-                                  title="Reject"
-                                >
-                                  <X className="w-4 h-4" />
-                                </button>
-                              </>
-                            )}
+                            <button
+                              onClick={() => {
+                                setSelectedRequest(request);
+                                setShowRejectModal(true);
+                              }}
+                              disabled={processingId === request.id}
+                              className="p-2 text-red-400 hover:text-red-300 disabled:opacity-50 transition-colors"
+                              title="Reject"
+                            >
+                              <X className="w-4 h-4" />
+                            </button>
                           </div>
-                        </td>
-                      </tr>
-                    );
-                  })
+                        )}
+                      </td>
+                    </tr>
+                  ))
                 )}
               </tbody>
             </table>
@@ -453,150 +309,12 @@ const RegistrationManagement = () => {
         </div>
       </div>
 
-      {/* Request Details Modal */}
-      {selectedRequest && !showRejectModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-          <div className="bg-slate-800 rounded-lg border border-slate-700 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-            <div className="p-6 border-b border-slate-700">
-              <h3 className="text-lg font-semibold text-white">Registration Details</h3>
-            </div>
-            <div className="p-6 space-y-6">
-              {/* Company Info */}
-              <div>
-                <h4 className="text-white font-medium mb-3 flex items-center">
-                  <Building className="w-4 h-4 mr-2" />
-                  Company Information
-                </h4>
-                <div className="grid grid-cols-2 gap-4 text-sm">
-                  <div>
-                    <span className="text-slate-400">Company Name:</span>
-                    <p className="text-white">{selectedRequest.company_name}</p>
-                  </div>
-                  <div>
-                    <span className="text-slate-400">Business Type:</span>
-                    <p className="text-white">{selectedRequest.business_type || 'Not specified'}</p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Contact Info */}
-              <div>
-                <h4 className="text-white font-medium mb-3 flex items-center">
-                  <User className="w-4 h-4 mr-2" />
-                  Contact Information
-                </h4>
-                <div className="grid grid-cols-2 gap-4 text-sm">
-                  <div>
-                    <span className="text-slate-400">Contact Person:</span>
-                    <p className="text-white">{selectedRequest.contact_person_name}</p>
-                  </div>
-                  <div>
-                    <span className="text-slate-400">Email:</span>
-                    <p className="text-white">{selectedRequest.contact_email}</p>
-                  </div>
-                  <div>
-                    <span className="text-slate-400">Phone:</span>
-                    <p className="text-white">{selectedRequest.contact_phone || 'Not provided'}</p>
-                  </div>
-                  <div>
-                    <span className="text-slate-400">Website:</span>
-                    <p className="text-white">{selectedRequest.website || 'Not provided'}</p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Location Info */}
-              <div>
-                <h4 className="text-white font-medium mb-3 flex items-center">
-                  <MapPin className="w-4 h-4 mr-2" />
-                  Location
-                </h4>
-                <div className="text-sm">
-                  <p className="text-white">
-                    {[selectedRequest.address, selectedRequest.city, selectedRequest.state, selectedRequest.zip_code]
-                      .filter(Boolean)
-                      .join(', ') || 'Not provided'}
-                  </p>
-                </div>
-              </div>
-
-              {/* Description */}
-              {selectedRequest.description && (
-                <div>
-                  <h4 className="text-white font-medium mb-3 flex items-center">
-                    <FileText className="w-4 h-4 mr-2" />
-                    Description
-                  </h4>
-                  <p className="text-slate-300 text-sm">{selectedRequest.description}</p>
-                </div>
-              )}
-
-              {/* Status Info */}
-              <div>
-                <h4 className="text-white font-medium mb-3">Status Information</h4>
-                <div className="grid grid-cols-2 gap-4 text-sm">
-                  <div>
-                    <span className="text-slate-400">Status:</span>
-                    <span className={`ml-2 inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(selectedRequest.status)}`}>
-                      {selectedRequest.status.charAt(0).toUpperCase() + selectedRequest.status.slice(1)}
-                    </span>
-                  </div>
-                  <div>
-                    <span className="text-slate-400">Submitted:</span>
-                    <p className="text-white">{formatDate(selectedRequest.created_at)}</p>
-                  </div>
-                  {selectedRequest.approved_at && (
-                    <div>
-                      <span className="text-slate-400">Processed:</span>
-                      <p className="text-white">{formatDate(selectedRequest.approved_at)}</p>
-                    </div>
-                  )}
-                  {selectedRequest.rejection_reason && (
-                    <div className="col-span-2">
-                      <span className="text-slate-400">Rejection Reason:</span>
-                      <p className="text-white">{selectedRequest.rejection_reason}</p>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-            <div className="p-6 border-t border-slate-700 flex justify-end space-x-4">
-              {selectedRequest.status === 'pending' && (
-                <>
-                  <button
-                    onClick={() => {
-                      setShowRejectModal(true);
-                    }}
-                    className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors"
-                  >
-                    Reject
-                  </button>
-                  <button
-                    onClick={() => handleApprove(selectedRequest)}
-                    disabled={processing === selectedRequest.id}
-                    className="px-4 py-2 bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white rounded-lg transition-colors"
-                  >
-                    {processing === selectedRequest.id ? 'Approving...' : 'Approve & Send Invitation'}
-                  </button>
-                </>
-              )}
-              <button
-                onClick={() => setSelectedRequest(null)}
-                className="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg transition-colors"
-              >
-                Close
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Rejection Modal */}
       {showRejectModal && selectedRequest && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
           <div className="bg-slate-800 rounded-lg border border-slate-700 w-full max-w-md">
             <div className="p-6 border-b border-slate-700">
-              <h3 className="text-lg font-semibold text-white">Reject Registration</h3>
+              <h3 className="text-lg font-semibold text-white">Reject Registration Request</h3>
             </div>
             <div className="p-6">
               <p className="text-slate-300 mb-4">
@@ -622,10 +340,10 @@ const RegistrationManagement = () => {
               </button>
               <button
                 onClick={handleReject}
-                disabled={!rejectionReason.trim() || processing === selectedRequest.id}
+                disabled={!rejectionReason.trim() || processingId === selectedRequest.id}
                 className="px-4 py-2 bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white rounded-lg transition-colors"
               >
-                {processing === selectedRequest.id ? 'Rejecting...' : 'Reject Request'}
+                {processingId === selectedRequest.id ? 'Rejecting...' : 'Reject Request'}
               </button>
             </div>
           </div>
