@@ -1,9 +1,10 @@
+
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../integrations/supabase/client';
 import { approveStationRegistration, rejectStationRegistration } from '../utils/stationSetupUtils';
-import { ArrowLeft, Building, Mail, Phone, MapPin, Check, X, Calendar } from 'lucide-react';
+import { ArrowLeft, Building, Mail, Phone, MapPin, Check, X, Calendar, User } from 'lucide-react';
 
 interface RegistrationRequest {
   id: string;
@@ -20,6 +21,11 @@ interface RegistrationRequest {
   approved_by?: string;
   approved_at?: string;
   rejection_reason?: string;
+  business_type?: string;
+  admin_user_id?: string;
+  invitation_sent?: boolean;
+  invitation_token?: string;
+  website?: string;
 }
 
 const RegistrationManagement = () => {
@@ -50,7 +56,13 @@ const RegistrationManagement = () => {
 
       if (error) throw error;
 
-      setRequests(data || []);
+      // Cast the data to ensure proper typing
+      const typedData = (data || []).map(item => ({
+        ...item,
+        status: item.status as 'pending' | 'approved' | 'rejected'
+      })) as RegistrationRequest[];
+
+      setRequests(typedData);
     } catch (error) {
       console.error('Error fetching registration requests:', error);
     } finally {
@@ -232,11 +244,13 @@ const RegistrationManagement = () => {
                           <Building className="w-5 h-5 text-slate-400 mr-3" />
                           <div>
                             <div className="text-sm font-medium text-white">{request.company_name}</div>
-                            <div className="text-sm text-slate-400">
-                              <a href={`https://${request.website}`} target="_blank" rel="noopener noreferrer" className="hover:text-blue-400 transition-colors">
-                                {request.website}
-                              </a>
-                            </div>
+                            {request.website && (
+                              <div className="text-sm text-slate-400">
+                                <a href={`https://${request.website}`} target="_blank" rel="noopener noreferrer" className="hover:text-blue-400 transition-colors">
+                                  {request.website}
+                                </a>
+                              </div>
+                            )}
                           </div>
                         </div>
                       </td>

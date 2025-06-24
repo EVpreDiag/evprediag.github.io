@@ -1,6 +1,8 @@
+
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { supabase } from '../integrations/supabase/client';
 
 const AuthPage = () => {
   const navigate = useNavigate();
@@ -40,10 +42,7 @@ const AuthPage = () => {
     try {
       console.log('Attempting sign in for:', email);
       
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
+      const { error } = await signIn(email, password);
 
       if (error) {
         console.error('Sign in error:', error);
@@ -58,10 +57,8 @@ const AuthPage = () => {
         return;
       }
 
-      if (data.user) {
-        console.log('Sign in successful:', data.user.id);
-        navigate('/dashboard');
-      }
+      console.log('Sign in successful');
+      navigate('/dashboard');
     } catch (error) {
       console.error('Unexpected error:', error);
       setError('An unexpected error occurred. Please try again.');
@@ -96,9 +93,9 @@ const AuthPage = () => {
       <div className="max-w-md w-full space-y-8">
         <div>
           <h2 className="mt-6 text-center text-3xl font-extrabold text-white">
-            {isSignUp ? 'Create your account' : 'Sign in to your account'}
+            {isLogin ? 'Sign in to your account' : 'Create your account'}
           </h2>
-          {!isSignUp && (
+          {isLogin && (
             <div className="mt-4 text-center">
               <p className="text-sm text-slate-400">
                 New station admin? Use the temporary credentials provided by your super administrator.

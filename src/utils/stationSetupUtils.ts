@@ -118,16 +118,21 @@ export const approveStationRegistration = async (requestId: string, approvedBy: 
 
     console.log('Updated registration request status');
 
-    // Send email confirmation to the user
-    const { error: emailError } = await supabase.auth.admin.generateLink({
-      type: 'signup',
-      email: request.contact_email,
-      options: {
-        redirectTo: `${window.location.origin}/auth?message=confirm-email`
-      }
-    });
+    // Send email confirmation to the user (simplified approach)
+    try {
+      const { error: emailError } = await supabase.auth.admin.generateLink({
+        type: 'signup',
+        email: request.contact_email,
+        password: tempPassword,
+        options: {
+          redirectTo: `${window.location.origin}/auth?setup=true&email=${encodeURIComponent(request.contact_email)}`
+        }
+      });
 
-    if (emailError) {
+      if (emailError) {
+        console.warn('Warning: Could not generate confirmation link:', emailError);
+      }
+    } catch (emailError) {
       console.warn('Warning: Could not send confirmation email:', emailError);
       // Don't throw error here as the main process was successful
     }
