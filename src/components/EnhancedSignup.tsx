@@ -10,7 +10,6 @@ interface EnhancedSignupProps {
 
 const EnhancedSignup: React.FC<EnhancedSignupProps> = ({ onSignupSuccess, onSwitchToLogin }) => {
   const [loading, setLoading] = useState(false);
-  const [validatingStation, setValidatingStation] = useState(false);
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -20,46 +19,7 @@ const EnhancedSignup: React.FC<EnhancedSignupProps> = ({ onSignupSuccess, onSwit
     stationId: ''
   });
   const [error, setError] = useState('');
-  const [stationValidated, setStationValidated] = useState(false);
   const [step, setStep] = useState<'signup' | 'success'>('signup');
-
-  const validateStationInfo = async () => {
-    if (!formData.stationName || !formData.stationId) {
-      setError('Please enter both station name and station ID');
-      return;
-    }
-
-    setValidatingStation(true);
-    setError('');
-
-    try {
-      const { data, error } = await supabase.functions.invoke('validate-station', {
-        body: {
-          station_name: formData.stationName,
-          station_id: formData.stationId
-        }
-      });
-
-      if (error) {
-        throw error;
-      }
-
-      if (!data?.valid) {
-        setError(data?.error || 'Invalid station name and ID combination');
-        setStationValidated(false);
-        return;
-      }
-
-      setStationValidated(true);
-      setError('');
-    } catch (error: any) {
-      console.error('Station validation error:', error);
-      setError('Failed to validate station information. Please try again.');
-      setStationValidated(false);
-    } finally {
-      setValidatingStation(false);
-    }
-  };
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -76,11 +36,6 @@ const EnhancedSignup: React.FC<EnhancedSignupProps> = ({ onSignupSuccess, onSwit
 
     if (formData.password.length < 8) {
       setError('Password must be at least 8 characters long');
-      return;
-    }
-
-    if (!stationValidated) {
-      setError('Please validate station information first');
       return;
     }
 
@@ -119,13 +74,13 @@ const EnhancedSignup: React.FC<EnhancedSignupProps> = ({ onSignupSuccess, onSwit
     return (
       <div className="max-w-md mx-auto bg-slate-800 rounded-lg border border-slate-700 p-8 text-center">
         <CheckCircle className="w-16 h-16 text-green-400 mx-auto mb-4" />
-        <h2 className="text-2xl font-bold text-white mb-4">Check Your Email</h2>
+        <h2 className="text-2xl font-bold text-white mb-4">Account Created Successfully</h2>
         <p className="text-slate-400 mb-6">
           We've sent a confirmation email to <strong>{formData.email}</strong>. 
           Please check your inbox and click the confirmation link to verify your account.
         </p>
         <p className="text-slate-400 mb-6">
-          After verification, you'll be able to log in. Your station administrator will assign your role.
+          After verification, your account will be pending approval. A super administrator will review your request and assign appropriate roles.
         </p>
         <button
           onClick={onSwitchToLogin}
@@ -212,12 +167,9 @@ const EnhancedSignup: React.FC<EnhancedSignupProps> = ({ onSignupSuccess, onSwit
           <input
             type="text"
             value={formData.stationName}
-            onChange={(e) => {
-              setFormData(prev => ({ ...prev, stationName: e.target.value }));
-              setStationValidated(false);
-            }}
+            onChange={(e) => setFormData(prev => ({ ...prev, stationName: e.target.value }))}
             className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-            placeholder="Enter the exact station name"
+            placeholder="Enter your station name"
             required
           />
         </div>
@@ -230,42 +182,17 @@ const EnhancedSignup: React.FC<EnhancedSignupProps> = ({ onSignupSuccess, onSwit
           <input
             type="text"
             value={formData.stationId}
-            onChange={(e) => {
-              setFormData(prev => ({ ...prev, stationId: e.target.value }));
-              setStationValidated(false);
-            }}
+            onChange={(e) => setFormData(prev => ({ ...prev, stationId: e.target.value }))}
             className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono text-sm"
-            placeholder="Enter the station ID"
+            placeholder="Enter your station ID"
             required
           />
-          <p className="text-slate-500 text-xs mt-1">
-            Get the Station ID from your station administrator
-          </p>
         </div>
-
-        <div className="flex space-x-2">
-          <button
-            type="button"
-            onClick={validateStationInfo}
-            disabled={validatingStation || !formData.stationName || !formData.stationId}
-            className="flex-1 py-2 bg-yellow-600 hover:bg-yellow-700 disabled:opacity-50 text-white rounded-lg transition-colors"
-          >
-            {validatingStation ? 'Validating...' : 'Validate Station'}
-          </button>
-        </div>
-
-        {stationValidated && (
-          <div className="bg-green-900/20 border border-green-600/50 rounded-lg p-3">
-            <p className="text-green-400 text-sm">
-              ✓ Station information validated successfully!
-            </p>
-          </div>
-        )}
 
         <div className="bg-blue-900/20 border border-blue-600/50 rounded-lg p-3">
           <p className="text-blue-400 text-sm">
-            <strong>Note:</strong> After creating your account, you'll receive an email confirmation. 
-            Your station administrator will assign your role after verification.
+            <strong>Note:</strong> After creating your account and verifying your email, 
+            a super administrator will review your request and assign appropriate roles to activate your account.
           </p>
         </div>
 
@@ -277,7 +204,7 @@ const EnhancedSignup: React.FC<EnhancedSignupProps> = ({ onSignupSuccess, onSwit
 
         <button
           type="submit"
-          disabled={loading || !stationValidated}
+          disabled={loading}
           className="w-full py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-lg transition-colors"
         >
           {loading ? 'Creating Account...' : 'Create Account'}
