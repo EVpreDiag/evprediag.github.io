@@ -1,4 +1,3 @@
-
 import React, { createContext, useState, useEffect, useContext } from 'react';
 import { Session, User } from '@supabase/supabase-js';
 import { supabase } from '../integrations/supabase/client';
@@ -31,7 +30,7 @@ interface AuthContextProps {
   signUp: (email: string, password: string, metadata?: any) => Promise<{ error: any }>;
   signOut: () => Promise<void>;
   updateProfile: (data: Partial<Profile>) => Promise<{ error: any }>;
-  assignRole: (userId: string, role: UserRole) => Promise<{ error: any }>;
+  assignRole: (userId: string, role: UserRole, stationId?: string) => Promise<{ error: any }>;
   removeRole: (userId: string, role: UserRole) => Promise<{ error: any }>;
 }
 
@@ -150,15 +149,22 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     return { error };
   };
 
-  const assignRole = async (userId: string, role: UserRole) => {
+  const assignRole = async (userId: string, role: UserRole, stationId?: string) => {
+    const roleData: any = {
+      user_id: userId,
+      role: role,
+      assigned_by: user?.id,
+      assigned_at: new Date().toISOString()
+    };
+
+    // Add station_id if provided
+    if (stationId) {
+      roleData.station_id = stationId;
+    }
+
     const { error } = await supabase
       .from('user_roles')
-      .insert({
-        user_id: userId,
-        role: role,
-        assigned_by: user?.id,
-        assigned_at: new Date().toISOString()
-      });
+      .insert(roleData);
 
     return { error };
   };
