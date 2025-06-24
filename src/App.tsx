@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { AuthProvider } from './contexts/AuthContext';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { Toaster } from './components/ui/sonner';
 import AuthPage from './components/AuthPage';
 import Dashboard from './components/Dashboard';
@@ -18,7 +18,6 @@ import StationRegistration from './components/StationRegistration';
 import ProfileManagement from './components/ProfileManagement';
 import EmailVerification from './components/EmailVerification';
 import RoleProtectedRoute from './components/RoleProtectedRoute';
-import { useAuth } from './contexts/AuthContext';
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { isAuthenticated, loading } = useAuth();
@@ -31,7 +30,21 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
     );
   }
   
-  return isAuthenticated ? <>{children}</> : <Navigate to="/auth" />;
+  return isAuthenticated() ? <>{children}</> : <Navigate to="/auth" />;
+};
+
+const RootRedirect: React.FC = () => {
+  const { isAuthenticated, loading } = useAuth();
+  
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-slate-900 flex items-center justify-center">
+        <div className="text-white">Loading...</div>
+      </div>
+    );
+  }
+  
+  return isAuthenticated() ? <Navigate to="/dashboard" /> : <Navigate to="/auth" />;
 };
 
 function App() {
@@ -40,10 +53,10 @@ function App() {
       <Router>
         <div className="App">
           <Routes>
+            <Route path="/" element={<RootRedirect />} />
             <Route path="/auth" element={<AuthPage />} />
             <Route path="/register-station" element={<StationRegistration />} />
             <Route path="/verify-email" element={<EmailVerification />} />
-            <Route path="/" element={<Navigate to="/dashboard" />} />
             <Route path="/dashboard" element={
               <ProtectedRoute>
                 <Dashboard />
