@@ -1,7 +1,6 @@
-
 import React, { useState } from 'react';
 import { supabase } from '../integrations/supabase/client';
-import { Building, User, Mail, Lock, CheckCircle, Hash, Check } from 'lucide-react';
+import { Building, User, Mail, Lock, CheckCircle, Hash, Check, AlertCircle } from 'lucide-react';
 
 interface EnhancedSignupProps {
   onSignupSuccess?: () => void;
@@ -22,70 +21,131 @@ const EnhancedSignup: React.FC<EnhancedSignupProps> = ({ onSignupSuccess, onSwit
   });
   const [error, setError] = useState('');
   const [validationError, setValidationError] = useState('');
+  const [fieldErrors, setFieldErrors] = useState<{[key: string]: string}>({});
   const [step, setStep] = useState<'signup' | 'success'>('signup');
 
-  const validateStationFields = () => {
-    if (!formData.stationName.trim()) {
-      setValidationError('Station name is required');
-      return false;
-    }
+  const validateAllFields = () => {
+    const errors: {[key: string]: string} = {};
     
+    // Email validation
+    if (!formData.email.trim()) {
+      errors.email = 'Email is required';
+    } else {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(formData.email)) {
+        errors.email = 'Please enter a valid email address';
+      }
+    }
+
+    // Password validation
+    if (!formData.password) {
+      errors.password = 'Password is required';
+    } else if (formData.password.length < 8) {
+      errors.password = 'Password must be at least 8 characters long';
+    }
+
+    // Confirm password validation
+    if (!formData.confirmPassword) {
+      errors.confirmPassword = 'Please confirm your password';
+    } else if (formData.password !== formData.confirmPassword) {
+      errors.confirmPassword = 'Passwords do not match';
+    }
+
+    // Full name validation
+    if (!formData.fullName.trim()) {
+      errors.fullName = 'Full name is required';
+    } else if (formData.fullName.trim().length < 2) {
+      errors.fullName = 'Full name must be at least 2 characters';
+    }
+
+    // Station name validation
+    if (!formData.stationName.trim()) {
+      errors.stationName = 'Station name is required';
+    } else if (formData.stationName.length < 2 || formData.stationName.length > 100) {
+      errors.stationName = 'Station name must be between 2 and 100 characters';
+    }
+
+    // Station ID validation
     if (!formData.stationId.trim()) {
-      setValidationError('Station ID is required');
-      return false;
+      errors.stationId = 'Station ID is required';
+    } else {
+      const stationIdRegex = /^[A-Z0-9-]{3,20}$/i;
+      if (!stationIdRegex.test(formData.stationId)) {
+        errors.stationId = 'Station ID must be 3-20 characters, containing only letters, numbers, and hyphens';
+      }
     }
 
-    // Station ID validation - alphanumeric with hyphens, 3-20 characters
-    const stationIdRegex = /^[A-Z0-9-]{3,20}$/i;
-    if (!stationIdRegex.test(formData.stationId)) {
-      setValidationError('Station ID must be 3-20 characters, containing only letters, numbers, and hyphens');
-      return false;
-    }
+    setFieldErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
 
-    // Station name validation - reasonable length and format
-    if (formData.stationName.length < 2 || formData.stationName.length > 100) {
-      setValidationError('Station name must be between 2 and 100 characters');
-      return false;
-    }
-
-    return true;
+  const canValidateStation = () => {
+    return formData.stationName.trim() && 
+           formData.stationId.trim() && 
+           !fieldErrors.stationName && 
+           !fieldErrors.stationId;
   };
 
   const handleStationValidation = async () => {
-    if (!validateStationFields()) {
+    console.log('Starting station validation...');
+    console.log('Station Name:', formData.stationName);
+    console.log('Station ID:', formData.stationId);
+
+    // Validate fields first
+    if (!validateAllFields()) {
+      setValidationError('Please fix the form errors before validating station');
+      return;
+    }
+
+    if (!canValidateStation()) {
+      setValidationError('Please ensure station name and ID are properly filled');
       return;
     }
 
     setValidatingStation(true);
     setValidationError('');
+    setStationValidated(false);
 
     try {
-      // Call the validate-station edge function
+      console.log('Calling validate-station function...');
+      
       const { data, error } = await supabase.functions.invoke('validate-station', {
         body: {
-          station_name: formData.stationName,
-          station_id: formData.stationId
+          station_name: formData.stationName.trim(),
+          station_id: formData.stationId.trim()
         }
       });
 
+      console.log('Validation response:', { data, error });
+
       if (error) {
         console.error('Station validation error:', error);
-        setValidationError('Failed to validate station information');
+        setValidationError(`Validation failed: ${error.message || 'Unknown error'}`);
+        setStationValidated(false);
+        return;
+      }
+
+      if (!data) {
+        console.error('No data returned from validation');
+        setValidationError('No response from validation service');
         setStationValidated(false);
         return;
       }
 
       if (!data.valid) {
-        setValidationError(data.error || 'Station validation failed');
+        console.error('Station validation failed:', data.error);
+        setValidationError(data.error || 'Station validation failed - station not found or name/ID combination is invalid');
         setStationValidated(false);
         return;
       }
 
+      console.log('Station validation successful');
       setStationValidated(true);
       setValidationError('');
+      
     } catch (error) {
-      console.error('Station validation error:', error);
-      setValidationError('Failed to validate station information');
+      console.error('Station validation exception:', error);
+      setValidationError(`Validation error: ${error instanceof Error ? error.message : 'Unknown error occurred'}`);
       setStationValidated(false);
     } finally {
       setValidatingStation(false);
@@ -95,30 +155,14 @@ const EnhancedSignup: React.FC<EnhancedSignupProps> = ({ onSignupSuccess, onSwit
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!formData.email || !formData.password || !formData.confirmPassword || !formData.fullName) {
-      setError('Please fill in all required fields');
+    // Validate all fields
+    if (!validateAllFields()) {
+      setError('Please fix all form errors before submitting');
       return;
     }
 
     if (!stationValidated) {
       setError('Please validate your station information first');
-      return;
-    }
-
-    if (formData.password !== formData.confirmPassword) {
-      setError('Passwords do not match');
-      return;
-    }
-
-    if (formData.password.length < 8) {
-      setError('Password must be at least 8 characters long');
-      return;
-    }
-
-    // Email validation
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(formData.email)) {
-      setError('Please enter a valid email address');
       return;
     }
 
@@ -164,6 +208,20 @@ const EnhancedSignup: React.FC<EnhancedSignupProps> = ({ onSignupSuccess, onSwit
     setFormData(prev => ({ ...prev, [field]: value }));
     setStationValidated(false);
     setValidationError('');
+    
+    // Clear field-specific errors
+    if (fieldErrors[field]) {
+      setFieldErrors(prev => ({ ...prev, [field]: '' }));
+    }
+  };
+
+  const handleFieldChange = (field: keyof typeof formData, value: string) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
+    
+    // Clear field-specific errors
+    if (fieldErrors[field]) {
+      setFieldErrors(prev => ({ ...prev, [field]: '' }));
+    }
   };
 
   if (step === 'success') {
@@ -204,10 +262,18 @@ const EnhancedSignup: React.FC<EnhancedSignupProps> = ({ onSignupSuccess, onSwit
           <input
             type="email"
             value={formData.email}
-            onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
-            className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+            onChange={(e) => handleFieldChange('email', e.target.value)}
+            className={`w-full px-3 py-2 bg-slate-700 border rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+              fieldErrors.email ? 'border-red-500' : 'border-slate-600'
+            }`}
             required
           />
+          {fieldErrors.email && (
+            <p className="text-red-400 text-xs mt-1 flex items-center">
+              <AlertCircle className="w-3 h-3 mr-1" />
+              {fieldErrors.email}
+            </p>
+          )}
         </div>
 
         <div>
@@ -218,13 +284,22 @@ const EnhancedSignup: React.FC<EnhancedSignupProps> = ({ onSignupSuccess, onSwit
           <input
             type="password"
             value={formData.password}
-            onChange={(e) => setFormData(prev => ({ ...prev, password: e.target.value }))}
-            className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+            onChange={(e) => handleFieldChange('password', e.target.value)}
+            className={`w-full px-3 py-2 bg-slate-700 border rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+              fieldErrors.password ? 'border-red-500' : 'border-slate-600'
+            }`}
             required
           />
-          <p className="text-slate-500 text-xs mt-1">
-            8+ characters recommended
-          </p>
+          {fieldErrors.password ? (
+            <p className="text-red-400 text-xs mt-1 flex items-center">
+              <AlertCircle className="w-3 h-3 mr-1" />
+              {fieldErrors.password}
+            </p>
+          ) : (
+            <p className="text-slate-500 text-xs mt-1">
+              8+ characters recommended
+            </p>
+          )}
         </div>
 
         <div>
@@ -235,10 +310,18 @@ const EnhancedSignup: React.FC<EnhancedSignupProps> = ({ onSignupSuccess, onSwit
           <input
             type="password"
             value={formData.confirmPassword}
-            onChange={(e) => setFormData(prev => ({ ...prev, confirmPassword: e.target.value }))}
-            className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+            onChange={(e) => handleFieldChange('confirmPassword', e.target.value)}
+            className={`w-full px-3 py-2 bg-slate-700 border rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+              fieldErrors.confirmPassword ? 'border-red-500' : 'border-slate-600'
+            }`}
             required
           />
+          {fieldErrors.confirmPassword && (
+            <p className="text-red-400 text-xs mt-1 flex items-center">
+              <AlertCircle className="w-3 h-3 mr-1" />
+              {fieldErrors.confirmPassword}
+            </p>
+          )}
         </div>
 
         <div>
@@ -249,10 +332,18 @@ const EnhancedSignup: React.FC<EnhancedSignupProps> = ({ onSignupSuccess, onSwit
           <input
             type="text"
             value={formData.fullName}
-            onChange={(e) => setFormData(prev => ({ ...prev, fullName: e.target.value }))}
-            className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+            onChange={(e) => handleFieldChange('fullName', e.target.value)}
+            className={`w-full px-3 py-2 bg-slate-700 border rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+              fieldErrors.fullName ? 'border-red-500' : 'border-slate-600'
+            }`}
             required
           />
+          {fieldErrors.fullName && (
+            <p className="text-red-400 text-xs mt-1 flex items-center">
+              <AlertCircle className="w-3 h-3 mr-1" />
+              {fieldErrors.fullName}
+            </p>
+          )}
         </div>
 
         <div>
@@ -264,13 +355,22 @@ const EnhancedSignup: React.FC<EnhancedSignupProps> = ({ onSignupSuccess, onSwit
             type="text"
             value={formData.stationName}
             onChange={(e) => handleStationFieldChange('stationName', e.target.value)}
-            className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className={`w-full px-3 py-2 bg-slate-700 border rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+              fieldErrors.stationName ? 'border-red-500' : 'border-slate-600'
+            }`}
             placeholder="Enter your station name"
             required
           />
-          <p className="text-slate-500 text-xs mt-1">
-            2-100 characters
-          </p>
+          {fieldErrors.stationName ? (
+            <p className="text-red-400 text-xs mt-1 flex items-center">
+              <AlertCircle className="w-3 h-3 mr-1" />
+              {fieldErrors.stationName}
+            </p>
+          ) : (
+            <p className="text-slate-500 text-xs mt-1">
+              2-100 characters
+            </p>
+          )}
         </div>
 
         <div>
@@ -282,21 +382,30 @@ const EnhancedSignup: React.FC<EnhancedSignupProps> = ({ onSignupSuccess, onSwit
             type="text"
             value={formData.stationId}
             onChange={(e) => handleStationFieldChange('stationId', e.target.value.toUpperCase())}
-            className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono text-sm"
+            className={`w-full px-3 py-2 bg-slate-700 border rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono text-sm ${
+              fieldErrors.stationId ? 'border-red-500' : 'border-slate-600'
+            }`}
             placeholder="Enter your station ID"
             required
           />
-          <p className="text-slate-500 text-xs mt-1">
-            3-20 characters, letters, numbers, and hyphens only
-          </p>
+          {fieldErrors.stationId ? (
+            <p className="text-red-400 text-xs mt-1 flex items-center">
+              <AlertCircle className="w-3 h-3 mr-1" />
+              {fieldErrors.stationId}
+            </p>
+          ) : (
+            <p className="text-slate-500 text-xs mt-1">
+              3-20 characters, letters, numbers, and hyphens only
+            </p>
+          )}
         </div>
 
-        {/* Station Validation Button */}
+        {/* Station Validation Section */}
         <div className="space-y-2">
           <button
             type="button"
             onClick={handleStationValidation}
-            disabled={validatingStation || !formData.stationName || !formData.stationId}
+            disabled={validatingStation || !canValidateStation()}
             className="w-full py-2 bg-green-600 hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg transition-colors flex items-center justify-center gap-2"
           >
             {validatingStation ? (
@@ -313,15 +422,19 @@ const EnhancedSignup: React.FC<EnhancedSignupProps> = ({ onSignupSuccess, onSwit
 
           {stationValidated && (
             <div className="bg-green-900/20 border border-green-600/50 rounded-lg p-2">
-              <p className="text-green-400 text-sm text-center">
-                ✓ Station information validated successfully
+              <p className="text-green-400 text-sm text-center flex items-center justify-center gap-2">
+                <Check className="w-4 h-4" />
+                Station information validated successfully
               </p>
             </div>
           )}
 
           {validationError && (
             <div className="bg-red-900/20 border border-red-600/50 rounded-lg p-3">
-              <p className="text-red-400 text-sm">{validationError}</p>
+              <p className="text-red-400 text-sm flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                {validationError}
+              </p>
             </div>
           )}
         </div>
@@ -335,13 +448,16 @@ const EnhancedSignup: React.FC<EnhancedSignupProps> = ({ onSignupSuccess, onSwit
 
         {error && (
           <div className="bg-red-900/20 border border-red-600/50 rounded-lg p-3">
-            <p className="text-red-400 text-sm">{error}</p>
+            <p className="text-red-400 text-sm flex items-center gap-2">
+              <AlertCircle className="w-4 h-4 flex-shrink-0" />
+              {error}
+            </p>
           </div>
         )}
 
         <button
           type="submit"
-          disabled={loading || !stationValidated}
+          disabled={loading || !stationValidated || Object.keys(fieldErrors).some(key => fieldErrors[key])}
           className="w-full py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg transition-colors"
         >
           {loading ? 'Creating Account...' : 'Create Account'}
