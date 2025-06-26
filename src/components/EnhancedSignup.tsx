@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { supabase } from '../integrations/supabase/client';
-import { Building, User, Mail, Lock, CheckCircle, Hash } from 'lucide-react';
+import { Building, User, Mail, Lock, CheckCircle, Hash, Check } from 'lucide-react';
 
 interface EnhancedSignupProps {
   onSignupSuccess?: () => void;
@@ -10,6 +10,8 @@ interface EnhancedSignupProps {
 
 const EnhancedSignup: React.FC<EnhancedSignupProps> = ({ onSignupSuccess, onSwitchToLogin }) => {
   const [loading, setLoading] = useState(false);
+  const [validatingStation, setValidatingStation] = useState(false);
+  const [stationValidated, setStationValidated] = useState(false);
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -19,66 +21,74 @@ const EnhancedSignup: React.FC<EnhancedSignupProps> = ({ onSignupSuccess, onSwit
     stationId: ''
   });
   const [error, setError] = useState('');
+  const [validationError, setValidationError] = useState('');
   const [step, setStep] = useState<'signup' | 'success'>('signup');
 
   const validateStationFields = () => {
     if (!formData.stationName.trim()) {
-      setError('Station name is required');
+      setValidationError('Station name is required');
       return false;
     }
     
     if (!formData.stationId.trim()) {
-      setError('Station ID is required');
+      setValidationError('Station ID is required');
       return false;
     }
 
     // Station ID validation - alphanumeric with hyphens, 3-20 characters
     const stationIdRegex = /^[A-Z0-9-]{3,20}$/i;
     if (!stationIdRegex.test(formData.stationId)) {
-      setError('Station ID must be 3-20 characters, containing only letters, numbers, and hyphens');
+      setValidationError('Station ID must be 3-20 characters, containing only letters, numbers, and hyphens');
       return false;
     }
 
     // Station name validation - reasonable length and format
     if (formData.stationName.length < 2 || formData.stationName.length > 100) {
-      setError('Station name must be between 2 and 100 characters');
+      setValidationError('Station name must be between 2 and 100 characters');
       return false;
     }
 
     return true;
   };
 
-  const checkStationExists = async () => {
+  const handleStationValidation = async () => {
+    if (!validateStationFields()) {
+      return;
+    }
+
+    setValidatingStation(true);
+    setValidationError('');
+
     try {
-      const { data, error } = await supabase
-        .from('stations')
-        .select('id, name')
-        .or(`id.eq.${formData.stationId},name.ilike.${formData.stationName}`)
-        .limit(1);
+      // Call the validate-station edge function
+      const { data, error } = await supabase.functions.invoke('validate-station', {
+        body: {
+          station_name: formData.stationName,
+          station_id: formData.stationId
+        }
+      });
 
       if (error) {
-        console.error('Error checking station:', error);
-        setError('Failed to validate station information');
-        return false;
+        console.error('Station validation error:', error);
+        setValidationError('Failed to validate station information');
+        setStationValidated(false);
+        return;
       }
 
-      if (data && data.length > 0) {
-        const existingStation = data[0];
-        if (existingStation.id.toLowerCase() === formData.stationId.toLowerCase()) {
-          setError('A station with this ID already exists');
-          return false;
-        }
-        if (existingStation.name.toLowerCase() === formData.stationName.toLowerCase()) {
-          setError('A station with this name already exists');
-          return false;
-        }
+      if (!data.valid) {
+        setValidationError(data.error || 'Station validation failed');
+        setStationValidated(false);
+        return;
       }
 
-      return true;
+      setStationValidated(true);
+      setValidationError('');
     } catch (error) {
       console.error('Station validation error:', error);
-      setError('Failed to validate station information');
-      return false;
+      setValidationError('Failed to validate station information');
+      setStationValidated(false);
+    } finally {
+      setValidatingStation(false);
     }
   };
 
@@ -90,7 +100,8 @@ const EnhancedSignup: React.FC<EnhancedSignupProps> = ({ onSignupSuccess, onSwit
       return;
     }
 
-    if (!validateStationFields()) {
+    if (!stationValidated) {
+      setError('Please validate your station information first');
       return;
     }
 
@@ -115,13 +126,6 @@ const EnhancedSignup: React.FC<EnhancedSignupProps> = ({ onSignupSuccess, onSwit
     setError('');
 
     try {
-      // Check if station already exists
-      const isStationValid = await checkStationExists();
-      if (!isStationValid) {
-        setLoading(false);
-        return;
-      }
-
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: formData.email,
         password: formData.password,
@@ -153,6 +157,13 @@ const EnhancedSignup: React.FC<EnhancedSignupProps> = ({ onSignupSuccess, onSwit
     } finally {
       setLoading(false);
     }
+  };
+
+  // Reset station validation when station fields change
+  const handleStationFieldChange = (field: 'stationName' | 'stationId', value: string) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
+    setStationValidated(false);
+    setValidationError('');
   };
 
   if (step === 'success') {
@@ -252,7 +263,7 @@ const EnhancedSignup: React.FC<EnhancedSignupProps> = ({ onSignupSuccess, onSwit
           <input
             type="text"
             value={formData.stationName}
-            onChange={(e) => setFormData(prev => ({ ...prev, stationName: e.target.value }))}
+            onChange={(e) => handleStationFieldChange('stationName', e.target.value)}
             className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
             placeholder="Enter your station name"
             required
@@ -270,7 +281,7 @@ const EnhancedSignup: React.FC<EnhancedSignupProps> = ({ onSignupSuccess, onSwit
           <input
             type="text"
             value={formData.stationId}
-            onChange={(e) => setFormData(prev => ({ ...prev, stationId: e.target.value.toUpperCase() }))}
+            onChange={(e) => handleStationFieldChange('stationId', e.target.value.toUpperCase())}
             className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono text-sm"
             placeholder="Enter your station ID"
             required
@@ -278,6 +289,41 @@ const EnhancedSignup: React.FC<EnhancedSignupProps> = ({ onSignupSuccess, onSwit
           <p className="text-slate-500 text-xs mt-1">
             3-20 characters, letters, numbers, and hyphens only
           </p>
+        </div>
+
+        {/* Station Validation Button */}
+        <div className="space-y-2">
+          <button
+            type="button"
+            onClick={handleStationValidation}
+            disabled={validatingStation || !formData.stationName || !formData.stationId}
+            className="w-full py-2 bg-green-600 hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg transition-colors flex items-center justify-center gap-2"
+          >
+            {validatingStation ? (
+              'Validating Station...'
+            ) : stationValidated ? (
+              <>
+                <Check className="w-4 h-4" />
+                Station Validated
+              </>
+            ) : (
+              'Validate Station'
+            )}
+          </button>
+
+          {stationValidated && (
+            <div className="bg-green-900/20 border border-green-600/50 rounded-lg p-2">
+              <p className="text-green-400 text-sm text-center">
+                ✓ Station information validated successfully
+              </p>
+            </div>
+          )}
+
+          {validationError && (
+            <div className="bg-red-900/20 border border-red-600/50 rounded-lg p-3">
+              <p className="text-red-400 text-sm">{validationError}</p>
+            </div>
+          )}
         </div>
 
         <div className="bg-blue-900/20 border border-blue-600/50 rounded-lg p-3">
@@ -295,8 +341,8 @@ const EnhancedSignup: React.FC<EnhancedSignupProps> = ({ onSignupSuccess, onSwit
 
         <button
           type="submit"
-          disabled={loading}
-          className="w-full py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-lg transition-colors"
+          disabled={loading || !stationValidated}
+          className="w-full py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg transition-colors"
         >
           {loading ? 'Creating Account...' : 'Create Account'}
         </button>
