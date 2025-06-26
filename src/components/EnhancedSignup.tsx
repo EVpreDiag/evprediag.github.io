@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { supabase } from '../integrations/supabase/client';
 import { Building, User, Mail, Lock, CheckCircle, Hash, Check, AlertCircle } from 'lucide-react';
@@ -24,66 +25,92 @@ const EnhancedSignup: React.FC<EnhancedSignupProps> = ({ onSignupSuccess, onSwit
   const [fieldErrors, setFieldErrors] = useState<{[key: string]: string}>({});
   const [step, setStep] = useState<'signup' | 'success'>('signup');
 
+  const validateField = (field: keyof typeof formData, value: string) => {
+    let error = '';
+    
+    switch (field) {
+      case 'email':
+        if (!value.trim()) {
+          error = 'Email is required';
+        } else {
+          const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+          if (!emailRegex.test(value)) {
+            error = 'Please enter a valid email address';
+          }
+        }
+        break;
+      
+      case 'password':
+        if (!value) {
+          error = 'Password is required';
+        } else if (value.length < 8) {
+          error = 'Password must be at least 8 characters long';
+        }
+        break;
+      
+      case 'confirmPassword':
+        if (!value) {
+          error = 'Please confirm your password';
+        } else if (formData.password && value !== formData.password) {
+          error = 'Passwords do not match';
+        }
+        break;
+      
+      case 'fullName':
+        if (!value.trim()) {
+          error = 'Full name is required';
+        } else if (value.trim().length < 2) {
+          error = 'Full name must be at least 2 characters';
+        }
+        break;
+      
+      case 'stationName':
+        if (!value.trim()) {
+          error = 'Station name is required';
+        } else if (value.length < 2 || value.length > 100) {
+          error = 'Station name must be between 2 and 100 characters';
+        }
+        break;
+      
+      case 'stationId':
+        if (!value.trim()) {
+          error = 'Station ID is required';
+        } else {
+          // More flexible regex - allow letters, numbers, and hyphens
+          const stationIdRegex = /^[A-Za-z0-9-]{3,20}$/;
+          if (!stationIdRegex.test(value.trim())) {
+            error = 'Station ID must be 3-20 characters, containing only letters, numbers, and hyphens';
+          }
+        }
+        break;
+    }
+    
+    return error;
+  };
+
   const validateAllFields = () => {
     const errors: {[key: string]: string} = {};
     
-    // Email validation
-    if (!formData.email.trim()) {
-      errors.email = 'Email is required';
-    } else {
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (!emailRegex.test(formData.email)) {
-        errors.email = 'Please enter a valid email address';
+    Object.keys(formData).forEach(key => {
+      const field = key as keyof typeof formData;
+      const error = validateField(field, formData[field]);
+      if (error) {
+        errors[field] = error;
       }
-    }
-
-    // Password validation
-    if (!formData.password) {
-      errors.password = 'Password is required';
-    } else if (formData.password.length < 8) {
-      errors.password = 'Password must be at least 8 characters long';
-    }
-
-    // Confirm password validation
-    if (!formData.confirmPassword) {
-      errors.confirmPassword = 'Please confirm your password';
-    } else if (formData.password !== formData.confirmPassword) {
-      errors.confirmPassword = 'Passwords do not match';
-    }
-
-    // Full name validation
-    if (!formData.fullName.trim()) {
-      errors.fullName = 'Full name is required';
-    } else if (formData.fullName.trim().length < 2) {
-      errors.fullName = 'Full name must be at least 2 characters';
-    }
-
-    // Station name validation
-    if (!formData.stationName.trim()) {
-      errors.stationName = 'Station name is required';
-    } else if (formData.stationName.length < 2 || formData.stationName.length > 100) {
-      errors.stationName = 'Station name must be between 2 and 100 characters';
-    }
-
-    // Station ID validation
-    if (!formData.stationId.trim()) {
-      errors.stationId = 'Station ID is required';
-    } else {
-      const stationIdRegex = /^[A-Z0-9-]{3,20}$/i;
-      if (!stationIdRegex.test(formData.stationId)) {
-        errors.stationId = 'Station ID must be 3-20 characters, containing only letters, numbers, and hyphens';
-      }
-    }
+    });
 
     setFieldErrors(errors);
     return Object.keys(errors).length === 0;
   };
 
   const canValidateStation = () => {
+    const stationNameError = validateField('stationName', formData.stationName);
+    const stationIdError = validateField('stationId', formData.stationId);
+    
     return formData.stationName.trim() && 
            formData.stationId.trim() && 
-           !fieldErrors.stationName && 
-           !fieldErrors.stationId;
+           !stationNameError && 
+           !stationIdError;
   };
 
   const handleStationValidation = async () => {
@@ -91,9 +118,17 @@ const EnhancedSignup: React.FC<EnhancedSignupProps> = ({ onSignupSuccess, onSwit
     console.log('Station Name:', formData.stationName);
     console.log('Station ID:', formData.stationId);
 
-    // Validate fields first
-    if (!validateAllFields()) {
-      setValidationError('Please fix the form errors before validating station');
+    // Validate station fields first
+    const stationNameError = validateField('stationName', formData.stationName);
+    const stationIdError = validateField('stationId', formData.stationId);
+    
+    if (stationNameError || stationIdError) {
+      setFieldErrors(prev => ({
+        ...prev,
+        stationName: stationNameError,
+        stationId: stationIdError
+      }));
+      setValidationError('Please fix the station field errors before validating');
       return;
     }
 
@@ -205,23 +240,26 @@ const EnhancedSignup: React.FC<EnhancedSignupProps> = ({ onSignupSuccess, onSwit
 
   // Reset station validation when station fields change
   const handleStationFieldChange = (field: 'stationName' | 'stationId', value: string) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+    const processedValue = field === 'stationId' ? value.toUpperCase() : value;
+    setFormData(prev => ({ ...prev, [field]: processedValue }));
     setStationValidated(false);
     setValidationError('');
     
-    // Clear field-specific errors
-    if (fieldErrors[field]) {
-      setFieldErrors(prev => ({ ...prev, [field]: '' }));
-    }
+    // Clear field-specific errors and validate in real-time
+    const error = validateField(field, processedValue);
+    setFieldErrors(prev => ({ ...prev, [field]: error }));
   };
 
   const handleFieldChange = (field: keyof typeof formData, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
     
-    // Clear field-specific errors
-    if (fieldErrors[field]) {
-      setFieldErrors(prev => ({ ...prev, [field]: '' }));
-    }
+    // Clear field-specific errors and validate in real-time
+    const error = validateField(field, value);
+    setFieldErrors(prev => ({ ...prev, [field]: error }));
+  };
+
+  const isFormValid = () => {
+    return validateAllFields() && stationValidated;
   };
 
   if (step === 'success') {
@@ -381,7 +419,7 @@ const EnhancedSignup: React.FC<EnhancedSignupProps> = ({ onSignupSuccess, onSwit
           <input
             type="text"
             value={formData.stationId}
-            onChange={(e) => handleStationFieldChange('stationId', e.target.value.toUpperCase())}
+            onChange={(e) => handleStationFieldChange('stationId', e.target.value)}
             className={`w-full px-3 py-2 bg-slate-700 border rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono text-sm ${
               fieldErrors.stationId ? 'border-red-500' : 'border-slate-600'
             }`}
@@ -457,7 +495,7 @@ const EnhancedSignup: React.FC<EnhancedSignupProps> = ({ onSignupSuccess, onSwit
 
         <button
           type="submit"
-          disabled={loading || !stationValidated || Object.keys(fieldErrors).some(key => fieldErrors[key])}
+          disabled={loading || !isFormValid()}
           className="w-full py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg transition-colors"
         >
           {loading ? 'Creating Account...' : 'Create Account'}
