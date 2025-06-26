@@ -21,11 +21,76 @@ const EnhancedSignup: React.FC<EnhancedSignupProps> = ({ onSignupSuccess, onSwit
   const [error, setError] = useState('');
   const [step, setStep] = useState<'signup' | 'success'>('signup');
 
+  const validateStationFields = () => {
+    if (!formData.stationName.trim()) {
+      setError('Station name is required');
+      return false;
+    }
+    
+    if (!formData.stationId.trim()) {
+      setError('Station ID is required');
+      return false;
+    }
+
+    // Station ID validation - alphanumeric with hyphens, 3-20 characters
+    const stationIdRegex = /^[A-Z0-9-]{3,20}$/i;
+    if (!stationIdRegex.test(formData.stationId)) {
+      setError('Station ID must be 3-20 characters, containing only letters, numbers, and hyphens');
+      return false;
+    }
+
+    // Station name validation - reasonable length and format
+    if (formData.stationName.length < 2 || formData.stationName.length > 100) {
+      setError('Station name must be between 2 and 100 characters');
+      return false;
+    }
+
+    return true;
+  };
+
+  const checkStationExists = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('stations')
+        .select('id, name')
+        .or(`id.eq.${formData.stationId},name.ilike.${formData.stationName}`)
+        .limit(1);
+
+      if (error) {
+        console.error('Error checking station:', error);
+        setError('Failed to validate station information');
+        return false;
+      }
+
+      if (data && data.length > 0) {
+        const existingStation = data[0];
+        if (existingStation.id.toLowerCase() === formData.stationId.toLowerCase()) {
+          setError('A station with this ID already exists');
+          return false;
+        }
+        if (existingStation.name.toLowerCase() === formData.stationName.toLowerCase()) {
+          setError('A station with this name already exists');
+          return false;
+        }
+      }
+
+      return true;
+    } catch (error) {
+      console.error('Station validation error:', error);
+      setError('Failed to validate station information');
+      return false;
+    }
+  };
+
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!formData.email || !formData.password || !formData.confirmPassword || !formData.fullName || !formData.stationName || !formData.stationId) {
+    if (!formData.email || !formData.password || !formData.confirmPassword || !formData.fullName) {
       setError('Please fill in all required fields');
+      return;
+    }
+
+    if (!validateStationFields()) {
       return;
     }
 
@@ -39,10 +104,24 @@ const EnhancedSignup: React.FC<EnhancedSignupProps> = ({ onSignupSuccess, onSwit
       return;
     }
 
+    // Email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(formData.email)) {
+      setError('Please enter a valid email address');
+      return;
+    }
+
     setLoading(true);
     setError('');
 
     try {
+      // Check if station already exists
+      const isStationValid = await checkStationExists();
+      if (!isStationValid) {
+        setLoading(false);
+        return;
+      }
+
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: formData.email,
         password: formData.password,
@@ -50,7 +129,6 @@ const EnhancedSignup: React.FC<EnhancedSignupProps> = ({ onSignupSuccess, onSwit
           emailRedirectTo: `${window.location.origin}/dashboard`,
           data: {
             full_name: formData.fullName,
-            username: formData.email,
             station_id: formData.stationId,
             station_name: formData.stationName
           }
@@ -61,10 +139,17 @@ const EnhancedSignup: React.FC<EnhancedSignupProps> = ({ onSignupSuccess, onSwit
 
       if (authData.user) {
         setStep('success');
+        if (onSignupSuccess) {
+          onSignupSuccess();
+        }
       }
     } catch (error: any) {
       console.error('Signup error:', error);
-      setError(error.message || 'Failed to create account');
+      if (error.message.includes('User already registered')) {
+        setError('An account with this email already exists. Please use a different email or sign in.');
+      } else {
+        setError(error.message || 'Failed to create account');
+      }
     } finally {
       setLoading(false);
     }
@@ -103,7 +188,7 @@ const EnhancedSignup: React.FC<EnhancedSignupProps> = ({ onSignupSuccess, onSwit
         <div>
           <label className="block text-sm font-medium text-slate-300 mb-2">
             <Mail className="w-4 h-4 inline mr-2" />
-            Email Address
+            Email Address *
           </label>
           <input
             type="email"
@@ -117,7 +202,7 @@ const EnhancedSignup: React.FC<EnhancedSignupProps> = ({ onSignupSuccess, onSwit
         <div>
           <label className="block text-sm font-medium text-slate-300 mb-2">
             <Lock className="w-4 h-4 inline mr-2" />
-            Password
+            Password *
           </label>
           <input
             type="password"
@@ -134,7 +219,7 @@ const EnhancedSignup: React.FC<EnhancedSignupProps> = ({ onSignupSuccess, onSwit
         <div>
           <label className="block text-sm font-medium text-slate-300 mb-2">
             <Lock className="w-4 h-4 inline mr-2" />
-            Confirm Password
+            Confirm Password *
           </label>
           <input
             type="password"
@@ -148,7 +233,7 @@ const EnhancedSignup: React.FC<EnhancedSignupProps> = ({ onSignupSuccess, onSwit
         <div>
           <label className="block text-sm font-medium text-slate-300 mb-2">
             <User className="w-4 h-4 inline mr-2" />
-            Full Name
+            Full Name *
           </label>
           <input
             type="text"
@@ -162,7 +247,7 @@ const EnhancedSignup: React.FC<EnhancedSignupProps> = ({ onSignupSuccess, onSwit
         <div>
           <label className="block text-sm font-medium text-slate-300 mb-2">
             <Building className="w-4 h-4 inline mr-2" />
-            Station Name
+            Station Name *
           </label>
           <input
             type="text"
@@ -172,21 +257,27 @@ const EnhancedSignup: React.FC<EnhancedSignupProps> = ({ onSignupSuccess, onSwit
             placeholder="Enter your station name"
             required
           />
+          <p className="text-slate-500 text-xs mt-1">
+            2-100 characters
+          </p>
         </div>
 
         <div>
           <label className="block text-sm font-medium text-slate-300 mb-2">
             <Hash className="w-4 h-4 inline mr-2" />
-            Station ID
+            Station ID *
           </label>
           <input
             type="text"
             value={formData.stationId}
-            onChange={(e) => setFormData(prev => ({ ...prev, stationId: e.target.value }))}
+            onChange={(e) => setFormData(prev => ({ ...prev, stationId: e.target.value.toUpperCase() }))}
             className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono text-sm"
             placeholder="Enter your station ID"
             required
           />
+          <p className="text-slate-500 text-xs mt-1">
+            3-20 characters, letters, numbers, and hyphens only
+          </p>
         </div>
 
         <div className="bg-blue-900/20 border border-blue-600/50 rounded-lg p-3">
