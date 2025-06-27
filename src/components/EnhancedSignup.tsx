@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { supabase } from '../integrations/supabase/client';
 import { Building, User, Mail, Lock, CheckCircle, Hash, Check, AlertCircle } from 'lucide-react';
 
@@ -25,7 +25,7 @@ const EnhancedSignup: React.FC<EnhancedSignupProps> = ({ onSignupSuccess, onSwit
   const [fieldErrors, setFieldErrors] = useState<{[key: string]: string}>({});
   const [step, setStep] = useState<'signup' | 'success'>('signup');
 
-  const validateField = (field: keyof typeof formData, value: string) => {
+  const validateField = useCallback((field: keyof typeof formData, value: string) => {
     let error = '';
     
     switch (field) {
@@ -76,7 +76,6 @@ const EnhancedSignup: React.FC<EnhancedSignupProps> = ({ onSignupSuccess, onSwit
         if (!value.trim()) {
           error = 'Station ID is required';
         } else {
-          // More flexible regex - allow letters, numbers, and hyphens
           const stationIdRegex = /^[A-Za-z0-9-]{3,20}$/;
           if (!stationIdRegex.test(value.trim())) {
             error = 'Station ID must be 3-20 characters, containing only letters, numbers, and hyphens';
@@ -86,9 +85,9 @@ const EnhancedSignup: React.FC<EnhancedSignupProps> = ({ onSignupSuccess, onSwit
     }
     
     return error;
-  };
+  }, [formData.password]);
 
-  const validateAllFields = () => {
+  const validateAllFields = useCallback(() => {
     const errors: {[key: string]: string} = {};
     
     Object.keys(formData).forEach(key => {
@@ -101,9 +100,10 @@ const EnhancedSignup: React.FC<EnhancedSignupProps> = ({ onSignupSuccess, onSwit
 
     setFieldErrors(errors);
     return Object.keys(errors).length === 0;
-  };
+  }, [formData, validateField]);
 
-  const canValidateStation = () => {
+  // Memoize the station validation check to prevent re-renders
+  const canValidateStation = useMemo(() => {
     const stationNameError = validateField('stationName', formData.stationName);
     const stationIdError = validateField('stationId', formData.stationId);
     
@@ -111,7 +111,7 @@ const EnhancedSignup: React.FC<EnhancedSignupProps> = ({ onSignupSuccess, onSwit
            formData.stationId.trim() && 
            !stationNameError && 
            !stationIdError;
-  };
+  }, [formData.stationName, formData.stationId, validateField]);
 
   const handleStationValidation = async () => {
     console.log('Starting station validation...');
@@ -132,7 +132,7 @@ const EnhancedSignup: React.FC<EnhancedSignupProps> = ({ onSignupSuccess, onSwit
       return;
     }
 
-    if (!canValidateStation()) {
+    if (!canValidateStation) {
       setValidationError('Please ensure station name and ID are properly filled');
       return;
     }
@@ -239,7 +239,7 @@ const EnhancedSignup: React.FC<EnhancedSignupProps> = ({ onSignupSuccess, onSwit
   };
 
   // Reset station validation when station fields change
-  const handleStationFieldChange = (field: 'stationName' | 'stationId', value: string) => {
+  const handleStationFieldChange = useCallback((field: 'stationName' | 'stationId', value: string) => {
     const processedValue = field === 'stationId' ? value.toUpperCase() : value;
     setFormData(prev => ({ ...prev, [field]: processedValue }));
     setStationValidated(false);
@@ -248,19 +248,19 @@ const EnhancedSignup: React.FC<EnhancedSignupProps> = ({ onSignupSuccess, onSwit
     // Clear field-specific errors and validate in real-time
     const error = validateField(field, processedValue);
     setFieldErrors(prev => ({ ...prev, [field]: error }));
-  };
+  }, [validateField]);
 
-  const handleFieldChange = (field: keyof typeof formData, value: string) => {
+  const handleFieldChange = useCallback((field: keyof typeof formData, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
     
     // Clear field-specific errors and validate in real-time
     const error = validateField(field, value);
     setFieldErrors(prev => ({ ...prev, [field]: error }));
-  };
+  }, [validateField]);
 
-  const isFormValid = () => {
+  const isFormValid = useMemo(() => {
     return validateAllFields() && stationValidated;
-  };
+  }, [validateAllFields, stationValidated]);
 
   if (step === 'success') {
     return (
@@ -443,7 +443,7 @@ const EnhancedSignup: React.FC<EnhancedSignupProps> = ({ onSignupSuccess, onSwit
           <button
             type="button"
             onClick={handleStationValidation}
-            disabled={validatingStation || !canValidateStation()}
+            disabled={validatingStation || !canValidateStation}
             className="w-full py-2 bg-green-600 hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg transition-colors flex items-center justify-center gap-2"
           >
             {validatingStation ? (
@@ -495,7 +495,7 @@ const EnhancedSignup: React.FC<EnhancedSignupProps> = ({ onSignupSuccess, onSwit
 
         <button
           type="submit"
-          disabled={loading || !isFormValid()}
+          disabled={loading || !isFormValid}
           className="w-full py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg transition-colors"
         >
           {loading ? 'Creating Account...' : 'Create Account'}
