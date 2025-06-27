@@ -1,3 +1,4 @@
+
 import React, { createContext, useState, useEffect, useContext } from 'react';
 import { Session, User } from '@supabase/supabase-js';
 import { supabase } from '../integrations/supabase/client';
@@ -61,6 +62,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [userRoles, setUserRoles] = useState<UserRole[]>([]);
   const [loading, setLoading] = useState(true);
+  const [initialized, setInitialized] = useState(false);
 
   const fetchUserProfile = async (userId: string) => {
     try {
@@ -205,48 +207,87 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session }, error }) => {
-      if (error) {
-        console.error('Error getting session:', error);
-      }
-      
-      console.log('Initial session:', session?.user?.id);
-      setSession(session);
-      setUser(session?.user ?? null);
-      
-      if (session?.user?.id) {
-        fetchUserProfile(session.user.id);
-        fetchUserRoles(session.user.id).finally(() => {
-          setLoading(false);
+    let mounted = true;
+
+    const initializeAuth = async () => {
+      try {
+        // Set up auth state listener FIRST
+        const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+          console.log('Auth state changed:', event, session?.user?.id);
+          
+          if (!mounted) return;
+          
+          setSession(session);
+          setUser(session?.user ?? null);
+          
+          if (event === 'SIGNED_IN' && session?.user?.id) {
+            // Defer data fetching to prevent potential deadlocks
+            setTimeout(() => {
+              if (mounted) {
+                fetchUserProfile(session.user.id);
+                fetchUserRoles(session.user.id);
+              }
+            }, 100);
+          } else if (event === 'SIGNED_OUT') {
+            setProfile(null);
+            setUserRoles([]);
+          }
         });
-      } else {
-        setLoading(false);
-      }
-    });
 
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log('Auth state changed:', event, session?.user?.id);
-      
-      setSession(session);
-      setUser(session?.user ?? null);
-      
-      if (event === 'SIGNED_IN' && session?.user?.id) {
-        setTimeout(() => {
-          fetchUserProfile(session.user.id);
-          fetchUserRoles(session.user.id);
-        }, 100);
-      } else if (event === 'SIGNED_OUT') {
-        setProfile(null);
-        setUserRoles([]);
-      }
-      
-      setLoading(false);
-    });
+        // THEN check for existing session
+        const { data: { session }, error } = await supabase.auth.getSession();
+        
+        if (error) {
+          console.error('Error getting session:', error);
+        }
+        
+        console.log('Initial session:', session?.user?.id);
+        
+        if (mounted) {
+          setSession(session);
+          setUser(session?.user ?? null);
+          
+          if (session?.user?.id) {
+            fetchUserProfile(session.user.id);
+            fetchUserRoles(session.user.id).finally(() => {
+              if (mounted) {
+                setLoading(false);
+                setInitialized(true);
+              }
+            });
+          } else {
+            setLoading(false);
+            setInitialized(true);
+          }
+        }
 
-    return () => subscription.unsubscribe();
+        return () => {
+          subscription.unsubscribe();
+        };
+      } catch (error) {
+        console.error('Error initializing auth:', error);
+        if (mounted) {
+          setLoading(false);
+          setInitialized(true);
+        }
+      }
+    };
+
+    initializeAuth();
+
+    return () => {
+      mounted = false;
+    };
   }, []);
+
+  // Don't render children until auth is initialized
+  if (!initialized) {
+    return (
+      <div className="min-h-screen bg-slate-900 flex items-center justify-center">
+        <div className="text-white">Loading...</div>
+      </div>
+    );
+  }
 
   const value: AuthContextProps = {
     session,
