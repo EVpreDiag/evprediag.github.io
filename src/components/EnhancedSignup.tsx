@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo, useCallback } from 'react';
 import { supabase } from '../integrations/supabase/client';
 import { Building, User, Mail, Lock, CheckCircle, Hash, Check, AlertCircle } from 'lucide-react';
@@ -76,9 +75,12 @@ const EnhancedSignup: React.FC<EnhancedSignupProps> = ({ onSignupSuccess, onSwit
         if (!value.trim()) {
           error = 'Station ID is required';
         } else {
-          const stationIdRegex = /^[A-Za-z0-9-]{3,20}$/;
-          if (!stationIdRegex.test(value.trim())) {
-            error = 'Station ID must be 3-20 characters, containing only letters, numbers, and hyphens';
+          // Check for UUID format (36 characters with hyphens) or alphanumeric format (3-20 characters)
+          const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+          const alphanumericRegex = /^[A-Za-z0-9-]{3,20}$/;
+          
+          if (!uuidRegex.test(value.trim()) && !alphanumericRegex.test(value.trim())) {
+            error = 'Station ID must be either a valid UUID format or 3-20 characters containing only letters, numbers, and hyphens';
           }
         }
         break;
@@ -240,7 +242,8 @@ const EnhancedSignup: React.FC<EnhancedSignupProps> = ({ onSignupSuccess, onSwit
 
   // Reset station validation when station fields change
   const handleStationFieldChange = useCallback((field: 'stationName' | 'stationId', value: string) => {
-    const processedValue = field === 'stationId' ? value.toUpperCase() : value;
+    // Don't uppercase UUID format station IDs
+    const processedValue = field === 'stationId' && value.includes('-') ? value.toLowerCase() : (field === 'stationId' ? value.toUpperCase() : value);
     setFormData(prev => ({ ...prev, [field]: processedValue }));
     setStationValidated(false);
     setValidationError('');
@@ -433,7 +436,7 @@ const EnhancedSignup: React.FC<EnhancedSignupProps> = ({ onSignupSuccess, onSwit
             </p>
           ) : (
             <p className="text-slate-500 text-xs mt-1">
-              3-20 characters, letters, numbers, and hyphens only
+              UUID format (e.g., 12345678-1234-1234-1234-123456789012) or 3-20 characters with letters, numbers, and hyphens
             </p>
           )}
         </div>
