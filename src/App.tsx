@@ -30,7 +30,7 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
     );
   }
   
-  return isAuthenticated() ? <>{children}</> : <Navigate to="/auth" />;
+  return isAuthenticated() ? <>{children}</> : <Navigate to="/auth" replace />;
 };
 
 const RootRedirect: React.FC = () => {
@@ -44,7 +44,7 @@ const RootRedirect: React.FC = () => {
     );
   }
   
-  return isAuthenticated() ? <Navigate to="/dashboard" /> : <Navigate to="/auth" />;
+  return isAuthenticated() ? <Navigate to="/dashboard" replace /> : <Navigate to="/auth" replace />;
 };
 
 function App() {
