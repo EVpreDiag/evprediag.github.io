@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo, useCallback } from 'react';
 import { supabase } from '../integrations/supabase/client';
 import { Building, User, Mail, Lock, CheckCircle, Hash, Check, AlertCircle } from 'lucide-react';
@@ -207,6 +208,9 @@ const EnhancedSignup: React.FC<EnhancedSignupProps> = ({ onSignupSuccess, onSwit
     setError('');
 
     try {
+      console.log('Starting signup process...');
+      
+      // First, attempt to sign up the user
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: formData.email,
         password: formData.password,
@@ -220,37 +224,57 @@ const EnhancedSignup: React.FC<EnhancedSignupProps> = ({ onSignupSuccess, onSwit
         }
       });
 
-      if (authError) throw authError;
+      console.log('Auth signup result:', { authData, authError });
 
-      if (authData.user) {
-        // Store additional signup data in pending_users table for super admin review
-        const { error: pendingError } = await supabase
-          .from('pending_users')
-          .insert({
-            email: formData.email,
-            full_name: formData.fullName,
-            station_id: formData.stationId,
-            password_hash: '', // Will be handled by Supabase Auth
-            email_verified: false,
-            status: 'pending'
-          });
-
-        if (pendingError) {
-          console.error('Error storing pending user data:', pendingError);
-          // Don't throw error here as the user signup was successful
-        }
-
-        setStep('success');
-        if (onSignupSuccess) {
-          onSignupSuccess();
-        }
+      if (authError) {
+        console.error('Auth signup error:', authError);
+        throw authError;
       }
+
+      if (!authData.user) {
+        throw new Error('No user data returned from signup');
+      }
+
+      console.log('User created successfully, now storing pending user data...');
+
+      // Store additional signup data in pending_users table for super admin review
+      const { error: pendingError } = await supabase
+        .from('pending_users')
+        .insert({
+          email: formData.email,
+          full_name: formData.fullName,
+          station_id: formData.stationId,
+          password_hash: '', // Will be handled by Supabase Auth
+          email_verified: false,
+          status: 'pending'
+        });
+
+      if (pendingError) {
+        console.error('Error storing pending user data:', pendingError);
+        // Don't throw error here as the user signup was successful
+        // But log it for debugging
+      } else {
+        console.log('Pending user data stored successfully');
+      }
+
+      console.log('Signup process completed successfully');
+      setStep('success');
+      
+      // Call the success callback if provided
+      if (onSignupSuccess) {
+        onSignupSuccess();
+      }
+      
     } catch (error: any) {
       console.error('Signup error:', error);
       if (error.message.includes('User already registered')) {
         setError('An account with this email already exists. Please use a different email or sign in.');
+      } else if (error.message.includes('Invalid email')) {
+        setError('Please enter a valid email address.');
+      } else if (error.message.includes('Password should be at least')) {
+        setError('Password must be at least 6 characters long.');
       } else {
-        setError(error.message || 'Failed to create account');
+        setError(error.message || 'Failed to create account. Please try again.');
       }
     } finally {
       setLoading(false);
@@ -294,12 +318,34 @@ const EnhancedSignup: React.FC<EnhancedSignupProps> = ({ onSignupSuccess, onSwit
         <p className="text-slate-400 mb-6">
           After verification, your account will be pending approval. A super administrator will review your request and assign appropriate roles.
         </p>
-        <button
-          onClick={onSwitchToLogin}
-          className="w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
-        >
-          Continue to Login
-        </button>
+        <div className="space-y-3">
+          <button
+            onClick={() => {
+              setStep('signup');
+              setFormData({
+                email: '',
+                password: '',
+                confirmPassword: '',
+                fullName: '',
+                stationName: '',
+                stationId: ''
+              });
+              setStationValidated(false);
+              setError('');
+              setValidationError('');
+              setFieldErrors({});
+            }}
+            className="w-full px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors"
+          >
+            Create Another Account
+          </button>
+          <button
+            onClick={onSwitchToLogin}
+            className="w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+          >
+            Continue to Login
+          </button>
+        </div>
       </div>
     );
   }
