@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo, useCallback } from 'react';
 import { supabase } from '../integrations/supabase/client';
 import { Building, User, Mail, Lock, CheckCircle, Hash, Check, AlertCircle } from 'lucide-react';
@@ -193,13 +192,18 @@ const EnhancedSignup: React.FC<EnhancedSignupProps> = ({ onSignupSuccess, onSwit
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    console.log('=== SIGNUP PROCESS STARTED ===');
+    console.log('Form data:', formData);
+    
     // Validate all fields
     if (!validateAllFields()) {
+      console.log('Form validation failed');
       setError('Please fix all form errors before submitting');
       return;
     }
 
     if (!stationValidated) {
+      console.log('Station not validated');
       setError('Please validate your station information first');
       return;
     }
@@ -208,18 +212,18 @@ const EnhancedSignup: React.FC<EnhancedSignupProps> = ({ onSignupSuccess, onSwit
     setError('');
 
     try {
-      console.log('Starting signup process...');
+      console.log('Starting auth signup...');
       
       // First, attempt to sign up the user
       const { data: authData, error: authError } = await supabase.auth.signUp({
-        email: formData.email,
+        email: formData.email.trim(),
         password: formData.password,
         options: {
           emailRedirectTo: `${window.location.origin}/dashboard`,
           data: {
-            full_name: formData.fullName,
-            station_id: formData.stationId,
-            station_name: formData.stationName
+            full_name: formData.fullName.trim(),
+            station_id: formData.stationId.trim(),
+            station_name: formData.stationName.trim()
           }
         }
       });
@@ -235,29 +239,44 @@ const EnhancedSignup: React.FC<EnhancedSignupProps> = ({ onSignupSuccess, onSwit
         throw new Error('No user data returned from signup');
       }
 
-      console.log('User created successfully, now storing pending user data...');
+      console.log('User created successfully with ID:', authData.user.id);
+      console.log('Now inserting into pending_users table...');
 
-      // Store additional signup data in pending_users table for super admin review
-      const { error: pendingError } = await supabase
+      // Store additional signup data in pending_users table
+      const pendingUserData = {
+        email: formData.email.trim(),
+        full_name: formData.fullName.trim(),
+        station_id: formData.stationId.trim(),
+        password_hash: '', // Will be handled by Supabase Auth
+        email_verified: false,
+        status: 'pending'
+      };
+
+      console.log('Pending user data to insert:', pendingUserData);
+
+      const { data: pendingData, error: pendingError } = await supabase
         .from('pending_users')
-        .insert({
-          email: formData.email,
-          full_name: formData.fullName,
-          station_id: formData.stationId,
-          password_hash: '', // Will be handled by Supabase Auth
-          email_verified: false,
-          status: 'pending'
-        });
+        .insert(pendingUserData)
+        .select();
+
+      console.log('Pending users insert result:', { pendingData, pendingError });
 
       if (pendingError) {
         console.error('Error storing pending user data:', pendingError);
-        // Don't throw error here as the user signup was successful
-        // But log it for debugging
-      } else {
-        console.log('Pending user data stored successfully');
+        console.error('Pending error details:', {
+          message: pendingError.message,
+          details: pendingError.details,
+          hint: pendingError.hint,
+          code: pendingError.code
+        });
+        
+        // This is critical - if we can't store pending user data, show error
+        throw new Error(`Failed to store signup data: ${pendingError.message}`);
       }
 
-      console.log('Signup process completed successfully');
+      console.log('Pending user data stored successfully:', pendingData);
+      console.log('=== SIGNUP PROCESS COMPLETED SUCCESSFULLY ===');
+      
       setStep('success');
       
       // Call the success callback if provided
@@ -266,13 +285,17 @@ const EnhancedSignup: React.FC<EnhancedSignupProps> = ({ onSignupSuccess, onSwit
       }
       
     } catch (error: any) {
+      console.error('=== SIGNUP PROCESS FAILED ===');
       console.error('Signup error:', error);
+      
       if (error.message.includes('User already registered')) {
         setError('An account with this email already exists. Please use a different email or sign in.');
       } else if (error.message.includes('Invalid email')) {
         setError('Please enter a valid email address.');
       } else if (error.message.includes('Password should be at least')) {
         setError('Password must be at least 6 characters long.');
+      } else if (error.message.includes('Failed to store signup data')) {
+        setError('Account created but failed to save additional data. Please contact support.');
       } else {
         setError(error.message || 'Failed to create account. Please try again.');
       }
