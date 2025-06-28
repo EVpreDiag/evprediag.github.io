@@ -223,6 +223,23 @@ const EnhancedSignup: React.FC<EnhancedSignupProps> = ({ onSignupSuccess, onSwit
       if (authError) throw authError;
 
       if (authData.user) {
+        // Store additional signup data in pending_users table for super admin review
+        const { error: pendingError } = await supabase
+          .from('pending_users')
+          .insert({
+            email: formData.email,
+            full_name: formData.fullName,
+            station_id: formData.stationId,
+            password_hash: '', // Will be handled by Supabase Auth
+            email_verified: false,
+            status: 'pending'
+          });
+
+        if (pendingError) {
+          console.error('Error storing pending user data:', pendingError);
+          // Don't throw error here as the user signup was successful
+        }
+
         setStep('success');
         if (onSignupSuccess) {
           onSignupSuccess();

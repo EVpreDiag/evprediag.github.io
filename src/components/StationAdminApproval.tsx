@@ -22,6 +22,11 @@ interface StationAdminRequest {
     full_name?: string;
     username?: string;
   };
+  pending_users?: {
+    full_name: string;
+    email: string;
+    station_id: string;
+  };
 }
 
 const StationAdminApproval = () => {
@@ -84,10 +89,21 @@ const StationAdminApproval = () => {
 
       if (profilesError) throw profilesError;
 
+      // Get pending user data to show the station name they provided during signup
+      const { data: pendingUsersData, error: pendingError } = await supabase
+        .from('pending_users')
+        .select('id, full_name, email, station_id')
+        .in('id', userIds);
+
+      if (pendingError) {
+        console.error('Error fetching pending users:', pendingError);
+      }
+
       // Transform data to match our interface
       const transformedData: StationAdminRequest[] = rolesData.map(role => {
         const station = stationsData?.find(s => s.id === role.station_id) || { name: 'Unknown Station' };
         const profile = profilesData?.find(p => p.id === role.user_id) || { full_name: 'Unknown User' };
+        const pendingUser = pendingUsersData?.find(p => p.id === role.user_id);
         
         return {
           id: role.id,
@@ -96,7 +112,8 @@ const StationAdminApproval = () => {
           status: 'pending' as const,
           requested_at: role.assigned_at || new Date().toISOString(),
           stations: station,
-          profiles: profile
+          profiles: profile,
+          pending_users: pendingUser
         };
       });
       
@@ -271,6 +288,7 @@ const StationAdminApproval = () => {
                 <tr>
                   <th className="px-6 py-3 text-left text-xs font-medium text-slate-300 uppercase tracking-wider">Station</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-slate-300 uppercase tracking-wider">Requested By</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-300 uppercase tracking-wider">Requested Station</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-slate-300 uppercase tracking-wider">Status</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-slate-300 uppercase tracking-wider">Requested</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-slate-300 uppercase tracking-wider">Actions</th>
@@ -279,7 +297,7 @@ const StationAdminApproval = () => {
               <tbody className="divide-y divide-slate-700">
                 {requests.length === 0 ? (
                   <tr>
-                    <td colSpan={5} className="px-6 py-8 text-center text-slate-400">
+                    <td colSpan={6} className="px-6 py-8 text-center text-slate-400">
                       No admin requests found.
                     </td>
                   </tr>
@@ -301,6 +319,22 @@ const StationAdminApproval = () => {
                           <div>
                             <div className="text-sm text-white">{request.profiles.full_name || 'Unknown'}</div>
                             <div className="text-sm text-slate-400">{request.profiles.username}</div>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="flex items-center">
+                          <Building className="w-5 h-5 text-blue-400 mr-3" />
+                          <div>
+                            <div className="text-sm text-blue-400 font-medium">
+                              {request.pending_users?.station_id ? 
+                                `Station ID: ${request.pending_users.station_id}` : 
+                                'Station ID not available'
+                              }
+                            </div>
+                            <div className="text-sm text-slate-400">
+                              Requested during signup
+                            </div>
                           </div>
                         </div>
                       </td>
