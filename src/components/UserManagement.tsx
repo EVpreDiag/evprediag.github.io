@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
@@ -126,8 +127,22 @@ const UserManagement = () => {
         };
       });
 
-      console.log('Combined users:', combinedUsers);
-      setUsers(combinedUsers);
+      // Additional frontend filtering for Station Admins to hide Super Admins
+      let finalUsers = combinedUsers;
+      if (isStationAdmin()) {
+        finalUsers = combinedUsers.filter(user => {
+          // Hide users with super_admin role
+          const hasSuperAdminRole = user.roles.includes('super_admin');
+          if (hasSuperAdminRole) {
+            console.log('Filtering out super admin user:', user.email);
+            return false;
+          }
+          return true;
+        });
+      }
+
+      console.log('Final filtered users:', finalUsers);
+      setUsers(finalUsers);
     } catch (error) {
       console.error('Error fetching users:', error);
     } finally {
@@ -156,6 +171,12 @@ const UserManagement = () => {
   };
 
   const handleAssignRole = async (userId: string, role: UserRole) => {
+    // Prevent Station Admins from assigning super_admin roles
+    if (isStationAdmin() && role === 'super_admin') {
+      console.error('Station Admins cannot assign super_admin roles');
+      return;
+    }
+
     let stationId = null;
     
     // If assigning station-specific roles and user is super admin, use selected station
@@ -175,6 +196,12 @@ const UserManagement = () => {
   };
 
   const handleRemoveRole = async (userId: string, role: UserRole) => {
+    // Prevent Station Admins from removing super_admin roles
+    if (isStationAdmin() && role === 'super_admin') {
+      console.error('Station Admins cannot remove super_admin roles');
+      return;
+    }
+
     const { error } = await removeRole(userId, role);
     if (!error) {
       await fetchUsers();
@@ -254,9 +281,22 @@ const UserManagement = () => {
     if (isSuperAdmin()) {
       return ['admin', 'technician', 'front_desk', 'super_admin', 'station_admin'];
     } else if (isStationAdmin()) {
+      // Station Admins can only assign technician and front_desk roles
       return ['technician', 'front_desk'];
     }
     return [];
+  };
+
+  // Check if user can be managed by current user
+  const canManageUser = (user: SystemUser): boolean => {
+    if (isSuperAdmin()) return true;
+    if (isStationAdmin()) {
+      // Station admins cannot manage super admins
+      if (user.roles.includes('super_admin')) return false;
+      // Station admins can only manage users from their station
+      return user.station_id === profile?.station_id;
+    }
+    return false;
   };
 
   if (!canManageUsers()) {
@@ -459,16 +499,20 @@ const UserManagement = () => {
                         {formatDate(user.created_at)}
                       </td>
                       <td className="px-6 py-4">
-                        <button
-                          onClick={() => {
-                            setSelectedUser(user);
-                            setSelectedStationId(user.station_id || '');
-                            setShowRoleModal(true);
-                          }}
-                          className="p-2 text-blue-400 hover:text-blue-300 transition-colors"
-                        >
-                          <Edit className="w-4 h-4" />
-                        </button>
+                        {canManageUser(user) ? (
+                          <button
+                            onClick={() => {
+                              setSelectedUser(user);
+                              setSelectedStationId(user.station_id || '');
+                              setShowRoleModal(true);
+                            }}
+                            className="p-2 text-blue-400 hover:text-blue-300 transition-colors"
+                          >
+                            <Edit className="w-4 h-4" />
+                          </button>
+                        ) : (
+                          <span className="text-slate-500 text-xs">No access</span>
+                        )}
                       </td>
                     </tr>
                   ))
@@ -480,7 +524,7 @@ const UserManagement = () => {
       </div>
 
       {/* Enhanced Role Assignment Modal */}
-      {showRoleModal && selectedUser && (
+      {showRoleModal && selectedUser && canManageUser(selectedUser) && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
           <div className="bg-slate-800 rounded-lg border border-slate-700 w-full max-w-md">
             <div className="p-6 border-b border-slate-700">
