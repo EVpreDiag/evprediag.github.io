@@ -28,7 +28,16 @@ interface Station {
 }
 
 const ModifyReports = () => {
-  const { user, hasRole, isAdmin, isSuperAdmin } = useAuth();
+  const { 
+    user, 
+    hasRole, 
+    isSuperAdmin, 
+    isStationAdmin, 
+    isTechnician, 
+    isFrontDesk,
+    canModifyAllReports,
+    canModifyOwnReportsOnly 
+  } = useAuth();
   const navigate = useNavigate();
   const [records, setRecords] = useState<DiagnosticRecord[]>([]);
   const [stations, setStations] = useState<Station[]>([]);
@@ -38,7 +47,7 @@ const ModifyReports = () => {
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
 
   // Check if user has permission to modify reports
-  const canModifyReports = hasRole('admin') || hasRole('technician') || isSuperAdmin();
+  const canModifyReports = canModifyAllReports() || canModifyOwnReportsOnly();
 
   useEffect(() => {
     if (!canModifyReports) {
@@ -71,7 +80,7 @@ const ModifyReports = () => {
       setLoading(true);
       setError(null);
 
-      // Fetch EV records
+      // Fetch EV records - RLS will automatically filter based on user permissions
       let evQuery = supabase
         .from('ev_diagnostic_records')
         .select(`
@@ -80,10 +89,8 @@ const ModifyReports = () => {
         `)
         .order('updated_at', { ascending: false });
 
-      // Non-super-admins can only see their own records (enforced by RLS as well)
-      if (!isSuperAdmin()) {
-        evQuery = evQuery.eq('technician_id', user.id);
-      } else if (selectedStationId) {
+      // Super admins can optionally filter by station
+      if (isSuperAdmin() && selectedStationId) {
         evQuery = evQuery.eq('station_id', selectedStationId);
       }
 
@@ -94,7 +101,7 @@ const ModifyReports = () => {
         throw evError;
       }
 
-      // Fetch PHEV records
+      // Fetch PHEV records - RLS will automatically filter based on user permissions
       let phevQuery = supabase
         .from('phev_diagnostic_records')
         .select(`
@@ -103,9 +110,7 @@ const ModifyReports = () => {
         `)
         .order('updated_at', { ascending: false });
 
-      if (!isSuperAdmin()) {
-        phevQuery = phevQuery.eq('technician_id', user.id);
-      } else if (selectedStationId) {
+      if (isSuperAdmin() && selectedStationId) {
         phevQuery = phevQuery.eq('station_id', selectedStationId);
       }
 
@@ -158,8 +163,14 @@ const ModifyReports = () => {
   const handleDelete = async (record: DiagnosticRecord) => {
     if (!user) return;
 
-    // Double-check ownership for non-super-admins
-    if (!isSuperAdmin()) {
+    // Front desk users can only delete their own records
+    if (isFrontDesk() && record.technician_id !== user.id) {
+      setError('You can only delete your own records.');
+      return;
+    }
+
+    // Double-check ownership for non-super-admins and non-station-admins
+    if (!isSuperAdmin() && !isStationAdmin()) {
       const hasOwnership = await checkRecordOwnership(
         record.id, 
         record.record_type === 'EV' ? 'ev_diagnostic_records' : 'phev_diagnostic_records'
@@ -194,6 +205,19 @@ const ModifyReports = () => {
     }
   };
 
+  const canEditRecord = (record: DiagnosticRecord): boolean => {
+    if (isSuperAdmin() || isStationAdmin()) return true;
+    if (isTechnician()) return true; // Can edit station records
+    if (isFrontDesk()) return record.technician_id === user?.id; // Only own records
+    return false;
+  };
+
+  const canDeleteRecord = (record: DiagnosticRecord): boolean => {
+    if (isSuperAdmin() || isStationAdmin()) return true;
+    if (isFrontDesk()) return record.technician_id === user?.id; // Only own records
+    return false;
+  };
+
   // Permission check
   if (!canModifyReports) {
     return (
@@ -202,7 +226,7 @@ const ModifyReports = () => {
           <Shield className="w-16 h-16 text-red-400 mx-auto mb-4" />
           <h2 className="text-xl font-bold text-white mb-2">Access Denied</h2>
           <p className="text-slate-400 mb-4">
-            You need technician or administrator permissions to modify reports.
+            You need appropriate permissions to modify reports.
           </p>
           <button
             onClick={() => navigate('/dashboard')}
@@ -237,7 +261,9 @@ const ModifyReports = () => {
           <div>
             <h1 className="text-xl font-bold text-white">Modify Reports</h1>
             <p className="text-sm text-slate-400">
-              {isSuperAdmin() ? 'Edit and manage all diagnostic reports' : 'Edit and manage your diagnostic reports'}
+              {isFrontDesk() ? 'Edit and manage your diagnostic reports' :
+               isSuperAdmin() ? 'Edit and manage all diagnostic reports' : 
+               'Edit and manage station diagnostic reports'}
             </p>
           </div>
         </div>
@@ -276,7 +302,9 @@ const ModifyReports = () => {
         {records.length === 0 ? (
           <div className="bg-slate-800 rounded-lg p-8 text-center border border-slate-700">
             <Edit className="w-12 h-12 text-slate-400 mx-auto mb-4" />
-            <p className="text-slate-400">No diagnostic reports found.</p>
+            <p className="text-slate-400">
+              {isFrontDesk() ? 'No diagnostic reports found for your account.' : 'No diagnostic reports found.'}
+            </p>
           </div>
         ) : (
           <div className="bg-slate-800 rounded-lg border border-slate-700">
@@ -305,14 +333,14 @@ const ModifyReports = () => {
                           {record.record_type}
                         </span>
                         <h3 className="text-white font-medium">{record.customer_name}</h3>
-                        {isSuperAdmin() && (
+                        {(isSuperAdmin() || isStationAdmin()) && (
                           <span className="inline-flex items-center px-2 py-1 text-xs bg-slate-700 text-slate-300 rounded-full">
                             <Building className="w-3 h-3 mr-1" />
                             {record.station_name}
                           </span>
                         )}
-                        {!isSuperAdmin() && record.technician_id !== user?.id && (
-                          <span className="text-xs text-orange-400">(Read Only)</span>
+                        {isFrontDesk() && record.technician_id !== user?.id && (
+                          <span className="text-xs text-orange-400">(View Only)</span>
                         )}
                       </div>
                       
@@ -345,24 +373,24 @@ const ModifyReports = () => {
                         <Eye className="w-4 h-4" />
                       </button>
                       
-                      {(isSuperAdmin() || record.technician_id === user?.id) && (
-                        <>
-                          <button
-                            onClick={() => handleEdit(record)}
-                            className="p-2 text-slate-400 hover:text-green-400 hover:bg-slate-700 rounded-lg transition-colors"
-                            title="Edit Report"
-                          >
-                            <Edit className="w-4 h-4" />
-                          </button>
-                          
-                          <button
-                            onClick={() => setDeleteConfirm(record.id)}
-                            className="p-2 text-slate-400 hover:text-red-400 hover:bg-slate-700 rounded-lg transition-colors"
-                            title="Delete Report"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </>
+                      {canEditRecord(record) && (
+                        <button
+                          onClick={() => handleEdit(record)}
+                          className="p-2 text-slate-400 hover:text-green-400 hover:bg-slate-700 rounded-lg transition-colors"
+                          title="Edit Report"
+                        >
+                          <Edit className="w-4 h-4" />
+                        </button>
+                      )}
+                      
+                      {canDeleteRecord(record) && (
+                        <button
+                          onClick={() => setDeleteConfirm(record.id)}
+                          className="p-2 text-slate-400 hover:text-red-400 hover:bg-slate-700 rounded-lg transition-colors"
+                          title="Delete Report"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
                       )}
                     </div>
                   </div>

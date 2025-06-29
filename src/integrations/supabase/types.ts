@@ -888,6 +888,10 @@ export type Database = {
         Args: { _user_id: string }
         Returns: string
       }
+      get_user_station_id: {
+        Args: { user_id: string }
+        Returns: string
+      }
       has_role: {
         Args: {
           _user_id: string
@@ -899,12 +903,24 @@ export type Database = {
         Args: { user_id: string }
         Returns: boolean
       }
+      is_front_desk_for_station: {
+        Args: { user_id: string; station_id: string }
+        Returns: boolean
+      }
       is_station_admin: {
         Args: { user_id: string }
         Returns: boolean
       }
+      is_station_admin_for_station: {
+        Args: { user_id: string; station_id: string }
+        Returns: boolean
+      }
       is_super_admin: {
         Args: { user_id: string }
+        Returns: boolean
+      }
+      is_technician_for_station: {
+        Args: { user_id: string; station_id: string }
         Returns: boolean
       }
     }

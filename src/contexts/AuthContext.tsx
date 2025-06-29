@@ -1,4 +1,3 @@
-
 import React, { createContext, useState, useEffect, useContext } from 'react';
 import { Session, User } from '@supabase/supabase-js';
 import { supabase } from '../integrations/supabase/client';
@@ -26,6 +25,12 @@ interface AuthContextProps {
   isAdmin: () => boolean;
   isSuperAdmin: () => boolean;
   isStationAdmin: () => boolean;
+  isTechnician: () => boolean;
+  isFrontDesk: () => boolean;
+  canAccessStationData: () => boolean;
+  canManageUsers: () => boolean;
+  canModifyAllReports: () => boolean;
+  canModifyOwnReportsOnly: () => boolean;
   fetchUserRoles: (userId: string) => Promise<UserRole[]>;
   signIn: (email: string, password: string) => Promise<{ error: any }>;
   signUp: (email: string, password: string, metadata?: any) => Promise<{ error: any }>;
@@ -47,6 +52,12 @@ const AuthContext = createContext<AuthContextProps>({
   isAdmin: () => false,
   isSuperAdmin: () => false,
   isStationAdmin: () => false,
+  isTechnician: () => false,
+  isFrontDesk: () => false,
+  canAccessStationData: () => false,
+  canManageUsers: () => false,
+  canModifyAllReports: () => false,
+  canModifyOwnReportsOnly: () => false,
   fetchUserRoles: async () => [],
   signIn: async () => ({ error: null }),
   signUp: async () => ({ error: null }),
@@ -206,6 +217,30 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     return userRoles.includes('station_admin');
   };
 
+  const isTechnician = (): boolean => {
+    return userRoles.includes('technician');
+  };
+
+  const isFrontDesk = (): boolean => {
+    return userRoles.includes('front_desk');
+  };
+
+  const canAccessStationData = (): boolean => {
+    return isSuperAdmin() || isStationAdmin() || isTechnician() || isFrontDesk();
+  };
+
+  const canManageUsers = (): boolean => {
+    return isSuperAdmin() || isStationAdmin();
+  };
+
+  const canModifyAllReports = (): boolean => {
+    return isSuperAdmin() || isStationAdmin() || isTechnician();
+  };
+
+  const canModifyOwnReportsOnly = (): boolean => {
+    return isFrontDesk();
+  };
+
   useEffect(() => {
     let mounted = true;
 
@@ -301,6 +336,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     isAdmin,
     isSuperAdmin,
     isStationAdmin,
+    isTechnician,
+    isFrontDesk,
+    canAccessStationData,
+    canManageUsers,
+    canModifyAllReports,
+    canModifyOwnReportsOnly,
     fetchUserRoles,
     signIn,
     signUp,

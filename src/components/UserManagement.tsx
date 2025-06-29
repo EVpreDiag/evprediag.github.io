@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
@@ -28,7 +27,14 @@ interface Station {
 
 const UserManagement = () => {
   const navigate = useNavigate();
-  const { isAdmin, isSuperAdmin, isStationAdmin, assignRole, removeRole, profile } = useAuth();
+  const { 
+    isSuperAdmin, 
+    isStationAdmin, 
+    canManageUsers,
+    assignRole, 
+    removeRole, 
+    profile 
+  } = useAuth();
   const [users, setUsers] = useState<SystemUser[]>([]);
   const [stations, setStations] = useState<Station[]>([]);
   const [filteredUsers, setFilteredUsers] = useState<SystemUser[]>([]);
@@ -39,12 +45,12 @@ const UserManagement = () => {
   const [activeFilter, setActiveFilter] = useState<FilterType>('all');
 
   useEffect(() => {
-    if (!isAdmin() && !isSuperAdmin() && !isStationAdmin()) {
+    if (!canManageUsers()) {
       return;
     }
     fetchStations();
     fetchUsers();
-  }, [isAdmin, isSuperAdmin, isStationAdmin]);
+  }, [canManageUsers]);
 
   useEffect(() => {
     filterUsers();
@@ -69,7 +75,7 @@ const UserManagement = () => {
       setLoading(true);
       console.log('Fetching users from profiles and user_roles tables...');
       
-      // Build query based on user role
+      // Build query based on user role - RLS will automatically filter
       let profilesQuery = supabase
         .from('profiles')
         .select(`
@@ -78,11 +84,6 @@ const UserManagement = () => {
             name
           )
         `);
-
-      // If station admin, only show users from their station
-      if (isStationAdmin() && !isSuperAdmin() && !isAdmin()) {
-        profilesQuery = profilesQuery.eq('station_id', profile?.station_id);
-      }
 
       const { data: profiles, error: profilesError } = await profilesQuery
         .order('created_at', { ascending: false });
@@ -94,7 +95,7 @@ const UserManagement = () => {
 
       console.log('Profiles fetched:', profiles);
 
-      // Fetch roles for all users (or filtered users)
+      // Fetch roles for all users (or filtered users) - RLS will automatically filter
       const userIds = profiles?.map(p => p.id) || [];
       const { data: userRoles, error: rolesError } = await supabase
         .from('user_roles')
@@ -157,7 +158,7 @@ const UserManagement = () => {
   const handleAssignRole = async (userId: string, role: UserRole) => {
     let stationId = null;
     
-    // If assigning admin, technician, or front_desk role and user is super admin, use selected station
+    // If assigning station-specific roles and user is super admin, use selected station
     if (isSuperAdmin() && ['admin', 'technician', 'front_desk', 'station_admin'].includes(role) && selectedStationId) {
       stationId = selectedStationId;
     } else if (isStationAdmin() && ['technician', 'front_desk'].includes(role)) {
@@ -252,15 +253,13 @@ const UserManagement = () => {
   const getAvailableRoles = (): UserRole[] => {
     if (isSuperAdmin()) {
       return ['admin', 'technician', 'front_desk', 'super_admin', 'station_admin'];
-    } else if (isAdmin()) {
-      return ['technician', 'front_desk'];
     } else if (isStationAdmin()) {
       return ['technician', 'front_desk'];
     }
     return [];
   };
 
-  if (!isAdmin() && !isSuperAdmin() && !isStationAdmin()) {
+  if (!canManageUsers()) {
     return (
       <div className="min-h-screen bg-slate-900 flex items-center justify-center">
         <div className="text-center">

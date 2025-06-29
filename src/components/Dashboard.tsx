@@ -19,7 +19,18 @@ import {
 
 const Dashboard = () => {
   const navigate = useNavigate();
-  const { signOut, user, profile, isAdmin, isSuperAdmin, isStationAdmin } = useAuth();
+  const { 
+    signOut, 
+    user, 
+    profile, 
+    isSuperAdmin, 
+    isStationAdmin, 
+    isTechnician, 
+    isFrontDesk,
+    canManageUsers,
+    canModifyAllReports,
+    canAccessStationData
+  } = useAuth();
 
   const handleSignOut = async () => {
     try {
@@ -39,7 +50,7 @@ const Dashboard = () => {
       icon: Zap,
       path: '/diagnostic-form',
       color: 'bg-blue-600 hover:bg-blue-700',
-      show: true
+      show: canAccessStationData() // All roles except pending users
     },
     {
       title: 'PHEV Diagnostic Form',
@@ -47,23 +58,23 @@ const Dashboard = () => {
       icon: Battery,
       path: '/phev-diagnostic-form',
       color: 'bg-green-600 hover:bg-green-700',
-      show: true
+      show: canAccessStationData() // All roles except pending users
     },
     {
       title: 'Search Records',
-      description: 'Search and view diagnostic records',
+      description: isFrontDesk() ? 'Search your diagnostic records' : 'Search station diagnostic records',
       icon: Search,
       path: '/search',
       color: 'bg-purple-600 hover:bg-purple-700',
-      show: true
+      show: canAccessStationData() // All roles except pending users
     },
     {
       title: 'Modify Reports',
-      description: 'Edit existing diagnostic reports',
+      description: isFrontDesk() ? 'Edit your diagnostic reports' : 'Edit station diagnostic reports',
       icon: FileText,
       path: '/modify-reports',
       color: 'bg-orange-600 hover:bg-orange-700',
-      show: isSuperAdmin() || isAdmin() || isStationAdmin()
+      show: canModifyAllReports() || isFrontDesk() // All roles can modify (with different permissions)
     },
     {
       title: 'Print Summary',
@@ -71,15 +82,15 @@ const Dashboard = () => {
       icon: Printer,
       path: '/Search',
       color: 'bg-gray-600 hover:bg-gray-700',
-      show: true
+      show: canAccessStationData() // All roles except pending users
     },
     {
       title: 'User Management',
-      description: 'Manage users and permissions',
+      description: isStationAdmin() ? 'Manage station users' : 'Manage all users',
       icon: Users,
       path: '/user-management',
       color: 'bg-red-600 hover:bg-red-700',
-      show: isSuperAdmin() || isStationAdmin()
+      show: canManageUsers() // Super admin and station admin only
     },
     {
       title: 'Station Management',
@@ -87,7 +98,7 @@ const Dashboard = () => {
       icon: Building,
       path: '/station-management',
       color: 'bg-indigo-600 hover:bg-indigo-700',
-      show: isSuperAdmin()
+      show: isSuperAdmin() // Super admin only
     },
     {
       title: 'Registration Management',
@@ -95,7 +106,7 @@ const Dashboard = () => {
       icon: ClipboardList,
       path: '/registration-management',
       color: 'bg-teal-600 hover:bg-teal-700',
-      show: isSuperAdmin()
+      show: isSuperAdmin() // Super admin only
     },
     {
       title: 'Station Admin Approval',
@@ -103,7 +114,7 @@ const Dashboard = () => {
       icon: UserCheck,
       path: '/station-admin-approval',
       color: 'bg-pink-600 hover:bg-pink-700',
-      show: isSuperAdmin()
+      show: isSuperAdmin() // Super admin only
     },
     {
       title: 'Profile Settings',
@@ -111,11 +122,19 @@ const Dashboard = () => {
       icon: Settings,
       path: '/profile',
       color: 'bg-slate-600 hover:bg-slate-700',
-      show: true
+      show: true // Everyone can access
     }
   ];
 
   const visibleItems = menuItems.filter(item => item.show);
+
+  const getRoleDisplayName = () => {
+    if (isSuperAdmin()) return 'Super Administrator';
+    if (isStationAdmin()) return 'Station Administrator';
+    if (isTechnician()) return 'Technician';
+    if (isFrontDesk()) return 'Front Desk';
+    return 'User';
+  };
 
   return (
     <div className="min-h-screen bg-slate-900">
@@ -138,7 +157,8 @@ const Dashboard = () => {
               <div className="flex items-center space-x-2 text-xs text-slate-400">
                 {isSuperAdmin() && <span className="bg-red-600/20 text-red-400 px-2 py-1 rounded">Super Admin</span>}
                 {isStationAdmin() && <span className="bg-blue-600/20 text-blue-400 px-2 py-1 rounded">Station Admin</span>}
-                {isAdmin() && <span className="bg-green-600/20 text-green-400 px-2 py-1 rounded">Admin</span>}
+                {isTechnician() && <span className="bg-green-600/20 text-green-400 px-2 py-1 rounded">Technician</span>}
+                {isFrontDesk() && <span className="bg-purple-600/20 text-purple-400 px-2 py-1 rounded">Front Desk</span>}
               </div>
             </div>
             <button
@@ -193,9 +213,7 @@ const Dashboard = () => {
                 <div>
                   <p className="text-slate-400 text-sm">Your Role</p>
                   <p className="text-lg font-semibold text-white">
-                    {isSuperAdmin() ? 'Super Administrator' : 
-                     isStationAdmin() ? 'Station Administrator' :
-                     isAdmin() ? 'Administrator' : 'User'}
+                    {getRoleDisplayName()}
                   </p>
                 </div>
                 <Shield className="w-8 h-8 text-blue-400" />
@@ -217,8 +235,12 @@ const Dashboard = () => {
             <div className="bg-slate-800 rounded-lg border border-slate-700 p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-slate-400 text-sm">Account Status</p>
-                  <p className="text-lg font-semibold text-white">Active</p>
+                  <p className="text-slate-400 text-sm">Access Level</p>
+                  <p className="text-lg font-semibold text-white">
+                    {isSuperAdmin() ? 'Global' : 
+                     isStationAdmin() || isTechnician() ? 'Station' :
+                     isFrontDesk() ? 'Personal' : 'Limited'}
+                  </p>
                 </div>
                 <UserCheck className="w-8 h-8 text-yellow-400" />
               </div>
