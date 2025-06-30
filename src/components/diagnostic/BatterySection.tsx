@@ -28,10 +28,10 @@ const BatterySection: React.FC<FormProps> = ({ formData, onInputChange, onCheckb
         className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white"
       >
         <option value="">Select charger type</option>
-        <option value="level1">Level 1 (120V)</option>
-        <option value="level2">Level 2 (240V)</option>
-        <option value="dcfast">DC Fast Charging</option>
-        <option value="tesla">Tesla Supercharger</option>
+        <option value="level1">Level 1 Portable (AU 3-pin plug → Type 2)</option>
+        <option value="level2">Level 2 AC(7-22kW) - (Type 2 (Mennekes))</option>
+        <option value="dcfast">DC Fast Charging (50kW) - (CCS2 / CHAdeMO)</option>
+        <option value="tesla">DC Ultra-Fast (150–350 kW) - (CCS2)</option>
       </select>
     </div>
 
