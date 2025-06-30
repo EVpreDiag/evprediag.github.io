@@ -454,11 +454,11 @@ const PrintSummary = () => {
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-4">
             <button
-              onClick={() => navigate('/search')}
+              onClick={() => navigate('/modify-reports')}
               className="flex items-center space-x-2 text-slate-300 hover:text-white transition-colors"
             >
               <ArrowLeft className="w-5 h-5" />
-              <span>Back to Search</span>
+              <span>Back to Modify Reports</span>
             </button>
             <div>
               <h1 className="text-xl font-bold text-white">Diagnostic Summary</h1>
