@@ -79,7 +79,7 @@ const ModifyReports = () => {
       setLoading(true);
       setError(null);
 
-      // Fetch EV records - RLS will automatically filter based on station assignment
+      // Fetch EV records - RLS will automatically filter based on station assignment and NULL station_id
       let evQuery = supabase
         .from('ev_diagnostic_records')
         .select(`
@@ -100,7 +100,7 @@ const ModifyReports = () => {
         throw evError;
       }
 
-      // Fetch PHEV records - RLS will automatically filter based on station assignment
+      // Fetch PHEV records - RLS will automatically filter based on station assignment and NULL station_id
       let phevQuery = supabase
         .from('phev_diagnostic_records')
         .select(`
@@ -121,7 +121,7 @@ const ModifyReports = () => {
       }
 
       // Combine and format results
-      const combinedRecords: DiagnosticRecord[] = [
+      let combinedRecords: DiagnosticRecord[] = [
         ...(evData || []).map(record => ({
           ...record,
           record_type: 'EV' as const,
@@ -135,6 +135,11 @@ const ModifyReports = () => {
           station_name: record.stations?.name || 'Unknown Station'
         }))
       ];
+
+      // Extra security: Filter out NULL station_id records for non-super admins at frontend level
+      if (!isSuperAdmin()) {
+        combinedRecords = combinedRecords.filter(record => record.station_id !== null);
+      }
 
       // Sort by updated date (most recently updated first)
       combinedRecords.sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime());
@@ -150,17 +155,35 @@ const ModifyReports = () => {
   };
 
   const handleEdit = (record: DiagnosticRecord) => {
+    // Additional security check before navigation
+    if (!isSuperAdmin() && !record.station_id) {
+      setError('Access denied to this record');
+      return;
+    }
+    
     const path = record.record_type === 'EV' ? '/diagnostic-form' : '/phev-diagnostic-form';
     navigate(`${path}?edit=${record.id}`);
   };
 
   const handleView = (record: DiagnosticRecord) => {
+    // Additional security check before navigation
+    if (!isSuperAdmin() && !record.station_id) {
+      setError('Access denied to this record');
+      return;
+    }
+    
     const recordType = record.record_type.toLowerCase();
     navigate(`/print-summary/${recordType}/${record.id}`);
   };
 
   const handleDelete = async (record: DiagnosticRecord) => {
     if (!user) return;
+
+    // Additional security check before deletion
+    if (!isSuperAdmin() && !record.station_id) {
+      setError('Access denied to this record');
+      return;
+    }
 
     try {
       const tableName = record.record_type === 'EV' ? 'ev_diagnostic_records' : 'phev_diagnostic_records';
@@ -186,6 +209,9 @@ const ModifyReports = () => {
   };
 
   const canEditRecord = (record: DiagnosticRecord): boolean => {
+    // Extra security check for NULL station_id
+    if (!isSuperAdmin() && !record.station_id) return false;
+    
     if (isSuperAdmin() || isStationAdmin()) return true;
     if (isTechnician()) return true; // Can edit station records
     if (isFrontDesk()) return record.technician_id === user?.id; // Only own records
@@ -193,6 +219,9 @@ const ModifyReports = () => {
   };
 
   const canDeleteRecord = (record: DiagnosticRecord): boolean => {
+    // Extra security check for NULL station_id
+    if (!isSuperAdmin() && !record.station_id) return false;
+    
     if (isSuperAdmin() || isStationAdmin()) return true;
     if (isFrontDesk()) return record.technician_id === user?.id; // Only own records
     return false;
@@ -317,6 +346,13 @@ const ModifyReports = () => {
                           <span className="inline-flex items-center px-2 py-1 text-xs bg-slate-700 text-slate-300 rounded-full">
                             <Building className="w-3 h-3 mr-1" />
                             {record.station_name}
+                          </span>
+                        )}
+                        {/* Show warning for NULL station records (only visible to super admins) */}
+                        {isSuperAdmin() && !record.station_id && (
+                          <span className="inline-flex items-center px-2 py-1 text-xs bg-red-600/20 text-red-400 rounded-full">
+                            <AlertTriangle className="w-3 h-3 mr-1" />
+                            No Station
                           </span>
                         )}
                         {isFrontDesk() && record.technician_id !== user?.id && (

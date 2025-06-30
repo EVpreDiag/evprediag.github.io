@@ -89,7 +89,7 @@ const SearchRecords = () => {
     setError(null);
 
     try {
-      // Search EV records - RLS will automatically filter based on station assignment
+      // Search EV records - RLS will automatically filter based on station assignment and NULL station_id
       let evQuery = supabase
         .from('ev_diagnostic_records')
         .select(`
@@ -121,7 +121,7 @@ const SearchRecords = () => {
         throw evError;
       }
 
-      // Search PHEV records - RLS will automatically filter based on station assignment
+      // Search PHEV records - RLS will automatically filter based on station assignment and NULL station_id
       let phevQuery = supabase
         .from('phev_diagnostic_records')
         .select(`
@@ -152,8 +152,8 @@ const SearchRecords = () => {
         throw phevError;
       }
 
-      // Combine and format results
-      const combinedRecords: SearchRecord[] = [
+      // Combine and format results - Additional frontend filtering for extra security
+      let combinedRecords: SearchRecord[] = [
         ...(evData || []).map(record => ({
           ...record,
           record_type: 'EV' as const,
@@ -167,6 +167,11 @@ const SearchRecords = () => {
           station_name: record.stations?.name || 'Unknown Station'
         }))
       ];
+
+      // Extra security: Filter out NULL station_id records for non-super admins at frontend level
+      if (!isSuperAdmin()) {
+        combinedRecords = combinedRecords.filter(record => record.station_id !== null);
+      }
 
       // Sort by creation date (newest first)
       combinedRecords.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
@@ -182,6 +187,12 @@ const SearchRecords = () => {
   };
 
   const handleViewRecord = (record: SearchRecord) => {
+    // Additional security check before navigation
+    if (!isSuperAdmin() && !record.station_id) {
+      setError('Access denied to this record');
+      return;
+    }
+    
     const recordType = record.record_type.toLowerCase();
     navigate(`/print-summary/${recordType}/${record.id}`);
   };
@@ -317,6 +328,13 @@ const SearchRecords = () => {
                           <span className="inline-flex items-center px-2 py-1 text-xs bg-slate-700 text-slate-300 rounded-full">
                             <Building className="w-3 h-3 mr-1" />
                             {record.station_name}
+                          </span>
+                        )}
+                        {/* Show warning for NULL station records (only visible to super admins) */}
+                        {isSuperAdmin() && !record.station_id && (
+                          <span className="inline-flex items-center px-2 py-1 text-xs bg-red-600/20 text-red-400 rounded-full">
+                            <AlertTriangle className="w-3 h-3 mr-1" />
+                            No Station
                           </span>
                         )}
                       </div>
