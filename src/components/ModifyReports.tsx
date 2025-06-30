@@ -4,7 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../integrations/supabase/client';
 import { ArrowLeft, Edit, Trash2, Eye, Calendar, User, Car, AlertTriangle, Shield, Building } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { secureLog, checkRecordOwnership } from '../utils/securityUtils';
+import { secureLog } from '../utils/securityUtils';
 
 interface DiagnosticRecord {
   id: string;
@@ -30,7 +30,6 @@ interface Station {
 const ModifyReports = () => {
   const { 
     user, 
-    hasRole, 
     isSuperAdmin, 
     isStationAdmin, 
     isTechnician, 
@@ -80,7 +79,7 @@ const ModifyReports = () => {
       setLoading(true);
       setError(null);
 
-      // Fetch EV records - RLS will automatically filter based on user permissions
+      // Fetch EV records - RLS will automatically filter based on station assignment
       let evQuery = supabase
         .from('ev_diagnostic_records')
         .select(`
@@ -101,7 +100,7 @@ const ModifyReports = () => {
         throw evError;
       }
 
-      // Fetch PHEV records - RLS will automatically filter based on user permissions
+      // Fetch PHEV records - RLS will automatically filter based on station assignment
       let phevQuery = supabase
         .from('phev_diagnostic_records')
         .select(`
@@ -162,25 +161,6 @@ const ModifyReports = () => {
 
   const handleDelete = async (record: DiagnosticRecord) => {
     if (!user) return;
-
-    // Front desk users can only delete their own records
-    if (isFrontDesk() && record.technician_id !== user.id) {
-      setError('You can only delete your own records.');
-      return;
-    }
-
-    // Double-check ownership for non-super-admins and non-station-admins
-    if (!isSuperAdmin() && !isStationAdmin()) {
-      const hasOwnership = await checkRecordOwnership(
-        record.id, 
-        record.record_type === 'EV' ? 'ev_diagnostic_records' : 'phev_diagnostic_records'
-      );
-      
-      if (!hasOwnership) {
-        setError('You can only delete your own records.');
-        return;
-      }
-    }
 
     try {
       const tableName = record.record_type === 'EV' ? 'ev_diagnostic_records' : 'phev_diagnostic_records';
@@ -303,7 +283,7 @@ const ModifyReports = () => {
           <div className="bg-slate-800 rounded-lg p-8 text-center border border-slate-700">
             <Edit className="w-12 h-12 text-slate-400 mx-auto mb-4" />
             <p className="text-slate-400">
-              {isFrontDesk() ? 'No diagnostic reports found for your account.' : 'No diagnostic reports found.'}
+              {isFrontDesk() ? 'No diagnostic reports found for your account.' : 'No diagnostic reports found for your station.'}
             </p>
           </div>
         ) : (
@@ -333,7 +313,7 @@ const ModifyReports = () => {
                           {record.record_type}
                         </span>
                         <h3 className="text-white font-medium">{record.customer_name}</h3>
-                        {(isSuperAdmin() || isStationAdmin()) && (
+                        {isSuperAdmin() && (
                           <span className="inline-flex items-center px-2 py-1 text-xs bg-slate-700 text-slate-300 rounded-full">
                             <Building className="w-3 h-3 mr-1" />
                             {record.station_name}

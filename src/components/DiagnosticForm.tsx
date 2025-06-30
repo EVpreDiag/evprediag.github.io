@@ -1,10 +1,11 @@
+
 import React, { useState, useCallback, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, Save, Loader2 } from 'lucide-react';
 import { FormData } from '../types/diagnosticForm';
 import { getInitialFormData, saveFormData } from '../utils/formUtils';
 import { supabase } from '../integrations/supabase/client';
-import { secureLog, checkRecordOwnership } from '../utils/securityUtils';
+import { secureLog } from '../utils/securityUtils';
 import { useAuth } from '../contexts/AuthContext';
 import FormSection from './diagnostic/FormSection';
 import GeneralInfoSection from './diagnostic/GeneralInfoSection';
@@ -37,16 +38,7 @@ const DiagnosticForm = () => {
       setLoading(true);
       setSubmitError(null);
 
-      // Check if user has permission to edit this record
-      if (!isAdmin()) {
-        const hasOwnership = await checkRecordOwnership(recordId, 'ev_diagnostic_records');
-        if (!hasOwnership) {
-          setSubmitError('You can only edit your own records.');
-          return;
-        }
-      }
-
-      // Fetch the record
+      // Fetch the record - RLS will automatically enforce station-based access control
       const { data, error } = await supabase
         .from('ev_diagnostic_records')
         .select('*')
@@ -55,7 +47,12 @@ const DiagnosticForm = () => {
 
       if (error) {
         secureLog('Error loading EV record for edit', 'error', { error: error.message });
-        throw error;
+        if (error.code === 'PGRST116') {
+          setSubmitError('Record not found or you do not have permission to edit this record.');
+        } else {
+          throw error;
+        }
+        return;
       }
 
       if (data) {
@@ -179,7 +176,7 @@ const DiagnosticForm = () => {
       let recordId;
       
       if (isEditMode && editId) {
-        // Update existing record
+        // Update existing record - RLS will automatically enforce station-based access control
         const { error } = await supabase
           .from('ev_diagnostic_records')
           .update({
@@ -258,7 +255,12 @@ const DiagnosticForm = () => {
           })
           .eq('id', editId);
 
-        if (error) throw error;
+        if (error) {
+          if (error.code === 'PGRST116') {
+            throw new Error('You do not have permission to edit this record.');
+          }
+          throw error;
+        }
         recordId = editId;
         secureLog('EV record updated successfully', 'info');
       } else {

@@ -27,7 +27,7 @@ interface Station {
 }
 
 const SearchRecords = () => {
-  const { user, isAdmin, isSuperAdmin } = useAuth();
+  const { user, isSuperAdmin } = useAuth();
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState('');
   const [searchType, setSearchType] = useState<'vin' | 'ro' | 'customer'>('vin');
@@ -89,7 +89,7 @@ const SearchRecords = () => {
     setError(null);
 
     try {
-      // Search EV records
+      // Search EV records - RLS will automatically filter based on station assignment
       let evQuery = supabase
         .from('ev_diagnostic_records')
         .select(`
@@ -97,10 +97,8 @@ const SearchRecords = () => {
           stations!ev_diagnostic_records_station_id_fkey(name)
         `);
 
-      // Apply RLS-compatible filtering
-      if (!isSuperAdmin()) {
-        evQuery = evQuery.eq('technician_id', user.id);
-      } else if (selectedStationId) {
+      // Super admins can optionally filter by station
+      if (isSuperAdmin() && selectedStationId) {
         evQuery = evQuery.eq('station_id', selectedStationId);
       }
 
@@ -123,7 +121,7 @@ const SearchRecords = () => {
         throw evError;
       }
 
-      // Search PHEV records
+      // Search PHEV records - RLS will automatically filter based on station assignment
       let phevQuery = supabase
         .from('phev_diagnostic_records')
         .select(`
@@ -131,9 +129,7 @@ const SearchRecords = () => {
           stations!phev_diagnostic_records_station_id_fkey(name)
         `);
 
-      if (!isSuperAdmin()) {
-        phevQuery = phevQuery.eq('technician_id', user.id);
-      } else if (selectedStationId) {
+      if (isSuperAdmin() && selectedStationId) {
         phevQuery = phevQuery.eq('station_id', selectedStationId);
       }
 
@@ -210,7 +206,7 @@ const SearchRecords = () => {
           <div>
             <h1 className="text-xl font-bold text-white">Search Diagnostic Records</h1>
             <p className="text-sm text-slate-400">
-              {isSuperAdmin() ? 'Search all diagnostic records' : 'Search your diagnostic records'}
+              {isSuperAdmin() ? 'Search all diagnostic records' : 'Search your station diagnostic records'}
             </p>
           </div>
         </div>

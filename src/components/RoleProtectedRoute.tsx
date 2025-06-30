@@ -26,7 +26,7 @@ const RoleProtectedRoute: React.FC<RoleProtectedRouteProps> = ({
       console.log('RoleProtectedRoute: Refreshing user roles for', user.id);
       fetchUserRoles(user.id);
     }
-  }, [isAuthenticated, user?.id, userRoles.length]);
+  }, [isAuthenticated, user?.id, userRoles.length, fetchUserRoles]);
 
   if (loading) {
     return (
