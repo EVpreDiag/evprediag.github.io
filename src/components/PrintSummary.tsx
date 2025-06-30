@@ -435,7 +435,7 @@ const PrintSummary = () => {
           <h2 className="text-xl font-bold text-white mb-2">Record Not Found</h2>
           <p className="text-slate-400 mb-4">{error || 'The requested diagnostic record could not be found.'}</p>
           <button
-            onClick={() => navigate('/search')}
+            onClick={() => navigate('/search-records')}
             className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
           >
             Back to Search
@@ -454,7 +454,7 @@ const PrintSummary = () => {
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-4">
             <button
-              onClick={() => navigate('/search-records')}
+              onClick={() => navigate('/search')}
               className="flex items-center space-x-2 text-slate-300 hover:text-white transition-colors"
             >
               <ArrowLeft className="w-5 h-5" />
