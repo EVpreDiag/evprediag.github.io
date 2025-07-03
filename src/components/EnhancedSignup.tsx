@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo, useCallback } from 'react';
 import { supabase } from '../integrations/supabase/client';
 import { Building, User, Mail, Lock, CheckCircle, Hash, Check, AlertCircle } from 'lucide-react';
@@ -242,26 +243,57 @@ const EnhancedSignup: React.FC<EnhancedSignupProps> = ({ onSignupSuccess, onSwit
 
       console.log('User created successfully with ID:', authData.user.id);
 
-      // Wait a moment for the trigger to create the profile
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // Wait longer for the trigger to create the profile
+      console.log('Waiting for profile creation trigger...');
+      await new Promise(resolve => setTimeout(resolve, 2000));
 
-      // Update the profile with the station information
-      console.log('Updating profile with station information...');
-      const { error: profileError } = await supabase
+      // First, check if profile exists
+      console.log('Checking if profile exists...');
+      const { data: existingProfile, error: checkError } = await supabase
         .from('profiles')
-        .update({
-          username: formData.email.trim(),
-          station_id: formData.stationId.trim(),
-          full_name: formData.fullName.trim()
-        })
-        .eq('id', authData.user.id);
+        .select('*')
+        .eq('id', authData.user.id)
+        .maybeSingle();
 
-      if (profileError) {
-        console.error('Error updating profile:', profileError);
-        throw new Error(`Failed to update profile: ${profileError.message}`);
+      console.log('Profile check result:', { existingProfile, checkError });
+
+      if (checkError) {
+        console.error('Error checking profile:', checkError);
       }
 
-      console.log('Profile updated successfully');
+      // Update or insert the profile with the station information
+      console.log('Upserting profile with station information...');
+      const profileData = {
+        id: authData.user.id,
+        username: formData.email.trim(),
+        station_id: formData.stationId.trim(),
+        full_name: formData.fullName.trim()
+      };
+
+      console.log('Profile data to upsert:', profileData);
+
+      const { data: profileResult, error: profileError } = await supabase
+        .from('profiles')
+        .upsert(profileData, { 
+          onConflict: 'id',
+          ignoreDuplicates: false 
+        })
+        .select();
+
+      console.log('Profile upsert result:', { profileResult, profileError });
+
+      if (profileError) {
+        console.error('Error upserting profile:', profileError);
+        console.error('Profile error details:', {
+          message: profileError.message,
+          details: profileError.details,
+          hint: profileError.hint,
+          code: profileError.code
+        });
+        throw new Error(`Failed to save profile information: ${profileError.message}`);
+      }
+
+      console.log('Profile updated successfully with station_id:', formData.stationId.trim());
       console.log('=== SIGNUP PROCESS COMPLETED SUCCESSFULLY ===');
       
       setStep('success');
@@ -281,7 +313,7 @@ const EnhancedSignup: React.FC<EnhancedSignupProps> = ({ onSignupSuccess, onSwit
         setError('Please enter a valid email address.');
       } else if (error.message.includes('Password should be at least')) {
         setError('Password must be at least 6 characters long.');
-      } else if (error.message.includes('Failed to update profile')) {
+      } else if (error.message.includes('Failed to save profile information')) {
         setError('Account created but failed to save station information. Please contact support.');
       } else {
         setError(error.message || 'Failed to create account. Please try again.');
