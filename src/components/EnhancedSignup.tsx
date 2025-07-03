@@ -236,7 +236,10 @@ const EnhancedSignup: React.FC<EnhancedSignupProps> = ({ onSignupSuccess, onSwit
 
       console.log('User created successfully with ID:', authData.user.id);
 
-      // Create the profile record directly with the new policy
+      // Wait a moment to ensure the user is fully created
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
+      // Try to create the profile with multiple attempts
       console.log('Creating profile with station information...');
       const profileData = {
         id: authData.user.id,
@@ -247,22 +250,63 @@ const EnhancedSignup: React.FC<EnhancedSignupProps> = ({ onSignupSuccess, onSwit
 
       console.log('Profile data to insert:', profileData);
 
-      const { data: profileResult, error: profileError } = await supabase
-        .from('profiles')
-        .insert(profileData)
-        .select();
+      let profileResult = null;
+      let profileError = null;
+      let attempts = 0;
+      const maxAttempts = 3;
 
-      console.log('Profile insert result:', { profileResult, profileError });
+      // Try multiple times with increasing delays
+      while (attempts < maxAttempts && !profileResult) {
+        attempts++;
+        console.log(`Profile creation attempt ${attempts}/${maxAttempts}`);
+
+        const result = await supabase
+          .from('profiles')
+          .insert(profileData)
+          .select();
+
+        profileResult = result.data;
+        profileError = result.error;
+
+        console.log(`Attempt ${attempts} result:`, { profileResult, profileError });
+
+        if (profileError) {
+          console.error(`Attempt ${attempts} failed:`, {
+            message: profileError.message,
+            details: profileError.details,
+            hint: profileError.hint,
+            code: profileError.code
+          });
+
+          if (attempts < maxAttempts) {
+            // Wait before retrying
+            await new Promise(resolve => setTimeout(resolve, 1000 * attempts));
+          }
+        } else {
+          break; // Success!
+        }
+      }
 
       if (profileError) {
-        console.error('Error creating profile:', profileError);
-        console.error('Profile error details:', {
-          message: profileError.message,
-          details: profileError.details,
-          hint: profileError.hint,
-          code: profileError.code
-        });
-        throw new Error(`Failed to save profile information: ${profileError.message}`);
+        console.error('All profile creation attempts failed:', profileError);
+        
+        // Try one more time with upsert as fallback
+        console.log('Trying upsert as fallback...');
+        const upsertResult = await supabase
+          .from('profiles')
+          .upsert(profileData, { 
+            onConflict: 'id',
+            ignoreDuplicates: false 
+          })
+          .select();
+
+        if (upsertResult.error) {
+          console.error('Upsert also failed:', upsertResult.error);
+          throw new Error(`Failed to save profile information: ${profileError.message}`);
+        }
+
+        profileResult = upsertResult.data;
+        console.log('Upsert succeeded:', profileResult);
       }
 
       console.log('Profile created successfully with station_id:', formData.stationId.trim());
