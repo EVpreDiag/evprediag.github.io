@@ -214,7 +214,7 @@ const EnhancedSignup: React.FC<EnhancedSignupProps> = ({ onSignupSuccess, onSwit
     try {
       console.log('Starting auth signup...');
       
-      // First, attempt to sign up the user
+      // Sign up the user with metadata
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: formData.email.trim(),
         password: formData.password,
@@ -223,7 +223,8 @@ const EnhancedSignup: React.FC<EnhancedSignupProps> = ({ onSignupSuccess, onSwit
           data: {
             full_name: formData.fullName.trim(),
             station_id: formData.stationId.trim(),
-            station_name: formData.stationName.trim()
+            station_name: formData.stationName.trim(),
+            username: formData.email.trim()
           }
         }
       });
@@ -240,41 +241,27 @@ const EnhancedSignup: React.FC<EnhancedSignupProps> = ({ onSignupSuccess, onSwit
       }
 
       console.log('User created successfully with ID:', authData.user.id);
-      console.log('Now inserting into pending_users table...');
 
-      // Store additional signup data in pending_users table
-      const pendingUserData = {
-        email: formData.email.trim(),
-        full_name: formData.fullName.trim(),
-        station_id: formData.stationId.trim(),
-        password_hash: '', // Will be handled by Supabase Auth
-        email_verified: false,
-        status: 'pending'
-      };
+      // Wait a moment for the trigger to create the profile
+      await new Promise(resolve => setTimeout(resolve, 1000));
 
-      console.log('Pending user data to insert:', pendingUserData);
+      // Update the profile with the station information
+      console.log('Updating profile with station information...');
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .update({
+          username: formData.email.trim(),
+          station_id: formData.stationId.trim(),
+          full_name: formData.fullName.trim()
+        })
+        .eq('id', authData.user.id);
 
-      const { data: pendingData, error: pendingError } = await supabase
-        .from('pending_users')
-        .insert(pendingUserData)
-        .select();
-
-      console.log('Pending users insert result:', { pendingData, pendingError });
-
-      if (pendingError) {
-        console.error('Error storing pending user data:', pendingError);
-        console.error('Pending error details:', {
-          message: pendingError.message,
-          details: pendingError.details,
-          hint: pendingError.hint,
-          code: pendingError.code
-        });
-        
-        // This is critical - if we can't store pending user data, show error
-        throw new Error(`Failed to store signup data: ${pendingError.message}`);
+      if (profileError) {
+        console.error('Error updating profile:', profileError);
+        throw new Error(`Failed to update profile: ${profileError.message}`);
       }
 
-      console.log('Pending user data stored successfully:', pendingData);
+      console.log('Profile updated successfully');
       console.log('=== SIGNUP PROCESS COMPLETED SUCCESSFULLY ===');
       
       setStep('success');
@@ -294,8 +281,8 @@ const EnhancedSignup: React.FC<EnhancedSignupProps> = ({ onSignupSuccess, onSwit
         setError('Please enter a valid email address.');
       } else if (error.message.includes('Password should be at least')) {
         setError('Password must be at least 6 characters long.');
-      } else if (error.message.includes('Failed to store signup data')) {
-        setError('Account created but failed to save additional data. Please contact support.');
+      } else if (error.message.includes('Failed to update profile')) {
+        setError('Account created but failed to save station information. Please contact support.');
       } else {
         setError(error.message || 'Failed to create account. Please try again.');
       }
