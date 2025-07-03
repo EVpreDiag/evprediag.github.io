@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo, useCallback } from 'react';
 import { supabase } from '../integrations/supabase/client';
 import { Building, User, Mail, Lock, CheckCircle, Hash, Check, AlertCircle } from 'lucide-react';
@@ -215,18 +214,12 @@ const EnhancedSignup: React.FC<EnhancedSignupProps> = ({ onSignupSuccess, onSwit
     try {
       console.log('Starting auth signup...');
       
-      // Sign up the user with metadata
+      // Sign up the user
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: formData.email.trim(),
         password: formData.password,
         options: {
-          emailRedirectTo: `${window.location.origin}/dashboard`,
-          data: {
-            full_name: formData.fullName.trim(),
-            station_id: formData.stationId.trim(),
-            station_name: formData.stationName.trim(),
-            username: formData.email.trim()
-          }
+          emailRedirectTo: `${window.location.origin}/dashboard`
         }
       });
 
@@ -243,26 +236,8 @@ const EnhancedSignup: React.FC<EnhancedSignupProps> = ({ onSignupSuccess, onSwit
 
       console.log('User created successfully with ID:', authData.user.id);
 
-      // Wait longer for the trigger to create the profile
-      console.log('Waiting for profile creation trigger...');
-      await new Promise(resolve => setTimeout(resolve, 2000));
-
-      // First, check if profile exists
-      console.log('Checking if profile exists...');
-      const { data: existingProfile, error: checkError } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', authData.user.id)
-        .maybeSingle();
-
-      console.log('Profile check result:', { existingProfile, checkError });
-
-      if (checkError) {
-        console.error('Error checking profile:', checkError);
-      }
-
-      // Update or insert the profile with the station information
-      console.log('Upserting profile with station information...');
+      // Create the profile record directly with the new policy
+      console.log('Creating profile with station information...');
       const profileData = {
         id: authData.user.id,
         username: formData.email.trim(),
@@ -270,20 +245,17 @@ const EnhancedSignup: React.FC<EnhancedSignupProps> = ({ onSignupSuccess, onSwit
         full_name: formData.fullName.trim()
       };
 
-      console.log('Profile data to upsert:', profileData);
+      console.log('Profile data to insert:', profileData);
 
       const { data: profileResult, error: profileError } = await supabase
         .from('profiles')
-        .upsert(profileData, { 
-          onConflict: 'id',
-          ignoreDuplicates: false 
-        })
+        .insert(profileData)
         .select();
 
-      console.log('Profile upsert result:', { profileResult, profileError });
+      console.log('Profile insert result:', { profileResult, profileError });
 
       if (profileError) {
-        console.error('Error upserting profile:', profileError);
+        console.error('Error creating profile:', profileError);
         console.error('Profile error details:', {
           message: profileError.message,
           details: profileError.details,
@@ -293,7 +265,7 @@ const EnhancedSignup: React.FC<EnhancedSignupProps> = ({ onSignupSuccess, onSwit
         throw new Error(`Failed to save profile information: ${profileError.message}`);
       }
 
-      console.log('Profile updated successfully with station_id:', formData.stationId.trim());
+      console.log('Profile created successfully with station_id:', formData.stationId.trim());
       console.log('=== SIGNUP PROCESS COMPLETED SUCCESSFULLY ===');
       
       setStep('success');
