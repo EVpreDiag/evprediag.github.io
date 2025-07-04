@@ -12,6 +12,7 @@ const EnhancedSignup: React.FC<EnhancedSignupProps> = ({ onSignupSuccess, onSwit
   const [loading, setLoading] = useState(false);
   const [validatingStation, setValidatingStation] = useState(false);
   const [stationValidated, setStationValidated] = useState(false);
+  const [validatedStationId, setValidatedStationId] = useState(''); // Store the validated station ID
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -143,6 +144,7 @@ const EnhancedSignup: React.FC<EnhancedSignupProps> = ({ onSignupSuccess, onSwit
     setValidatingStation(true);
     setValidationError('');
     setStationValidated(false);
+    setValidatedStationId(''); // Reset validated station ID
 
     try {
       console.log('Calling validate-station function...');
@@ -179,6 +181,7 @@ const EnhancedSignup: React.FC<EnhancedSignupProps> = ({ onSignupSuccess, onSwit
 
       console.log('Station validation successful');
       setStationValidated(true);
+      setValidatedStationId(formData.stationId.trim()); // Store the exact validated station ID
       setValidationError('');
       
     } catch (error) {
@@ -195,6 +198,7 @@ const EnhancedSignup: React.FC<EnhancedSignupProps> = ({ onSignupSuccess, onSwit
     
     console.log('=== SIGNUP PROCESS STARTED ===');
     console.log('Form data:', formData);
+    console.log('Validated station ID:', validatedStationId);
     
     // Validate all fields
     if (!validateAllFields()) {
@@ -203,8 +207,8 @@ const EnhancedSignup: React.FC<EnhancedSignupProps> = ({ onSignupSuccess, onSwit
       return;
     }
 
-    if (!stationValidated) {
-      console.log('Station not validated');
+    if (!stationValidated || !validatedStationId) {
+      console.log('Station not validated or validated station ID missing');
       setError('Please validate your station information first');
       return;
     }
@@ -223,7 +227,7 @@ const EnhancedSignup: React.FC<EnhancedSignupProps> = ({ onSignupSuccess, onSwit
           emailRedirectTo: `${window.location.origin}/dashboard`,
           data: {
             full_name: formData.fullName.trim(),
-            station_id: formData.stationId.trim(),
+            station_id: validatedStationId, // Use the validated station ID
             username: formData.email.trim()
           }
         }
@@ -250,11 +254,12 @@ const EnhancedSignup: React.FC<EnhancedSignupProps> = ({ onSignupSuccess, onSwit
       const profileData = {
         id: authData.user.id,
         username: formData.email.trim(),
-        station_id: formData.stationId.trim(),
+        station_id: validatedStationId, // Use the validated station ID
         full_name: formData.fullName.trim()
       };
 
       console.log('Profile data to insert:', profileData);
+      console.log('Using validated station ID:', validatedStationId);
 
       // Use insert instead of upsert to ensure we're creating a new record
       const { data: profileResult, error: profileError } = await supabase
@@ -274,7 +279,7 @@ const EnhancedSignup: React.FC<EnhancedSignupProps> = ({ onSignupSuccess, onSwit
             .from('profiles')
             .update({
               username: formData.email.trim(),
-              station_id: formData.stationId.trim(),
+              station_id: validatedStationId, // Use the validated station ID
               full_name: formData.fullName.trim()
             })
             .eq('id', authData.user.id)
@@ -291,7 +296,7 @@ const EnhancedSignup: React.FC<EnhancedSignupProps> = ({ onSignupSuccess, onSwit
         }
       }
 
-      console.log('Profile created/updated successfully with station_id:', formData.stationId.trim());
+      console.log('Profile created/updated successfully with station_id:', validatedStationId);
       console.log('=== SIGNUP PROCESS COMPLETED SUCCESSFULLY ===');
       
       setStep('success');
@@ -327,6 +332,7 @@ const EnhancedSignup: React.FC<EnhancedSignupProps> = ({ onSignupSuccess, onSwit
     const processedValue = field === 'stationId' && value.includes('-') ? value.toLowerCase() : (field === 'stationId' ? value.toUpperCase() : value);
     setFormData(prev => ({ ...prev, [field]: processedValue }));
     setStationValidated(false);
+    setValidatedStationId(''); // Reset validated station ID when fields change
     setValidationError('');
     
     // Clear field-specific errors and validate in real-time
@@ -564,11 +570,14 @@ const EnhancedSignup: React.FC<EnhancedSignupProps> = ({ onSignupSuccess, onSwit
             )}
           </button>
 
-          {stationValidated && (
+          {stationValidated && validatedStationId && (
             <div className="bg-green-900/20 border border-green-600/50 rounded-lg p-2">
               <p className="text-green-400 text-sm text-center flex items-center justify-center gap-2">
                 <Check className="w-4 h-4" />
                 Station information validated successfully
+              </p>
+              <p className="text-green-300 text-xs text-center mt-1">
+                Validated Station ID: {validatedStationId}
               </p>
             </div>
           )}
