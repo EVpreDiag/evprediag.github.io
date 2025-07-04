@@ -5,9 +5,20 @@ BEGIN
   INSERT INTO public.profiles (id, full_name, username, station_id)
   VALUES (
     NEW.id,
-    COALESCE(NEW.raw_user_meta_data->>'full_name', ''),
-    COALESCE(NEW.raw_user_meta_data->>'username', ''),
-    NEW.raw_user_meta_data->>'station_id'
+    COALESCE(
+      NEW.raw_user_meta_data->>'full_name',
+      NEW.user_metadata->>'full_name',
+      ''
+    ),
+    COALESCE(
+      NEW.raw_user_meta_data->>'username',
+      NEW.user_metadata->>'username',
+      ''
+    ),
+    COALESCE(
+      NEW.raw_user_meta_data->>'station_id',
+      NEW.user_metadata->>'station_id'
+    )::uuid
   );
   RETURN NEW;
 END;
