@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo, useCallback } from 'react';
 import { supabase } from '../integrations/supabase/client';
 import { Building, User, Mail, Lock, CheckCircle, Hash, Check, AlertCircle } from 'lucide-react';
@@ -236,7 +237,7 @@ const EnhancedSignup: React.FC<EnhancedSignupProps> = ({ onSignupSuccess, onSwit
 
       console.log('User created successfully with ID:', authData.user.id);
 
-      // Create the profile with the simplified approach
+      // Create the profile with upsert to handle any conflicts
       console.log('Creating profile with station information...');
       const profileData = {
         id: authData.user.id,
@@ -245,14 +246,17 @@ const EnhancedSignup: React.FC<EnhancedSignupProps> = ({ onSignupSuccess, onSwit
         full_name: formData.fullName.trim()
       };
 
-      console.log('Profile data to insert:', profileData);
+      console.log('Profile data to upsert:', profileData);
 
       const { data: profileResult, error: profileError } = await supabase
         .from('profiles')
-        .insert(profileData)
+        .upsert(profileData, { 
+          onConflict: 'id',
+          ignoreDuplicates: false 
+        })
         .select();
 
-      console.log('Profile insert result:', { profileResult, profileError });
+      console.log('Profile upsert result:', { profileResult, profileError });
 
       if (profileError) {
         console.error('Error creating profile:', profileError);
