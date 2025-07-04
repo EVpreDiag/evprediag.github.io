@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo, useCallback } from 'react';
 import { supabase } from '../integrations/supabase/client';
 import { Building, User, Mail, Lock, CheckCircle, Hash, Check, AlertCircle } from 'lucide-react';
@@ -149,10 +148,13 @@ const EnhancedSignup: React.FC<EnhancedSignupProps> = ({ onSignupSuccess, onSwit
     try {
       console.log('Calling validate-station function...');
       
+      const stationIdToValidate = formData.stationId.trim();
+      const stationNameToValidate = formData.stationName.trim();
+      
       const { data, error } = await supabase.functions.invoke('validate-station', {
         body: {
-          station_name: formData.stationName.trim(),
-          station_id: formData.stationId.trim()
+          station_name: stationNameToValidate,
+          station_id: stationIdToValidate
         }
       });
 
@@ -162,6 +164,7 @@ const EnhancedSignup: React.FC<EnhancedSignupProps> = ({ onSignupSuccess, onSwit
         console.error('Station validation error:', error);
         setValidationError(`Validation failed: ${error.message || 'Unknown error'}`);
         setStationValidated(false);
+        setValidatedStationId('');
         return;
       }
 
@@ -169,6 +172,7 @@ const EnhancedSignup: React.FC<EnhancedSignupProps> = ({ onSignupSuccess, onSwit
         console.error('No data returned from validation');
         setValidationError('No response from validation service');
         setStationValidated(false);
+        setValidatedStationId('');
         return;
       }
 
@@ -176,18 +180,21 @@ const EnhancedSignup: React.FC<EnhancedSignupProps> = ({ onSignupSuccess, onSwit
         console.error('Station validation failed:', data.error);
         setValidationError(data.error || 'Station validation failed - station not found or name/ID combination is invalid');
         setStationValidated(false);
+        setValidatedStationId('');
         return;
       }
 
       console.log('Station validation successful');
+      console.log('Setting validated station ID to:', stationIdToValidate);
       setStationValidated(true);
-      setValidatedStationId(formData.stationId.trim()); // Store the exact validated station ID
+      setValidatedStationId(stationIdToValidate); // Store the exact validated station ID
       setValidationError('');
       
     } catch (error) {
       console.error('Station validation exception:', error);
       setValidationError(`Validation error: ${error instanceof Error ? error.message : 'Unknown error occurred'}`);
       setStationValidated(false);
+      setValidatedStationId('');
     } finally {
       setValidatingStation(false);
     }
@@ -198,7 +205,10 @@ const EnhancedSignup: React.FC<EnhancedSignupProps> = ({ onSignupSuccess, onSwit
     
     console.log('=== SIGNUP PROCESS STARTED ===');
     console.log('Form data:', formData);
+    console.log('Station validated:', stationValidated);
     console.log('Validated station ID:', validatedStationId);
+    console.log('Validated station ID type:', typeof validatedStationId);
+    console.log('Validated station ID length:', validatedStationId.length);
     
     // Validate all fields
     if (!validateAllFields()) {
@@ -207,9 +217,15 @@ const EnhancedSignup: React.FC<EnhancedSignupProps> = ({ onSignupSuccess, onSwit
       return;
     }
 
-    if (!stationValidated || !validatedStationId) {
-      console.log('Station not validated or validated station ID missing');
+    if (!stationValidated) {
+      console.log('Station not validated');
       setError('Please validate your station information first');
+      return;
+    }
+
+    if (!validatedStationId || validatedStationId.trim() === '') {
+      console.log('Validated station ID is empty or null:', validatedStationId);
+      setError('Station validation incomplete. Please validate your station again.');
       return;
     }
 
@@ -219,7 +235,10 @@ const EnhancedSignup: React.FC<EnhancedSignupProps> = ({ onSignupSuccess, onSwit
     try {
       console.log('Starting auth signup...');
       
-      // Sign up the user with metadata
+      const finalStationId = validatedStationId.trim();
+      console.log('Final station ID to use:', finalStationId);
+      
+      // Sign up the user with metadata including the validated station ID
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: formData.email.trim(),
         password: formData.password,
@@ -227,7 +246,7 @@ const EnhancedSignup: React.FC<EnhancedSignupProps> = ({ onSignupSuccess, onSwit
           emailRedirectTo: `${window.location.origin}/dashboard`,
           data: {
             full_name: formData.fullName.trim(),
-            station_id: validatedStationId, // Use the validated station ID
+            station_id: finalStationId,
             username: formData.email.trim()
           }
         }
@@ -245,23 +264,25 @@ const EnhancedSignup: React.FC<EnhancedSignupProps> = ({ onSignupSuccess, onSwit
       }
 
       console.log('User created successfully with ID:', authData.user.id);
+      console.log('User metadata:', authData.user.user_metadata);
 
       // Wait a moment for the auth state to settle
       await new Promise(resolve => setTimeout(resolve, 1000));
 
-      // Create the profile explicitly
+      // Create the profile explicitly with the validated station ID
       console.log('Creating profile with station information...');
       const profileData = {
         id: authData.user.id,
         username: formData.email.trim(),
-        station_id: validatedStationId, // Use the validated station ID
+        station_id: finalStationId, // Use the validated station ID
         full_name: formData.fullName.trim()
       };
 
       console.log('Profile data to insert:', profileData);
-      console.log('Using validated station ID:', validatedStationId);
+      console.log('Station ID being inserted:', finalStationId);
+      console.log('Station ID type:', typeof finalStationId);
 
-      // Use insert instead of upsert to ensure we're creating a new record
+      // First try to insert the profile
       const { data: profileResult, error: profileError } = await supabase
         .from('profiles')
         .insert(profileData)
@@ -279,7 +300,7 @@ const EnhancedSignup: React.FC<EnhancedSignupProps> = ({ onSignupSuccess, onSwit
             .from('profiles')
             .update({
               username: formData.email.trim(),
-              station_id: validatedStationId, // Use the validated station ID
+              station_id: finalStationId,
               full_name: formData.fullName.trim()
             })
             .eq('id', authData.user.id)
@@ -291,12 +312,31 @@ const EnhancedSignup: React.FC<EnhancedSignupProps> = ({ onSignupSuccess, onSwit
             console.error('Error updating profile:', updateError);
             throw new Error(`Failed to save profile information: ${updateError.message}`);
           }
+          
+          console.log('Profile updated successfully with station_id:', finalStationId);
         } else {
           throw new Error(`Failed to save profile information: ${profileError.message}`);
         }
+      } else {
+        console.log('Profile created successfully with station_id:', finalStationId);
       }
 
-      console.log('Profile created/updated successfully with station_id:', validatedStationId);
+      // Verify the profile was created with the correct station_id
+      const { data: verifyProfile, error: verifyError } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', authData.user.id)
+        .single();
+
+      console.log('Profile verification:', { verifyProfile, verifyError });
+      
+      if (verifyProfile) {
+        console.log('Profile station_id after creation:', verifyProfile.station_id);
+        if (verifyProfile.station_id !== finalStationId) {
+          console.error('Station ID mismatch! Expected:', finalStationId, 'Got:', verifyProfile.station_id);
+        }
+      }
+
       console.log('=== SIGNUP PROCESS COMPLETED SUCCESSFULLY ===');
       
       setStep('success');
@@ -331,8 +371,10 @@ const EnhancedSignup: React.FC<EnhancedSignupProps> = ({ onSignupSuccess, onSwit
     // Don't uppercase UUID format station IDs
     const processedValue = field === 'stationId' && value.includes('-') ? value.toLowerCase() : (field === 'stationId' ? value.toUpperCase() : value);
     setFormData(prev => ({ ...prev, [field]: processedValue }));
+    
+    // Reset validation state when fields change
     setStationValidated(false);
-    setValidatedStationId(''); // Reset validated station ID when fields change
+    setValidatedStationId('');
     setValidationError('');
     
     // Clear field-specific errors and validate in real-time
@@ -349,8 +391,8 @@ const EnhancedSignup: React.FC<EnhancedSignupProps> = ({ onSignupSuccess, onSwit
   }, [validateField]);
 
   const isFormValid = useMemo(() => {
-    return validateAllFields() && stationValidated;
-  }, [validateAllFields, stationValidated]);
+    return validateAllFields() && stationValidated && validatedStationId.trim() !== '';
+  }, [validateAllFields, stationValidated, validatedStationId]);
 
   if (step === 'success') {
     return (
@@ -591,6 +633,17 @@ const EnhancedSignup: React.FC<EnhancedSignupProps> = ({ onSignupSuccess, onSwit
             </div>
           )}
         </div>
+
+        {/* Debug information (remove in production) */}
+        {process.env.NODE_ENV === 'development' && (
+          <div className="bg-blue-900/20 border border-blue-600/50 rounded-lg p-3">
+            <p className="text-blue-400 text-xs">
+              Debug: Station Validated: {stationValidated ? 'Yes' : 'No'} | 
+              Validated ID: "{validatedStationId}" | 
+              Form Valid: {isFormValid ? 'Yes' : 'No'}
+            </p>
+          </div>
+        )}
 
         <div className="bg-blue-900/20 border border-blue-600/50 rounded-lg p-3">
           <p className="text-blue-400 text-sm">
