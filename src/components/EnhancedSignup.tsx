@@ -215,12 +215,17 @@ const EnhancedSignup: React.FC<EnhancedSignupProps> = ({ onSignupSuccess, onSwit
     try {
       console.log('Starting auth signup...');
       
-      // Sign up the user
+      // Sign up the user with metadata
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: formData.email.trim(),
         password: formData.password,
         options: {
-          emailRedirectTo: `${window.location.origin}/dashboard`
+          emailRedirectTo: `${window.location.origin}/dashboard`,
+          data: {
+            full_name: formData.fullName.trim(),
+            station_id: formData.stationId.trim(),
+            username: formData.email.trim()
+          }
         }
       });
 
@@ -237,7 +242,10 @@ const EnhancedSignup: React.FC<EnhancedSignupProps> = ({ onSignupSuccess, onSwit
 
       console.log('User created successfully with ID:', authData.user.id);
 
-      // Create the profile with upsert to handle any conflicts
+      // Wait a moment for the auth state to settle
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
+      // Create the profile explicitly
       console.log('Creating profile with station information...');
       const profileData = {
         id: authData.user.id,
@@ -246,24 +254,44 @@ const EnhancedSignup: React.FC<EnhancedSignupProps> = ({ onSignupSuccess, onSwit
         full_name: formData.fullName.trim()
       };
 
-      console.log('Profile data to upsert:', profileData);
+      console.log('Profile data to insert:', profileData);
 
+      // Use insert instead of upsert to ensure we're creating a new record
       const { data: profileResult, error: profileError } = await supabase
         .from('profiles')
-        .upsert(profileData, { 
-          onConflict: 'id',
-          ignoreDuplicates: false 
-        })
+        .insert(profileData)
         .select();
 
-      console.log('Profile upsert result:', { profileResult, profileError });
+      console.log('Profile insert result:', { profileResult, profileError });
 
       if (profileError) {
         console.error('Error creating profile:', profileError);
-        throw new Error(`Failed to save profile information: ${profileError.message}`);
+        
+        // If the profile already exists, try to update it
+        if (profileError.code === '23505') {
+          console.log('Profile exists, trying to update...');
+          const { data: updateResult, error: updateError } = await supabase
+            .from('profiles')
+            .update({
+              username: formData.email.trim(),
+              station_id: formData.stationId.trim(),
+              full_name: formData.fullName.trim()
+            })
+            .eq('id', authData.user.id)
+            .select();
+
+          console.log('Profile update result:', { updateResult, updateError });
+
+          if (updateError) {
+            console.error('Error updating profile:', updateError);
+            throw new Error(`Failed to save profile information: ${updateError.message}`);
+          }
+        } else {
+          throw new Error(`Failed to save profile information: ${profileError.message}`);
+        }
       }
 
-      console.log('Profile created successfully with station_id:', formData.stationId.trim());
+      console.log('Profile created/updated successfully with station_id:', formData.stationId.trim());
       console.log('=== SIGNUP PROCESS COMPLETED SUCCESSFULLY ===');
       
       setStep('success');
