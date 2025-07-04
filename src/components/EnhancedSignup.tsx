@@ -268,7 +268,7 @@ const EnhancedSignup: React.FC<EnhancedSignupProps> = ({ onSignupSuccess, onSwit
 
       // Wait a moment for the auth state to settle
       await new Promise(resolve => setTimeout(resolve, 1000));
-/*
+
       // Create the profile explicitly with the validated station ID
       console.log('Creating profile with station information...');
       const profileData = {
@@ -336,7 +336,7 @@ const EnhancedSignup: React.FC<EnhancedSignupProps> = ({ onSignupSuccess, onSwit
           console.error('Station ID mismatch! Expected:', finalStationId, 'Got:', verifyProfile.station_id);
         }
       }
-*/
+
       console.log('=== SIGNUP PROCESS COMPLETED SUCCESSFULLY ===');
       
       setStep('success');
