@@ -362,11 +362,16 @@ const EnhancedSignup: React.FC<EnhancedSignupProps> = ({ onSignupSuccess, onSwit
     return (
       <div className="max-w-md mx-auto bg-slate-800 rounded-lg border border-slate-700 p-8 text-center">
         <CheckCircle className="w-16 h-16 text-green-400 mx-auto mb-4" />
-        <h2 className="text-2xl font-bold text-white mb-4">Account Created Successfully</h2>
-        <p className="text-slate-400 mb-6">
-          We've sent a confirmation email to <strong>{formData.email}</strong>. 
-          Please check your inbox and click the confirmation link to verify your account.
-        </p>
+        <h2 className="text-2xl font-bold text-white mb-4">Account Created Successfully!</h2>
+        <div className="bg-blue-900/20 border border-blue-600/50 rounded-lg p-4 mb-6">
+          <p className="text-blue-400 text-sm font-medium mb-2">
+            📧 Verification Email Sent
+          </p>
+          <p className="text-slate-300 text-sm">
+            We've sent a verification email to <strong className="text-white">{formData.email}</strong>. 
+            Please check your inbox and click the confirmation link to verify your account.
+          </p>
+        </div>
         <p className="text-slate-400 mb-6">
           After verification, your account will be pending approval. A super administrator will review your request and assign appropriate roles.
         </p>
@@ -383,6 +388,7 @@ const EnhancedSignup: React.FC<EnhancedSignupProps> = ({ onSignupSuccess, onSwit
                 stationId: ''
               });
               setStationValidated(false);
+              setValidatedStationId('');
               setError('');
               setValidationError('');
               setFieldErrors({});
