@@ -305,10 +305,11 @@ const EnhancedSignup: React.FC<EnhancedSignupProps> = ({ onSignupSuccess, onSwit
       
       setStep('success');
       
-      // Call the success callback if provided
-      if (onSignupSuccess) {
-        onSignupSuccess();
-      }
+      // Don't automatically redirect - let user see the success message
+      // Call the success callback only when user manually switches to login
+      // if (onSignupSuccess) {
+      //   onSignupSuccess();
+      // }
       
     } catch (error: any) {
       console.error('=== SIGNUP PROCESS FAILED ===');
@@ -398,7 +399,13 @@ const EnhancedSignup: React.FC<EnhancedSignupProps> = ({ onSignupSuccess, onSwit
             Create Another Account
           </button>
           <button
-            onClick={onSwitchToLogin}
+            onClick={() => {
+              onSwitchToLogin();
+              // Call success callback when manually switching to login
+              if (onSignupSuccess) {
+                onSignupSuccess();
+              }
+            }}
             className="w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
           >
             Continue to Login
