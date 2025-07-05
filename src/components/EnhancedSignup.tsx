@@ -266,76 +266,37 @@ const EnhancedSignup: React.FC<EnhancedSignupProps> = ({ onSignupSuccess, onSwit
       console.log('User created successfully with ID:', authData.user.id);
       console.log('User metadata:', authData.user.user_metadata);
 
-      // Wait a moment for the auth state to settle
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // Wait for the trigger to create the profile automatically
+      await new Promise(resolve => setTimeout(resolve, 2000));
 
-      // Create the profile explicitly with the validated station ID
-      console.log('Creating profile with station information...');
-      const profileData = {
-        id: authData.user.id,
-        username: formData.email.trim(),
-        station_id: finalStationId, // Use the validated station ID
-        full_name: formData.fullName.trim()
-      };
-
-      console.log('Profile data to insert:', profileData);
-      console.log('Station ID being inserted:', finalStationId);
-      console.log('Station ID type:', typeof finalStationId);
-
-      // First try to insert the profile
-      const { data: profileResult, error: profileError } = await supabase
-        .from('profiles')
-        .insert(profileData)
-        .select();
-
-      console.log('Profile insert result:', { profileResult, profileError });
-
-      if (profileError) {
-        console.error('Error creating profile:', profileError);
-        
-        // If the profile already exists, try to update it
-        if (profileError.code === '23505') {
-          console.log('Profile exists, trying to update...');
-          const { data: updateResult, error: updateError } = await supabase
-            .from('profiles')
-            .update({
-              username: formData.email.trim(),
-              station_id: finalStationId,
-              full_name: formData.fullName.trim()
-            })
-            .eq('id', authData.user.id)
-            .select();
-
-          console.log('Profile update result:', { updateResult, updateError });
-
-          if (updateError) {
-            console.error('Error updating profile:', updateError);
-            throw new Error(`Failed to save profile information: ${updateError.message}`);
-          }
-          
-          console.log('Profile updated successfully with station_id:', finalStationId);
-        } else {
-          throw new Error(`Failed to save profile information: ${profileError.message}`);
-        }
-      } else {
-        console.log('Profile created successfully with station_id:', finalStationId);
-      }
-
-      // Verify the profile was created with the correct station_id
-      const { data: verifyProfile, error: verifyError } = await supabase
+      // Verify the profile was created correctly by the trigger
+      const { data: profileCheck, error: profileCheckError } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', authData.user.id)
         .single();
 
-      console.log('Profile verification:', { verifyProfile, verifyError });
+      console.log('Profile check after trigger:', { profileCheck, profileCheckError });
       
-      if (verifyProfile) {
-        console.log('Profile station_id after creation:', verifyProfile.station_id);
-        if (verifyProfile.station_id !== finalStationId) {
-          console.error('Station ID mismatch! Expected:', finalStationId, 'Got:', verifyProfile.station_id);
+      if (profileCheckError) {
+        console.error('Profile not created by trigger:', profileCheckError);
+        throw new Error('Failed to create user profile automatically');
+      }
+
+      if (!profileCheck.station_id) {
+        console.log('Station ID not set by trigger, updating manually...');
+        const { error: updateError } = await supabase
+          .from('profiles')
+          .update({ station_id: finalStationId })
+          .eq('id', authData.user.id);
+
+        if (updateError) {
+          console.error('Error updating station_id:', updateError);
+          throw new Error('Failed to save station information');
         }
       }
+
+      console.log('Profile verification complete with station_id:', profileCheck.station_id || finalStationId);
 
       console.log('=== SIGNUP PROCESS COMPLETED SUCCESSFULLY ===');
       
