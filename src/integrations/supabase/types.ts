@@ -284,6 +284,248 @@ export type Database = {
           },
         ]
       }
+      ice_diagnostic_records: {
+        Row: {
+          acceleration_details: string | null
+          acceleration_issues: string | null
+          alternator_details: string | null
+          alternator_issues: string | null
+          battery_details: string | null
+          battery_issues: string | null
+          catalytic_converter_details: string | null
+          catalytic_converter_issues: string | null
+          check_engine_details: string | null
+          check_engine_light: string | null
+          clutch_details: string | null
+          clutch_issues: string | null
+          coolant_leak_details: string | null
+          coolant_leaks: string | null
+          created_at: string
+          customer_name: string
+          driving_conditions: string[] | null
+          engine_knocking: string | null
+          engine_knocking_details: string | null
+          engine_size: string | null
+          engine_stalling: string | null
+          engine_stalling_details: string | null
+          engine_starting: string | null
+          engine_starting_details: string | null
+          excessive_vibration: string | null
+          exhaust_smell: string | null
+          exhaust_smell_details: string | null
+          exhaust_smoke: string | null
+          exhaust_smoke_details: string | null
+          fuel_consumption: string | null
+          fuel_consumption_details: string | null
+          fuel_pump_details: string | null
+          fuel_pump_issues: string | null
+          fuel_quality_details: string | null
+          fuel_quality_issues: string | null
+          fuel_type: string | null
+          gear_shifting: string | null
+          gear_shifting_details: string | null
+          id: string
+          idle_quality: string | null
+          idle_quality_details: string | null
+          maintenance_history: string | null
+          mileage: string | null
+          model: string | null
+          oil_consumption: string | null
+          oil_consumption_details: string | null
+          oil_leak_details: string | null
+          oil_leaks: string | null
+          oil_pressure_details: string | null
+          oil_pressure_issues: string | null
+          other_driving_conditions: string | null
+          overheating: string | null
+          overheating_details: string | null
+          power_loss: string | null
+          power_loss_details: string | null
+          radiator_details: string | null
+          radiator_issues: string | null
+          recent_repairs: string | null
+          ro_number: string
+          rough_running: string | null
+          rough_running_details: string | null
+          starter_details: string | null
+          starter_issues: string | null
+          station_id: string | null
+          technician_id: string
+          temperature_during_issue: string | null
+          transmission_details: string | null
+          transmission_issues: string | null
+          unusual_noises: string | null
+          unusual_noises_details: string | null
+          updated_at: string
+          vehicle_make: string | null
+          vibration_details: string | null
+          vin: string
+          year: string | null
+        }
+        Insert: {
+          acceleration_details?: string | null
+          acceleration_issues?: string | null
+          alternator_details?: string | null
+          alternator_issues?: string | null
+          battery_details?: string | null
+          battery_issues?: string | null
+          catalytic_converter_details?: string | null
+          catalytic_converter_issues?: string | null
+          check_engine_details?: string | null
+          check_engine_light?: string | null
+          clutch_details?: string | null
+          clutch_issues?: string | null
+          coolant_leak_details?: string | null
+          coolant_leaks?: string | null
+          created_at?: string
+          customer_name: string
+          driving_conditions?: string[] | null
+          engine_knocking?: string | null
+          engine_knocking_details?: string | null
+          engine_size?: string | null
+          engine_stalling?: string | null
+          engine_stalling_details?: string | null
+          engine_starting?: string | null
+          engine_starting_details?: string | null
+          excessive_vibration?: string | null
+          exhaust_smell?: string | null
+          exhaust_smell_details?: string | null
+          exhaust_smoke?: string | null
+          exhaust_smoke_details?: string | null
+          fuel_consumption?: string | null
+          fuel_consumption_details?: string | null
+          fuel_pump_details?: string | null
+          fuel_pump_issues?: string | null
+          fuel_quality_details?: string | null
+          fuel_quality_issues?: string | null
+          fuel_type?: string | null
+          gear_shifting?: string | null
+          gear_shifting_details?: string | null
+          id?: string
+          idle_quality?: string | null
+          idle_quality_details?: string | null
+          maintenance_history?: string | null
+          mileage?: string | null
+          model?: string | null
+          oil_consumption?: string | null
+          oil_consumption_details?: string | null
+          oil_leak_details?: string | null
+          oil_leaks?: string | null
+          oil_pressure_details?: string | null
+          oil_pressure_issues?: string | null
+          other_driving_conditions?: string | null
+          overheating?: string | null
+          overheating_details?: string | null
+          power_loss?: string | null
+          power_loss_details?: string | null
+          radiator_details?: string | null
+          radiator_issues?: string | null
+          recent_repairs?: string | null
+          ro_number: string
+          rough_running?: string | null
+          rough_running_details?: string | null
+          starter_details?: string | null
+          starter_issues?: string | null
+          station_id?: string | null
+          technician_id: string
+          temperature_during_issue?: string | null
+          transmission_details?: string | null
+          transmission_issues?: string | null
+          unusual_noises?: string | null
+          unusual_noises_details?: string | null
+          updated_at?: string
+          vehicle_make?: string | null
+          vibration_details?: string | null
+          vin: string
+          year?: string | null
+        }
+        Update: {
+          acceleration_details?: string | null
+          acceleration_issues?: string | null
+          alternator_details?: string | null
+          alternator_issues?: string | null
+          battery_details?: string | null
+          battery_issues?: string | null
+          catalytic_converter_details?: string | null
+          catalytic_converter_issues?: string | null
+          check_engine_details?: string | null
+          check_engine_light?: string | null
+          clutch_details?: string | null
+          clutch_issues?: string | null
+          coolant_leak_details?: string | null
+          coolant_leaks?: string | null
+          created_at?: string
+          customer_name?: string
+          driving_conditions?: string[] | null
+          engine_knocking?: string | null
+          engine_knocking_details?: string | null
+          engine_size?: string | null
+          engine_stalling?: string | null
+          engine_stalling_details?: string | null
+          engine_starting?: string | null
+          engine_starting_details?: string | null
+          excessive_vibration?: string | null
+          exhaust_smell?: string | null
+          exhaust_smell_details?: string | null
+          exhaust_smoke?: string | null
+          exhaust_smoke_details?: string | null
+          fuel_consumption?: string | null
+          fuel_consumption_details?: string | null
+          fuel_pump_details?: string | null
+          fuel_pump_issues?: string | null
+          fuel_quality_details?: string | null
+          fuel_quality_issues?: string | null
+          fuel_type?: string | null
+          gear_shifting?: string | null
+          gear_shifting_details?: string | null
+          id?: string
+          idle_quality?: string | null
+          idle_quality_details?: string | null
+          maintenance_history?: string | null
+          mileage?: string | null
+          model?: string | null
+          oil_consumption?: string | null
+          oil_consumption_details?: string | null
+          oil_leak_details?: string | null
+          oil_leaks?: string | null
+          oil_pressure_details?: string | null
+          oil_pressure_issues?: string | null
+          other_driving_conditions?: string | null
+          overheating?: string | null
+          overheating_details?: string | null
+          power_loss?: string | null
+          power_loss_details?: string | null
+          radiator_details?: string | null
+          radiator_issues?: string | null
+          recent_repairs?: string | null
+          ro_number?: string
+          rough_running?: string | null
+          rough_running_details?: string | null
+          starter_details?: string | null
+          starter_issues?: string | null
+          station_id?: string | null
+          technician_id?: string
+          temperature_during_issue?: string | null
+          transmission_details?: string | null
+          transmission_issues?: string | null
+          unusual_noises?: string | null
+          unusual_noises_details?: string | null
+          updated_at?: string
+          vehicle_make?: string | null
+          vibration_details?: string | null
+          vin?: string
+          year?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ice_diagnostic_records_station_id_fkey"
+            columns: ["station_id"]
+            isOneToOne: false
+            referencedRelation: "stations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       pending_users: {
         Row: {
           email: string
