@@ -1,7 +1,7 @@
 import React from 'react';
 import { ICEDiagnosticFormData } from '../../../types/iceDiagnosticForm';
-import FormSection from '../FormSection';
-import YesNoQuestion from '../YesNoQuestion';
+import ICEFormSection from './ICEFormSection';
+import ICEYesNoQuestion from './ICEYesNoQuestion';
 
 interface ICEFuelSystemSectionProps {
   data: ICEDiagnosticFormData;
@@ -10,9 +10,9 @@ interface ICEFuelSystemSectionProps {
 
 const ICEFuelSystemSection: React.FC<ICEFuelSystemSectionProps> = ({ data, onChange }) => {
   return (
-    <FormSection title="Fuel System" icon="⛽">
+    <ICEFormSection title="Fuel System">
       <div className="space-y-6">
-        <YesNoQuestion
+        <ICEYesNoQuestion
           question="Is there poor fuel consumption/economy?"
           value={data.fuelConsumption}
           onChange={(value) => onChange('fuelConsumption', value)}
@@ -21,7 +21,7 @@ const ICEFuelSystemSection: React.FC<ICEFuelSystemSectionProps> = ({ data, onCha
           detailsPlaceholder="Describe fuel consumption issues (how much worse than normal, recent changes, etc.)"
         />
 
-        <YesNoQuestion
+        <ICEYesNoQuestion
           question="Are there fuel quality issues?"
           value={data.fuelQualityIssues}
           onChange={(value) => onChange('fuelQualityIssues', value)}
@@ -30,7 +30,7 @@ const ICEFuelSystemSection: React.FC<ICEFuelSystemSectionProps> = ({ data, onCha
           detailsPlaceholder="Describe fuel quality concerns (contamination, water, wrong fuel type, etc.)"
         />
 
-        <YesNoQuestion
+        <ICEYesNoQuestion
           question="Are there fuel pump issues?"
           value={data.fuelPumpIssues}
           onChange={(value) => onChange('fuelPumpIssues', value)}
@@ -39,7 +39,7 @@ const ICEFuelSystemSection: React.FC<ICEFuelSystemSectionProps> = ({ data, onCha
           detailsPlaceholder="Describe fuel pump problems (noise, pressure issues, intermittent operation, etc.)"
         />
       </div>
-    </FormSection>
+    </ICEFormSection>
   );
 };
 

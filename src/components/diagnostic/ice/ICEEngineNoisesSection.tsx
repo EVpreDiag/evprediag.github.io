@@ -1,7 +1,7 @@
 import React from 'react';
 import { ICEDiagnosticFormData } from '../../../types/iceDiagnosticForm';
-import FormSection from '../FormSection';
-import YesNoQuestion from '../YesNoQuestion';
+import ICEFormSection from './ICEFormSection';
+import ICEYesNoQuestion from './ICEYesNoQuestion';
 
 interface ICEEngineNoisesSectionProps {
   data: ICEDiagnosticFormData;
@@ -10,9 +10,9 @@ interface ICEEngineNoisesSectionProps {
 
 const ICEEngineNoisesSection: React.FC<ICEEngineNoisesSectionProps> = ({ data, onChange }) => {
   return (
-    <FormSection title="Engine Noises & Vibrations" icon="🔊">
+    <ICEFormSection title="Engine Noises & Vibrations">
       <div className="space-y-6">
-        <YesNoQuestion
+        <ICEYesNoQuestion
           question="Is there engine knocking or pinging?"
           value={data.engineKnocking}
           onChange={(value) => onChange('engineKnocking', value)}
@@ -21,7 +21,7 @@ const ICEEngineNoisesSection: React.FC<ICEEngineNoisesSectionProps> = ({ data, o
           detailsPlaceholder="Describe knocking sounds (when it occurs, intensity, etc.)"
         />
 
-        <YesNoQuestion
+        <ICEYesNoQuestion
           question="Are there unusual engine noises?"
           value={data.unusualNoises}
           onChange={(value) => onChange('unusualNoises', value)}
@@ -30,7 +30,7 @@ const ICEEngineNoisesSection: React.FC<ICEEngineNoisesSectionProps> = ({ data, o
           detailsPlaceholder="Describe unusual noises (grinding, whining, clicking, etc.)"
         />
 
-        <YesNoQuestion
+        <ICEYesNoQuestion
           question="Is there excessive vibration?"
           value={data.excessiveVibration}
           onChange={(value) => onChange('excessiveVibration', value)}
@@ -39,7 +39,7 @@ const ICEEngineNoisesSection: React.FC<ICEEngineNoisesSectionProps> = ({ data, o
           detailsPlaceholder="Describe vibration issues (when it occurs, intensity, location, etc.)"
         />
       </div>
-    </FormSection>
+    </ICEFormSection>
   );
 };
 

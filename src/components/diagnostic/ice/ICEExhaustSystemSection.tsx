@@ -1,7 +1,7 @@
 import React from 'react';
 import { ICEDiagnosticFormData } from '../../../types/iceDiagnosticForm';
-import FormSection from '../FormSection';
-import YesNoQuestion from '../YesNoQuestion';
+import ICEFormSection from './ICEFormSection';
+import ICEYesNoQuestion from './ICEYesNoQuestion';
 
 interface ICEExhaustSystemSectionProps {
   data: ICEDiagnosticFormData;
@@ -10,9 +10,9 @@ interface ICEExhaustSystemSectionProps {
 
 const ICEExhaustSystemSection: React.FC<ICEExhaustSystemSectionProps> = ({ data, onChange }) => {
   return (
-    <FormSection title="Exhaust System" icon="💨">
+    <ICEFormSection title="Exhaust System">
       <div className="space-y-6">
-        <YesNoQuestion
+        <ICEYesNoQuestion
           question="Is there abnormal exhaust smoke?"
           value={data.exhaustSmoke}
           onChange={(value) => onChange('exhaustSmoke', value)}
@@ -21,7 +21,7 @@ const ICEExhaustSystemSection: React.FC<ICEExhaustSystemSectionProps> = ({ data,
           detailsPlaceholder="Describe exhaust smoke (color: black, blue, white; when it occurs, etc.)"
         />
 
-        <YesNoQuestion
+        <ICEYesNoQuestion
           question="Is there unusual exhaust smell?"
           value={data.exhaustSmell}
           onChange={(value) => onChange('exhaustSmell', value)}
@@ -30,7 +30,7 @@ const ICEExhaustSystemSection: React.FC<ICEExhaustSystemSectionProps> = ({ data,
           detailsPlaceholder="Describe exhaust smell (sweet, burning, fuel, etc.)"
         />
 
-        <YesNoQuestion
+        <ICEYesNoQuestion
           question="Are there catalytic converter issues?"
           value={data.catalyticConverterIssues}
           onChange={(value) => onChange('catalyticConverterIssues', value)}
@@ -39,7 +39,7 @@ const ICEExhaustSystemSection: React.FC<ICEExhaustSystemSectionProps> = ({ data,
           detailsPlaceholder="Describe catalytic converter problems (rotten egg smell, rattling, reduced performance, etc.)"
         />
       </div>
-    </FormSection>
+    </ICEFormSection>
   );
 };
 
