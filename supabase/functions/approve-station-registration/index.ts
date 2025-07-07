@@ -98,7 +98,7 @@ Deno.serve(async (req) => {
         .insert({
           id: request.admin_user_id,
           full_name: request.contact_person_name,
-          username: request.contact_email.split('@')[0],
+          username: request.contact_person_name || request.contact_email.split('@')[0],
           station_id: station.id
         })
 
@@ -115,6 +115,7 @@ Deno.serve(async (req) => {
         .from('profiles')
         .update({
           full_name: request.contact_person_name,
+          username: request.contact_person_name || request.contact_email.split('@')[0],
           station_id: station.id
         })
         .eq('id', request.admin_user_id)
