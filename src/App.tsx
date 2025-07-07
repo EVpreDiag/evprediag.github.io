@@ -7,6 +7,7 @@ import AuthPage from './components/AuthPage';
 import Dashboard from './components/Dashboard';
 import DiagnosticForm from './components/DiagnosticForm';
 import PHEVDiagnosticForm from './components/PHEVDiagnosticForm';
+import ICEDiagnosticForm from './components/ICEDiagnosticForm';
 import SearchRecords from './components/SearchRecords';
 import ModifyReports from './components/ModifyReports';
 import PrintSummary from './components/PrintSummary';
@@ -70,6 +71,11 @@ function App() {
             <Route path="/phev-diagnostic-form" element={
               <ProtectedRoute>
                 <PHEVDiagnosticForm />
+              </ProtectedRoute>
+            } />
+            <Route path="/ice-diagnostic-form" element={
+              <ProtectedRoute>
+                <ICEDiagnosticForm />
               </ProtectedRoute>
             } />
             <Route path="/search" element={

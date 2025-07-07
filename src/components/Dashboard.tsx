@@ -14,7 +14,8 @@ import {
   UserCheck,
   ClipboardList,
   Zap,
-  Battery
+  Battery,
+  Car
 } from 'lucide-react';
 
 const Dashboard = () => {
@@ -58,6 +59,14 @@ const Dashboard = () => {
       icon: Battery,
       path: '/phev-diagnostic-form',
       color: 'bg-green-600 hover:bg-green-700',
+      show: canAccessStationData() // All roles except pending users
+    },
+    {
+      title: 'ICE Diagnostic Form',
+      description: 'Create new ICE diagnostic reports',
+      icon: Car,
+      path: '/ice-diagnostic-form',
+      color: 'bg-red-600 hover:bg-red-700',
       show: canAccessStationData() // All roles except pending users
     },
     {
