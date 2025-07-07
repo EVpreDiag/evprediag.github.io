@@ -68,11 +68,30 @@ const StationRegistration = () => {
     setLoading(true);
 
     try {
-      // Hash the password before storing
-      const saltRounds = 10;
-      const password_hash = await bcrypt.hash(formData.password, saltRounds);
+      // Create user account immediately with email verification
+      const { data: authData, error: authError } = await supabase.auth.signUp({
+        email: formData.contact_email,
+        password: formData.password,
+        options: {
+          emailRedirectTo: `${window.location.origin}/auth`,
+          data: {
+            full_name: formData.contact_person_name,
+            role: 'station_admin'
+          }
+        }
+      });
 
-      const { error } = await supabase
+      if (authError) {
+        if (authError.message.includes('already registered')) {
+          setErrors({ submit: 'Email already registered. Please use a different email address.' });
+        } else {
+          setErrors({ submit: `Registration failed: ${authError.message}` });
+        }
+        return;
+      }
+
+      // Store registration request data
+      const { error: insertError } = await supabase
         .from('station_registration_requests')
         .insert([{
           company_name: formData.company_name,
@@ -86,12 +105,12 @@ const StationRegistration = () => {
           zip_code: formData.zip_code,
           website: formData.website,
           description: formData.description,
-          password_hash: password_hash,
+          admin_user_id: authData.user?.id,
           email_verified: false,
           status: 'pending'
         }]);
 
-      if (error) throw error;
+      if (insertError) throw insertError;
 
       setSubmitted(true);
     } catch (error) {
@@ -122,7 +141,10 @@ const StationRegistration = () => {
             Thank you for your interest in joining our EV diagnostic network. Your registration request has been submitted successfully.
           </p>
           <p className="text-slate-400 mb-6">
-            Our team will review your application and contact you within 2-3 business days with approval status and next steps.
+            Please check your email to verify your account. After email verification, our team will review your application and contact you within 2-3 business days with approval status.
+          </p>
+          <p className="text-slate-400 mb-6">
+            You will be able to login once your registration is approved by our administrators.
           </p>
           <button
             onClick={() => navigate('/auth')}

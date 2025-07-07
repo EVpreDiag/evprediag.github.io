@@ -38,9 +38,10 @@ Deno.serve(async (req) => {
 
     console.log('Found registration request:', request)
 
-    // Generate a temporary password
-    const tempPassword = generateSecurePassword()
-    console.log('Generated temporary password for user')
+    // Verify user account exists (should have been created during registration)
+    if (!request.admin_user_id) {
+      throw new Error('User account not found for this registration request')
+    }
 
     // Create the station first
     const { data: station, error: stationError } = await supabaseAdmin
@@ -62,32 +63,32 @@ Deno.serve(async (req) => {
 
     console.log('Created station:', station.id)
 
-    // Create the admin user account using admin API
-    const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
-      email: request.contact_email,
-      password: tempPassword,
-      email_confirm: true,
-      user_metadata: {
-        full_name: request.contact_person_name,
-        station_id: station.id,
-        role: 'station_admin'
+    // Update user metadata with station information
+    const { error: updateUserError } = await supabaseAdmin.auth.admin.updateUserById(
+      request.admin_user_id,
+      {
+        user_metadata: {
+          full_name: request.contact_person_name,
+          station_id: station.id,
+          role: 'station_admin'
+        }
       }
-    })
+    )
 
-    if (authError || !authData.user) {
-      console.error('Error creating user account:', authError)
-      // Clean up the station if user creation failed
+    if (updateUserError) {
+      console.error('Error updating user metadata:', updateUserError)
+      // Clean up the station if user update failed
       await supabaseAdmin.from('stations').delete().eq('id', station.id)
-      throw new Error('Failed to create user account')
+      throw new Error('Failed to update user account')
     }
 
-    console.log('Created user account:', authData.user.id)
+    console.log('Updated user account:', request.admin_user_id)
 
     // Check if profile already exists and handle accordingly
     const { data: existingProfile } = await supabaseAdmin
       .from('profiles')
       .select('id')
-      .eq('id', authData.user.id)
+      .eq('id', request.admin_user_id)
       .single()
 
     if (!existingProfile) {
@@ -95,7 +96,7 @@ Deno.serve(async (req) => {
       const { error: profileError } = await supabaseAdmin
         .from('profiles')
         .insert({
-          id: authData.user.id,
+          id: request.admin_user_id,
           full_name: request.contact_person_name,
           username: request.contact_email.split('@')[0],
           station_id: station.id
@@ -116,7 +117,7 @@ Deno.serve(async (req) => {
           full_name: request.contact_person_name,
           station_id: station.id
         })
-        .eq('id', authData.user.id)
+        .eq('id', request.admin_user_id)
 
       if (profileUpdateError) {
         console.error('Error updating profile:', profileUpdateError)
@@ -128,7 +129,7 @@ Deno.serve(async (req) => {
     const { error: roleError } = await supabaseAdmin
       .from('user_roles')
       .insert({
-        user_id: authData.user.id,
+        user_id: request.admin_user_id,
         role: 'station_admin',
         station_id: station.id,
         assigned_by: approvedBy,
@@ -148,8 +149,7 @@ Deno.serve(async (req) => {
       .update({
         status: 'approved',
         approved_by: approvedBy,
-        approved_at: new Date().toISOString(),
-        admin_user_id: authData.user.id
+        approved_at: new Date().toISOString()
       })
       .eq('id', requestId)
 
@@ -164,8 +164,7 @@ Deno.serve(async (req) => {
       JSON.stringify({
         success: true,
         stationId: station.id,
-        userId: authData.user.id,
-        tempPassword,
+        userId: request.admin_user_id,
         message: 'Station registration approved successfully'
       }),
       {
@@ -189,28 +188,3 @@ Deno.serve(async (req) => {
   }
 })
 
-function generateSecurePassword(): string {
-  const length = 12;
-  const uppercase = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-  const lowercase = 'abcdefghijklmnopqrstuvwxyz';
-  const numbers = '0123456789';
-  const symbols = '!@#$%^&*()_+-=[]{}|;:,.<>?';
-  
-  const allChars = uppercase + lowercase + numbers + symbols;
-  
-  let password = '';
-  
-  // Ensure at least one character from each category
-  password += uppercase[Math.floor(Math.random() * uppercase.length)];
-  password += lowercase[Math.floor(Math.random() * lowercase.length)];
-  password += numbers[Math.floor(Math.random() * numbers.length)];
-  password += symbols[Math.floor(Math.random() * symbols.length)];
-  
-  // Fill the rest randomly
-  for (let i = 4; i < length; i++) {
-    password += allChars[Math.floor(Math.random() * allChars.length)];
-  }
-  
-  // Shuffle the password
-  return password.split('').sort(() => Math.random() - 0.5).join('');
-}
