@@ -136,22 +136,55 @@ const StationRegistration = () => {
       <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4">
         <div className="max-w-md w-full bg-slate-800 rounded-lg border border-slate-700 p-8 text-center">
           <CheckCircle className="w-16 h-16 text-green-400 mx-auto mb-4" />
-          <h2 className="text-2xl font-bold text-white mb-4">Registration Submitted!</h2>
+          <h2 className="text-2xl font-bold text-white mb-4">Registration Submitted Successfully!</h2>
+          
+          <div className="bg-blue-900/20 border border-blue-600/50 rounded-lg p-4 mb-6">
+            <p className="text-blue-400 text-sm font-medium mb-2 flex items-center justify-center gap-2">
+              <Mail className="w-4 h-4" />
+              Verification Email Sent
+            </p>
+            <p className="text-slate-300 text-sm">
+              We've sent a verification email to <strong className="text-white">{formData.contact_email}</strong>. 
+              Please check your inbox and click the confirmation link to verify your account.
+            </p>
+          </div>
+          
           <p className="text-slate-400 mb-6">
-            Thank you for your interest in joining our EV diagnostic network. Your registration request has been submitted successfully.
+            After verification, your account will be pending approval. A super administrator will review your request and assign appropriate roles.
           </p>
-          <p className="text-slate-400 mb-6">
-            Please check your email to verify your account. After email verification, our team will review your application and contact you within 2-3 business days with approval status.
-          </p>
-          <p className="text-slate-400 mb-6">
-            You will be able to login once your registration is approved by our administrators.
-          </p>
-          <button
-            onClick={() => navigate('/auth')}
-            className="w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
-          >
-            Continue to Login
-          </button>
+          
+          <div className="space-y-3">
+            <button
+              onClick={() => {
+                setSubmitted(false);
+                setFormData({
+                  company_name: '',
+                  business_type: '',
+                  contact_person_name: '',
+                  contact_email: '',
+                  contact_phone: '',
+                  address: '',
+                  city: '',
+                  state: '',
+                  zip_code: '',
+                  website: '',
+                  description: '',
+                  password: '',
+                  confirmPassword: ''
+                });
+                setErrors({});
+              }}
+              className="w-full px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors"
+            >
+              Submit Another Registration
+            </button>
+            <button
+              onClick={() => navigate('/auth')}
+              className="w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+            >
+              Continue to Login
+            </button>
+          </div>
         </div>
       </div>
     );
