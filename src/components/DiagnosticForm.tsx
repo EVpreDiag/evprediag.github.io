@@ -400,7 +400,7 @@ const DiagnosticForm = () => {
         >
           <div className="space-y-6">
             <YesNoQuestion 
-              label="HVAC performance satisfactory?" 
+              label="Any concerns with HVAC efficiency?" 
               field="hvacPerformance" 
               detailsField="hvacDetails"
               formData={formData}
@@ -485,7 +485,7 @@ const DiagnosticForm = () => {
         >
           <div className="space-y-6">
             <YesNoQuestion 
-              label="Smooth regenerative braking?" 
+              label="Issue with smooth regenerative braking?" 
               field="smoothRegen" 
               detailsField="smoothRegenDetails"
               formData={formData}
