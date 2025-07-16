@@ -100,6 +100,13 @@ export const savePHEVFormData = async (formData: PHEVFormData): Promise<string> 
     throw new Error('User must be authenticated to save diagnostic records');
   }
 
+  // Get user's profile to fetch station_id
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('station_id')
+    .eq('id', user.id)
+    .single();
+
   const recordData = {
     customer_name: formData.customerName,
     vin: formData.vin,
@@ -189,7 +196,8 @@ export const savePHEVFormData = async (formData: PHEVFormData): Promise<string> 
     range_regen_temp: formData.rangeRegenTemp,
     range_regen_details: formData.rangeRegenDetails,
     moisture_charging_port: formData.moistureChargingPort,
-    technician_id: user.id
+    technician_id: user.id,
+    station_id: profile?.station_id
   };
 
   const { data, error } = await supabase

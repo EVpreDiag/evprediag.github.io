@@ -84,6 +84,13 @@ export const saveFormData = async (formData: FormData): Promise<string> => {
     throw new Error('User must be authenticated to save diagnostic records');
   }
 
+  // Get user's profile to fetch station_id
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('station_id')
+    .eq('id', user.id)
+    .single();
+
   const recordData = {
     customer_name: formData.customerName,
     vin: formData.vin,
@@ -156,7 +163,8 @@ export const saveFormData = async (formData: FormData): Promise<string> => {
     hvac_weather_details: formData.hvacWeatherDetails,
     range_regen_temp: formData.rangeRegenTemp,
     moisture_charging_port: formData.moistureChargingPort,
-    technician_id: user.id
+    technician_id: user.id,
+    station_id: profile?.station_id
   };
 
   const { data, error } = await supabase
