@@ -6,7 +6,7 @@ import YesNoQuestion from './YesNoQuestion';
 const DrivetrainSection: React.FC<FormProps> = ({ formData, onInputChange }) => (
   <div className="space-y-6">
     <YesNoQuestion 
-      label="Consistent acceleration?" 
+      label="Inconsistent acceleration?" 
       field="consistentAcceleration" 
       detailsField="accelerationDetails"
       formData={formData}
