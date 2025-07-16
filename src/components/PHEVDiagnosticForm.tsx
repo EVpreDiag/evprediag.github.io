@@ -485,7 +485,7 @@ const PHEVDiagnosticForm = () => {
             </div>
 
             <PHEVYesNoQuestion 
-              label="Does the charge rate drop unexpectedly above 50% state-of-charge?" 
+              label="Does the charge rate drop unexpectedly above or below 50% SoC?" 
               field="chargeRateDrop" 
               detailsField="chargeRateDetails"
               formData={formData}
@@ -607,7 +607,7 @@ const PHEVDiagnosticForm = () => {
         >
           <div className="space-y-6">
             <PHEVYesNoQuestion
-              label="Is the cabin cooling/heating effectively in both electric and engine-assisted modes?"
+              label="Are there any issues with cabin climate control functionality in electric or engine-assisted operation?"
               field="hvacEffectiveness"
               detailsField="hvacDetails"
               formData={formData}
@@ -726,7 +726,7 @@ const PHEVDiagnosticForm = () => {
         >
           <div className="space-y-6">
             <PHEVYesNoQuestion
-              label="Is the regenerative braking smooth and predictable?"
+              label="Does the regenerative braking feel jerky or unpredictable under certain conditions?"
               field="smoothRegen"
               detailsField="smoothRegenDetails"
               formData={formData}
