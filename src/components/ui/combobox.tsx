@@ -58,6 +58,10 @@ export function Combobox({
     }
   }
 
+  const handleButtonClick = () => {
+    setOpen(!open)
+  }
+
   const filteredOptions = options.filter(option =>
     option.label.toLowerCase().includes(inputValue.toLowerCase())
   )
@@ -73,6 +77,7 @@ export function Combobox({
           variant="outline"
           role="combobox"
           aria-expanded={open}
+          onClick={handleButtonClick}
           className={cn("justify-between bg-slate-700 border-slate-600 text-white hover:bg-slate-600", className)}
         >
           <input
@@ -81,7 +86,10 @@ export function Combobox({
             onChange={(e) => handleInputChange(e.target.value)}
             placeholder={placeholder}
             className="flex-1 bg-transparent border-none outline-none text-white placeholder:text-slate-400"
-            onFocus={() => setOpen(true)}
+            onClick={(e) => {
+              e.stopPropagation()
+              setOpen(true)
+            }}
           />
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
