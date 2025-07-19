@@ -2,6 +2,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import SubscriptionStatus from './SubscriptionStatus';
 import { 
   LogOut, 
   FileText, 
@@ -189,6 +190,11 @@ const Dashboard = () => {
             <p className="text-slate-400">
               Welcome back! Choose an option below to get started.
             </p>
+          </div>
+
+          {/* Subscription Status */}
+          <div className="mb-8">
+            <SubscriptionStatus />
           </div>
 
           {/* Menu Grid */}
