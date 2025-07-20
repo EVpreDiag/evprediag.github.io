@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../integrations/supabase/client';
-import { ArrowLeft, Plus, Edit, Trash2, Building, Users, Shield } from 'lucide-react';
+import { ArrowLeft, Plus, Edit, Trash2, Building, Users, Shield, CreditCard } from 'lucide-react';
 
 interface Station {
   id: string;
@@ -12,15 +12,36 @@ interface Station {
   email?: string;
   created_at: string;
   created_by?: string;
+  subscription?: {
+    id: string;
+    status: string;
+    plan_name: string;
+    trial_end?: string;
+    current_period_end?: string;
+    days_remaining?: number;
+  };
+}
+
+interface SubscriptionPlan {
+  id: string;
+  name: string;
+  description?: string;
+  price_cents: number;
+  billing_interval: string;
+  is_trial: boolean;
 }
 
 const StationManagement = () => {
   const { isSuperAdmin } = useAuth();
   const navigate = useNavigate();
   const [stations, setStations] = useState<Station[]>([]);
+  const [subscriptionPlans, setSubscriptionPlans] = useState<SubscriptionPlan[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editingStation, setEditingStation] = useState<Station | null>(null);
+  const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
+  const [selectedStation, setSelectedStation] = useState<Station | null>(null);
+  const [selectedPlanId, setSelectedPlanId] = useState<string>('');
   const [formData, setFormData] = useState({
     name: '',
     address: '',
@@ -38,6 +59,7 @@ const StationManagement = () => {
       return;
     }
     fetchStations();
+    fetchSubscriptionPlans();
   }, [isSuperAdmin]);
 
   const fetchStations = async () => {
@@ -45,15 +67,66 @@ const StationManagement = () => {
       setLoading(true);
       const { data, error } = await supabase
         .from('stations')
-        .select('*')
+        .select(`
+          *,
+          subscriptions!inner(
+            id,
+            status,
+            trial_end,
+            current_period_end,
+            subscription_plans!inner(
+              name
+            )
+          )
+        `)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      setStations(data || []);
+      
+      // Transform the data to include subscription info
+      const stationsWithSubscriptions = (data || []).map(station => {
+        const subscription = station.subscriptions?.[0];
+        if (subscription) {
+          const now = new Date();
+          const endDate = subscription.status === 'trial' ? 
+            new Date(subscription.trial_end) : 
+            new Date(subscription.current_period_end);
+          const daysRemaining = Math.ceil((endDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+          
+          return {
+            ...station,
+            subscription: {
+              id: subscription.id,
+              status: subscription.status,
+              plan_name: subscription.subscription_plans.name,
+              trial_end: subscription.trial_end,
+              current_period_end: subscription.current_period_end,
+              days_remaining: Math.max(0, daysRemaining)
+            }
+          };
+        }
+        return station;
+      });
+      
+      setStations(stationsWithSubscriptions);
     } catch (error) {
       console.error('Error fetching stations:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchSubscriptionPlans = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('subscription_plans')
+        .select('*')
+        .order('price_cents', { ascending: true });
+
+      if (error) throw error;
+      setSubscriptionPlans(data || []);
+    } catch (error) {
+      console.error('Error fetching subscription plans:', error);
     }
   };
 
@@ -121,6 +194,38 @@ const StationManagement = () => {
       fetchStations();
     } catch (error) {
       console.error('Error deleting station:', error);
+    }
+  };
+
+  const handleManageSubscription = (station: Station) => {
+    setSelectedStation(station);
+    setSelectedPlanId(station.subscription?.id || '');
+    setShowSubscriptionModal(true);
+  };
+
+  const handleUpdateSubscription = async () => {
+    if (!selectedStation || !selectedPlanId) return;
+
+    try {
+      const { error } = await supabase
+        .from('subscriptions')
+        .update({
+          plan_id: selectedPlanId,
+          status: 'active',
+          current_period_start: new Date().toISOString(),
+          current_period_end: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+          updated_at: new Date().toISOString()
+        })
+        .eq('station_id', selectedStation.id);
+
+      if (error) throw error;
+      
+      setShowSubscriptionModal(false);
+      setSelectedStation(null);
+      setSelectedPlanId('');
+      fetchStations();
+    } catch (error) {
+      console.error('Error updating subscription:', error);
     }
   };
 
@@ -228,6 +333,23 @@ const StationManagement = () => {
                             <span className="text-slate-500">Email:</span> {station.email}
                           </div>
                         )}
+                        {station.subscription && (
+                          <div className="flex items-center space-x-2">
+                            <span className="text-slate-500">Subscription:</span>
+                            <span className={`px-2 py-1 rounded text-xs font-medium ${
+                              station.subscription.status === 'trial' 
+                                ? 'bg-blue-900/50 text-blue-300' 
+                                : station.subscription.status === 'active'
+                                ? 'bg-green-900/50 text-green-300'
+                                : 'bg-red-900/50 text-red-300'
+                            }`}>
+                              {station.subscription.plan_name}
+                            </span>
+                            <span className="text-slate-400">
+                              ({station.subscription.days_remaining} days left)
+                            </span>
+                          </div>
+                        )}
                       </div>
                       <div className="text-xs text-slate-500">
                         Created: {new Date(station.created_at).toLocaleDateString()}
@@ -235,6 +357,13 @@ const StationManagement = () => {
                     </div>
                     
                     <div className="ml-4 flex items-center space-x-2">
+                      <button
+                        onClick={() => handleManageSubscription(station)}
+                        className="p-2 text-slate-400 hover:text-green-400 hover:bg-slate-700 rounded-lg transition-colors"
+                        title="Manage Subscription"
+                      >
+                        <CreditCard className="w-4 h-4" />
+                      </button>
                       <button
                         onClick={() => handleEditStation(station)}
                         className="p-2 text-slate-400 hover:text-blue-400 hover:bg-slate-700 rounded-lg transition-colors"
@@ -335,6 +464,77 @@ const StationManagement = () => {
                 className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-800 disabled:opacity-50 text-white rounded-lg transition-colors"
               >
                 {editingStation ? 'Update' : 'Create'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Subscription Management Modal */}
+      {showSubscriptionModal && selectedStation && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+          <div className="bg-slate-800 rounded-lg border border-slate-700 w-full max-w-md">
+            <div className="p-6 border-b border-slate-700">
+              <h3 className="text-lg font-semibold text-white">
+                Manage Subscription for {selectedStation.name}
+              </h3>
+            </div>
+            <div className="p-6 space-y-4">
+              {selectedStation.subscription && (
+                <div className="p-4 bg-slate-700 rounded-lg">
+                  <h4 className="text-sm font-medium text-white mb-2">Current Subscription</h4>
+                  <div className="text-sm text-slate-300 space-y-1">
+                    <div>Plan: {selectedStation.subscription.plan_name}</div>
+                    <div>Status: <span className={`font-medium ${
+                      selectedStation.subscription.status === 'trial' 
+                        ? 'text-blue-300' 
+                        : selectedStation.subscription.status === 'active'
+                        ? 'text-green-300'
+                        : 'text-red-300'
+                    }`}>
+                      {selectedStation.subscription.status}
+                    </span></div>
+                    <div>Days remaining: {selectedStation.subscription.days_remaining}</div>
+                  </div>
+                </div>
+              )}
+              
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-2">
+                  Select New Plan
+                </label>
+                <select
+                  value={selectedPlanId}
+                  onChange={(e) => setSelectedPlanId(e.target.value)}
+                  className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="">Select a plan...</option>
+                  {subscriptionPlans.map((plan) => (
+                    <option key={plan.id} value={plan.id}>
+                      {plan.name} - ${(plan.price_cents / 100).toFixed(2)}/{plan.billing_interval}
+                      {plan.is_trial && ' (Trial)'}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            <div className="p-6 border-t border-slate-700 flex space-x-3">
+              <button
+                onClick={() => {
+                  setShowSubscriptionModal(false);
+                  setSelectedStation(null);
+                  setSelectedPlanId('');
+                }}
+                className="flex-1 px-4 py-2 text-slate-400 hover:text-white hover:bg-slate-700 border border-slate-600 rounded-lg transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleUpdateSubscription}
+                disabled={!selectedPlanId}
+                className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-800 disabled:opacity-50 text-white rounded-lg transition-colors"
+              >
+                Update Plan
               </button>
             </div>
           </div>
