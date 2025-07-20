@@ -160,6 +160,7 @@ const Dashboard = () => {
           </div>
           
           <div className="flex items-center space-x-4">
+            <SubscriptionStatus />
             <div className="text-right">
               <p className="text-sm font-medium text-white">
                 {profile?.full_name || user?.email}
@@ -192,10 +193,6 @@ const Dashboard = () => {
             </p>
           </div>
 
-          {/* Subscription Status */}
-          <div className="mb-8">
-            <SubscriptionStatus />
-          </div>
 
           {/* Menu Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

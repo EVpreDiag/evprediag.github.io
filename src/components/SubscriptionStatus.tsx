@@ -54,12 +54,12 @@ export default function SubscriptionStatus() {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'trial': return 'bg-blue-500';
-      case 'active': return 'bg-green-500';
-      case 'past_due': return 'bg-yellow-500';
-      case 'cancelled': return 'bg-red-500';
-      case 'expired': return 'bg-gray-500';
-      default: return 'bg-gray-500';
+      case 'trial': return 'bg-primary text-primary-foreground';
+      case 'active': return 'bg-green-500 text-white';
+      case 'past_due': return 'bg-yellow-500 text-black';
+      case 'cancelled': return 'bg-destructive text-destructive-foreground';
+      case 'expired': return 'bg-muted text-muted-foreground';
+      default: return 'bg-muted text-muted-foreground';
     }
   };
 
@@ -84,41 +84,21 @@ export default function SubscriptionStatus() {
 
   if (loading) {
     return (
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <CreditCard className="h-5 w-5" />
-            Subscription Status
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="animate-pulse">
-            <div className="h-4 bg-muted rounded w-3/4 mb-2"></div>
-            <div className="h-4 bg-muted rounded w-1/2"></div>
-          </div>
-        </CardContent>
-      </Card>
+      <div className="flex items-center gap-2 px-3 py-1 bg-muted rounded-md">
+        <CreditCard className="h-4 w-4" />
+        <div className="animate-pulse">
+          <div className="h-3 bg-muted-foreground/20 rounded w-20"></div>
+        </div>
+      </div>
     );
   }
 
   if (!subscription) {
     return (
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <CreditCard className="h-5 w-5" />
-            Subscription Status
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Alert>
-            <AlertTriangle className="h-4 w-4" />
-            <AlertDescription>
-              No subscription information found. Please contact support.
-            </AlertDescription>
-          </Alert>
-        </CardContent>
-      </Card>
+      <div className="flex items-center gap-2 px-3 py-1 bg-destructive/20 text-destructive rounded-md">
+        <AlertTriangle className="h-4 w-4" />
+        <span className="text-sm">No subscription</span>
+      </div>
     );
   }
 
@@ -126,83 +106,23 @@ export default function SubscriptionStatus() {
   const isExpired = subscription.days_remaining <= 0 && (subscription.status === 'trial' || subscription.status === 'expired');
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <CreditCard className="h-5 w-5" />
-            Subscription Status
-          </div>
-          <Badge className={getStatusColor(subscription.status)}>
-            {getStatusText(subscription.status)}
-          </Badge>
-        </CardTitle>
-        <CardDescription>
-          Current plan: {subscription.plan_name}
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        {/* Trial/Subscription Info */}
-        <div className="flex items-center gap-2 text-sm">
-          <Calendar className="h-4 w-4 text-muted-foreground" />
-          {subscription.status === 'trial' ? (
-            <span>
-              Trial ends: {subscription.trial_end ? new Date(subscription.trial_end).toLocaleDateString() : 'Unknown'}
-            </span>
-          ) : (
-            <span>
-              Next billing: {subscription.current_period_end ? new Date(subscription.current_period_end).toLocaleDateString() : 'Unknown'}
-            </span>
-          )}
-        </div>
-
-        {/* Days Remaining */}
-        <div className="flex items-center gap-2">
-          {subscription.days_remaining > 0 ? (
-            <CheckCircle className="h-4 w-4 text-green-500" />
-          ) : (
-            <AlertTriangle className="h-4 w-4 text-red-500" />
-          )}
-          <span className="text-sm">
-            {subscription.days_remaining > 0 
-              ? `${subscription.days_remaining} days remaining`
-              : 'Subscription has expired'
-            }
-          </span>
-        </div>
-
-        {/* Alerts */}
-        {isExpired && (
-          <Alert variant="destructive">
-            <AlertTriangle className="h-4 w-4" />
-            <AlertDescription>
-              Your subscription has expired. Please upgrade to continue using the platform.
-            </AlertDescription>
-          </Alert>
-        )}
-
-        {isTrialEnding && !isExpired && (
-          <Alert>
-            <AlertTriangle className="h-4 w-4" />
-            <AlertDescription>
-              Your trial ends in {subscription.days_remaining} days. Upgrade now to avoid service interruption.
-            </AlertDescription>
-          </Alert>
-        )}
-
-        {/* Action Buttons */}
-        {(subscription.status === 'trial' || isExpired) && (
-          <Button onClick={handleUpgrade} className="w-full">
-            Upgrade to Paid Plan
-          </Button>
-        )}
-
-        {subscription.status === 'active' && (
-          <Button variant="outline" onClick={handleUpgrade} className="w-full">
-            Manage Subscription
-          </Button>
-        )}
-      </CardContent>
-    </Card>
+    <div className="flex items-center gap-2 px-3 py-1 bg-card border rounded-md">
+      <CreditCard className="h-4 w-4 text-muted-foreground" />
+      <Badge className={getStatusColor(subscription.status)} variant="outline">
+        {getStatusText(subscription.status)}
+      </Badge>
+      {subscription.days_remaining > 0 ? (
+        <span className="text-sm text-muted-foreground">
+          {subscription.days_remaining}d left
+        </span>
+      ) : (
+        <AlertTriangle className="h-4 w-4 text-destructive" />
+      )}
+      {(subscription.status === 'trial' || subscription.days_remaining <= 0) && (
+        <Button size="sm" variant="outline" onClick={handleUpgrade} className="text-xs px-2 py-1 h-6">
+          Upgrade
+        </Button>
+      )}
+    </div>
   );
 }
