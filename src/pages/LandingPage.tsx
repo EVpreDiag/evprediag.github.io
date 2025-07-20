@@ -109,7 +109,7 @@ export default function LandingPage() {
             user management, and analytics for service stations.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link to="/station-registration">
+            <Link to="/register-station">
               <Button size="lg" className="text-lg px-8 py-6">
                 Start 6-Month Free Trial
               </Button>
@@ -194,7 +194,7 @@ export default function LandingPage() {
                       </li>
                     ))}
                   </ul>
-                  <Link to="/station-registration" className="w-full">
+                  <Link to="/register-station" className="w-full">
                     <Button 
                       className="w-full" 
                       variant={plan.popular ? "default" : "outline"}
@@ -220,7 +220,7 @@ export default function LandingPage() {
             Join hundreds of service stations already using EVPreDiag to streamline 
             their operations and improve customer satisfaction.
           </p>
-          <Link to="/station-registration">
+          <Link to="/register-station">
             <Button size="lg" variant="secondary" className="text-lg px-8 py-6">
               Start Your Free Trial Today
             </Button>
