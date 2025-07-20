@@ -14,6 +14,7 @@ interface Station {
   created_by?: string;
   subscription?: {
     id: string;
+    plan_id: string;
     status: string;
     plan_name: string;
     trial_end?: string;
@@ -71,6 +72,7 @@ const StationManagement = () => {
           *,
           subscriptions!inner(
             id,
+            plan_id,
             status,
             trial_end,
             current_period_end,
@@ -97,6 +99,7 @@ const StationManagement = () => {
             ...station,
             subscription: {
               id: subscription.id,
+              plan_id: subscription.plan_id,
               status: subscription.status,
               plan_name: subscription.subscription_plans.name,
               trial_end: subscription.trial_end,
@@ -199,7 +202,7 @@ const StationManagement = () => {
 
   const handleManageSubscription = (station: Station) => {
     setSelectedStation(station);
-    setSelectedPlanId(station.subscription?.id || '');
+    setSelectedPlanId(station.subscription?.plan_id || '');
     setShowSubscriptionModal(true);
   };
 
