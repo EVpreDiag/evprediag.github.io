@@ -70,13 +70,13 @@ const StationManagement = () => {
         .from('stations')
         .select(`
           *,
-          subscriptions!inner(
+          subscriptions!left(
             id,
             plan_id,
             status,
             trial_end,
             current_period_end,
-            subscription_plans!inner(
+            subscription_plans(
               name
             )
           )
