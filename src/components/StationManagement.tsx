@@ -210,6 +210,8 @@ const StationManagement = () => {
     if (!selectedStation || !selectedPlanId) return;
 
     try {
+      console.log('Updating subscription for station:', selectedStation.id, 'to plan:', selectedPlanId);
+      
       const { error } = await supabase
         .from('subscriptions')
         .update({
@@ -221,14 +223,24 @@ const StationManagement = () => {
         })
         .eq('station_id', selectedStation.id);
 
-      if (error) throw error;
+      if (error) {
+        console.error('Subscription update error:', error);
+        throw error;
+      }
+      
+      console.log('Subscription updated successfully');
       
       setShowSubscriptionModal(false);
       setSelectedStation(null);
       setSelectedPlanId('');
-      fetchStations();
+      
+      // Add a small delay before refetching to ensure database has updated
+      setTimeout(() => {
+        fetchStations();
+      }, 500);
     } catch (error) {
       console.error('Error updating subscription:', error);
+      alert('Failed to update subscription. Please try again.');
     }
   };
 
