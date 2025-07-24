@@ -80,9 +80,9 @@ export default function LandingPage() {
   const [isLoading, setIsLoading] = useState(false);
 
   return (
-    <div className="min-h-screen dark bg-gradient-to-br from-background via-background to-primary/10">
+    <div className="min-h-screen subtle-gradient">
       {/* Header */}
-      <header className="border-b electric-border tech-blur bg-background/50 backdrop-blur-xl">
+      <header className="border-b electric-border tech-blur bg-background/70">
         <div className="container mx-auto px-4 py-4 flex justify-between items-center">
           <div className="flex items-center space-x-2 animate-fade-in-up">
             <Zap className="h-8 w-8 text-primary animate-electric-pulse" />
@@ -91,7 +91,7 @@ export default function LandingPage() {
             </span>
           </div>
           <Link to="/auth">
-            <Button variant="outline" className="electric-border hover:electric-glow transition-all duration-300 bg-background/50">
+            <Button variant="outline" className="electric-border hover:electric-glow transition-all duration-300">
               Sign In
             </Button>
           </Link>
@@ -100,10 +100,9 @@ export default function LandingPage() {
 
       {/* Hero Section */}
       <section className="py-20 text-center relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-background to-primary-glow/10"></div>
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--primary)_0%,transparent_50%)] opacity-10"></div>
+        <div className="absolute inset-0 tech-gradient opacity-5"></div>
         <div className="container mx-auto px-4 relative z-10">
-          <Badge variant="secondary" className="mb-4 electric-border tech-glow animate-fade-in-up bg-primary/10 text-primary">
+          <Badge variant="secondary" className="mb-4 electric-border electric-glow animate-fade-in-up">
             ⚡ Professional Vehicle Diagnostics Platform
           </Badge>
           <h1 className="text-5xl md:text-6xl font-bold text-foreground mb-6 max-w-4xl mx-auto leading-tight animate-fade-in-up [animation-delay:0.1s]">
@@ -118,12 +117,11 @@ export default function LandingPage() {
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center animate-fade-in-up [animation-delay:0.3s]">
             <Link to="/register-station">
-              <Button size="lg" className="text-lg px-8 py-6 electric-gradient tech-shadow hover:scale-105 transition-all duration-300 relative overflow-hidden">
-                <span className="relative z-10">Start 6-Month Free Trial</span>
-                <div className="absolute inset-0 bg-gradient-to-r from-primary-glow/20 to-transparent opacity-0 hover:opacity-100 transition-opacity duration-300"></div>
+              <Button size="lg" className="text-lg px-8 py-6 electric-gradient tech-shadow hover:scale-105 transition-all duration-300">
+                Start 6-Month Free Trial
               </Button>
             </Link>
-            <Button variant="outline" size="lg" className="text-lg px-8 py-6 electric-border hover:electric-glow hover:scale-105 transition-all duration-300 bg-background/20 backdrop-blur-sm">
+            <Button variant="outline" size="lg" className="text-lg px-8 py-6 electric-border hover:electric-glow hover:scale-105 transition-all duration-300">
               Watch Demo
             </Button>
           </div>
@@ -131,17 +129,15 @@ export default function LandingPage() {
             No credit card required • Full access for 6 months
           </p>
         </div>
-        {/* Enhanced Floating Elements */}
-        <div className="absolute top-20 left-10 w-4 h-4 bg-primary/30 rounded-full animate-float [animation-delay:0s] blur-sm"></div>
-        <div className="absolute top-40 right-20 w-6 h-6 bg-primary-glow/40 rounded-full animate-float [animation-delay:1s]"></div>
-        <div className="absolute bottom-20 left-1/4 w-3 h-3 bg-primary/40 rounded-full animate-float [animation-delay:2s] blur-sm"></div>
-        <div className="absolute top-1/3 right-1/3 w-2 h-2 bg-primary-glow/50 rounded-full animate-float [animation-delay:1.5s]"></div>
+        {/* Floating Elements */}
+        <div className="absolute top-20 left-10 w-4 h-4 bg-primary/20 rounded-full animate-float [animation-delay:0s]"></div>
+        <div className="absolute top-40 right-20 w-6 h-6 bg-primary-glow/20 rounded-full animate-float [animation-delay:1s]"></div>
+        <div className="absolute bottom-20 left-1/4 w-3 h-3 bg-primary/30 rounded-full animate-float [animation-delay:2s]"></div>
       </section>
 
       {/* Features Section */}
       <section className="py-20 relative">
-        <div className="absolute inset-0 bg-gradient-to-r from-primary/5 via-background to-primary-glow/5"></div>
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_50%,_var(--primary)_0%,transparent_50%)] opacity-5"></div>
+        <div className="absolute inset-0 bg-gradient-to-br from-secondary/30 via-background to-accent/20"></div>
         <div className="container mx-auto px-4 relative z-10">
           <div className="text-center mb-16">
             <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-4 animate-fade-in-up">
@@ -156,20 +152,18 @@ export default function LandingPage() {
             {features.map((feature, index) => (
               <Card 
                 key={index} 
-                className="text-center electric-border tech-shadow bg-background/60 tech-blur hover:electric-glow hover:scale-105 transition-all duration-300 group animate-fade-in-up relative overflow-hidden"
+                className="text-center electric-border tech-shadow bg-background/80 tech-blur hover:electric-glow hover:scale-105 transition-all duration-300 group animate-fade-in-up"
                 style={{ animationDelay: `${0.2 + index * 0.1}s` }}
               >
-                <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-                <CardHeader className="relative z-10">
-                  <div className="mx-auto w-12 h-12 bg-gradient-to-br from-primary/30 to-primary-glow/20 rounded-xl flex items-center justify-center text-primary mb-4 group-hover:animate-electric-pulse relative">
-                    <div className="absolute inset-0 bg-primary/10 rounded-xl blur group-hover:bg-primary/20 transition-colors duration-300"></div>
-                    <div className="relative z-10">{feature.icon}</div>
+                <CardHeader>
+                  <div className="mx-auto w-12 h-12 bg-gradient-to-br from-primary/20 to-primary-glow/20 rounded-xl flex items-center justify-center text-primary mb-4 group-hover:animate-electric-pulse">
+                    {feature.icon}
                   </div>
                   <CardTitle className="text-xl group-hover:text-primary transition-colors">
                     {feature.title}
                   </CardTitle>
                 </CardHeader>
-                <CardContent className="relative z-10">
+                <CardContent>
                   <CardDescription className="text-base">
                     {feature.description}
                   </CardDescription>
@@ -182,8 +176,7 @@ export default function LandingPage() {
 
       {/* Pricing Section */}
       <section className="py-20 relative">
-        <div className="absolute inset-0 bg-gradient-to-bl from-primary/5 via-background to-primary-dark/10"></div>
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_70%_50%,_var(--primary-glow)_0%,transparent_50%)] opacity-5"></div>
+        <div className="absolute inset-0 tech-gradient opacity-5"></div>
         <div className="container mx-auto px-4 relative z-10">
           <div className="text-center mb-16">
             <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-4 animate-fade-in-up">
@@ -197,23 +190,19 @@ export default function LandingPage() {
             {plans.map((plan, index) => (
               <Card 
                 key={index} 
-                className={`relative group hover:scale-105 transition-all duration-300 animate-fade-in-up overflow-hidden ${
+                className={`relative group hover:scale-105 transition-all duration-300 animate-fade-in-up ${
                   plan.popular 
-                    ? 'electric-border tech-shadow electric-glow scale-105 bg-gradient-to-br from-primary/10 to-primary-glow/5' 
-                    : 'border-border hover:electric-border hover:tech-shadow bg-background/60'
+                    ? 'electric-border tech-shadow electric-glow scale-105' 
+                    : 'border-border hover:electric-border hover:tech-shadow'
                 }`}
                 style={{ animationDelay: `${0.2 + index * 0.1}s` }}
               >
-                <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
                 {plan.popular && (
-                  <>
-                    <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-primary-glow/5 to-primary-dark/10 animate-electric-pulse"></div>
-                    <Badge className="absolute -top-3 left-1/2 transform -translate-x-1/2 electric-gradient text-white animate-electric-pulse z-20">
-                      Most Popular
-                    </Badge>
-                  </>
+                  <Badge className="absolute -top-3 left-1/2 transform -translate-x-1/2 electric-gradient text-white animate-electric-pulse">
+                    Most Popular
+                  </Badge>
                 )}
-                <CardHeader className="text-center relative z-10">
+                <CardHeader className="text-center">
                   <CardTitle className="text-2xl group-hover:text-primary transition-colors">
                     {plan.name}
                   </CardTitle>
@@ -227,7 +216,7 @@ export default function LandingPage() {
                     {plan.description}
                   </CardDescription>
                 </CardHeader>
-                <CardContent className="relative z-10">
+                <CardContent>
                   <ul className="space-y-3 mb-6">
                     {plan.features.map((feature, featureIndex) => (
                       <li key={featureIndex} className="flex items-center">
@@ -238,18 +227,15 @@ export default function LandingPage() {
                   </ul>
                   <Link to="/register-station" className="w-full">
                     <Button 
-                      className={`w-full transition-all duration-300 relative overflow-hidden ${
+                      className={`w-full transition-all duration-300 ${
                         plan.popular 
                           ? 'electric-gradient tech-shadow hover:scale-105' 
-                          : 'electric-border hover:electric-gradient hover:text-white bg-background/20'
+                          : 'electric-border hover:electric-gradient hover:text-white'
                       }`}
                       variant={plan.popular ? "default" : "outline"}
                       disabled={isLoading}
                     >
-                      <span className="relative z-10">{plan.cta}</span>
-                      {!plan.popular && (
-                        <div className="absolute inset-0 bg-electric-gradient opacity-0 hover:opacity-100 transition-opacity duration-300"></div>
-                      )}
+                      {plan.cta}
                     </Button>
                   </Link>
                 </CardContent>
@@ -262,36 +248,33 @@ export default function LandingPage() {
       {/* CTA Section */}
       <section className="py-20 relative overflow-hidden">
         <div className="absolute inset-0 electric-gradient"></div>
-        <div className="absolute inset-0 bg-gradient-to-r from-primary/95 via-primary-glow/85 to-primary-dark/95"></div>
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_rgba(255,255,255,0.1)_0%,transparent_70%)]"></div>
+        <div className="absolute inset-0 bg-gradient-to-r from-primary/90 via-primary-glow/80 to-primary-dark/90"></div>
         <div className="container mx-auto px-4 text-center relative z-10">
-          <h2 className="text-3xl md:text-4xl font-bold mb-4 text-white animate-fade-in-up drop-shadow-lg">
+          <h2 className="text-3xl md:text-4xl font-bold mb-4 text-white animate-fade-in-up">
             Ready to Transform Your Diagnostic Process?
           </h2>
-          <p className="text-xl mb-8 text-white/90 max-w-2xl mx-auto animate-fade-in-up [animation-delay:0.1s] drop-shadow">
+          <p className="text-xl mb-8 text-white/90 max-w-2xl mx-auto animate-fade-in-up [animation-delay:0.1s]">
             Join hundreds of service stations already using EVPreDiag to streamline 
             their operations and improve customer satisfaction.
           </p>
           <Link to="/register-station">
             <Button 
               size="lg" 
-              className="text-lg px-8 py-6 bg-white text-primary hover:bg-white/90 tech-shadow hover:scale-105 transition-all duration-300 animate-fade-in-up [animation-delay:0.2s] relative overflow-hidden group"
+              variant="secondary" 
+              className="text-lg px-8 py-6 bg-white text-primary hover:bg-white/90 tech-shadow hover:scale-105 transition-all duration-300 animate-fade-in-up [animation-delay:0.2s]"
             >
-              <span className="relative z-10 font-semibold">Start Your Free Trial Today</span>
-              <div className="absolute inset-0 bg-gradient-to-r from-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+              Start Your Free Trial Today
             </Button>
           </Link>
         </div>
-        {/* Enhanced Floating Tech Elements */}
-        <div className="absolute top-10 left-1/4 w-2 h-2 bg-white/30 rounded-full animate-float [animation-delay:0s] blur-sm"></div>
-        <div className="absolute bottom-10 right-1/3 w-3 h-3 bg-white/40 rounded-full animate-float [animation-delay:1s]"></div>
-        <div className="absolute top-1/2 right-10 w-4 h-4 bg-white/25 rounded-full animate-float [animation-delay:2s] blur-sm"></div>
-        <div className="absolute top-1/4 left-10 w-1 h-1 bg-white/50 rounded-full animate-float [animation-delay:1.5s]"></div>
-        <div className="absolute bottom-1/4 left-1/3 w-2 h-2 bg-white/35 rounded-full animate-float [animation-delay:0.5s]"></div>
+        {/* Floating Tech Elements */}
+        <div className="absolute top-10 left-1/4 w-2 h-2 bg-white/20 rounded-full animate-float [animation-delay:0s]"></div>
+        <div className="absolute bottom-10 right-1/3 w-3 h-3 bg-white/30 rounded-full animate-float [animation-delay:1s]"></div>
+        <div className="absolute top-1/2 right-10 w-4 h-4 bg-white/20 rounded-full animate-float [animation-delay:2s]"></div>
       </section>
 
       {/* Footer */}
-      <footer className="py-12 bg-gradient-to-t from-background/95 to-background electric-border border-t backdrop-blur-sm">
+      <footer className="py-12 bg-gradient-to-br from-secondary/20 via-background to-accent/10 electric-border border-t">
         <div className="container mx-auto px-4">
           <div className="flex flex-col md:flex-row justify-between items-center">
             <div className="flex items-center space-x-2 mb-4 md:mb-0">
@@ -301,18 +284,9 @@ export default function LandingPage() {
               </span>
             </div>
             <div className="flex space-x-6 text-sm text-muted-foreground">
-              <a href="#" className="hover:text-primary transition-colors duration-300 relative group">
-                Privacy Policy
-                <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-primary transition-all duration-300 group-hover:w-full"></span>
-              </a>
-              <a href="#" className="hover:text-primary transition-colors duration-300 relative group">
-                Terms of Service
-                <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-primary transition-all duration-300 group-hover:w-full"></span>
-              </a>
-              <a href="#" className="hover:text-primary transition-colors duration-300 relative group">
-                Support
-                <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-primary transition-all duration-300 group-hover:w-full"></span>
-              </a>
+              <a href="#" className="hover:text-primary transition-colors duration-300">Privacy Policy</a>
+              <a href="#" className="hover:text-primary transition-colors duration-300">Terms of Service</a>
+              <a href="#" className="hover:text-primary transition-colors duration-300">Support</a>
             </div>
           </div>
           <div className="mt-8 pt-8 border-t electric-border text-center text-sm text-muted-foreground">
