@@ -212,15 +212,73 @@ const StationManagement = () => {
     try {
       console.log('Updating subscription for station:', selectedStation.id, 'to plan:', selectedPlanId);
       
+      // First, get the selected plan details
+      const { data: planData, error: planError } = await supabase
+        .from('subscription_plans')
+        .select('is_trial, billing_interval, trial_days')
+        .eq('id', selectedPlanId)
+        .single();
+
+      if (planError) {
+        console.error('Error fetching plan details:', planError);
+        throw planError;
+      }
+
+      console.log('Plan details:', planData);
+
+      // Determine status and end date based on plan type
+      let status, endDate, updateData;
+      const now = new Date();
+      const startDate = now.toISOString();
+
+      if (planData.is_trial) {
+        // For trial plans
+        status = 'trial';
+        const trialDays = planData.trial_days || 180; // Default to 180 days if not specified
+        endDate = new Date(now.getTime() + trialDays * 24 * 60 * 60 * 1000).toISOString();
+        
+        updateData = {
+          plan_id: selectedPlanId,
+          status: status,
+          trial_start: startDate,
+          trial_end: endDate,
+          current_period_start: null,
+          current_period_end: null,
+          updated_at: startDate
+        };
+      } else {
+        // For paid plans
+        status = 'active';
+        let periodInDays;
+        
+        switch (planData.billing_interval) {
+          case 'year':
+            periodInDays = 365;
+            break;
+          case 'month':
+          default:
+            periodInDays = 30;
+            break;
+        }
+        
+        endDate = new Date(now.getTime() + periodInDays * 24 * 60 * 60 * 1000).toISOString();
+        
+        updateData = {
+          plan_id: selectedPlanId,
+          status: status,
+          current_period_start: startDate,
+          current_period_end: endDate,
+          trial_start: null,
+          trial_end: null,
+          updated_at: startDate
+        };
+      }
+
+      console.log('Update data:', updateData);
+      
       const { error } = await supabase
         .from('subscriptions')
-        .update({
-          plan_id: selectedPlanId,
-          status: 'active',
-          current_period_start: new Date().toISOString(),
-          current_period_end: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
-          updated_at: new Date().toISOString()
-        })
+        .update(updateData)
         .eq('station_id', selectedStation.id);
 
       if (error) {
