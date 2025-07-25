@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useCallback } from 'react';
 import { supabase } from '../integrations/supabase/client';
-import { Building, User, Mail, Lock, CheckCircle, Hash, Check, AlertCircle } from 'lucide-react';
+import { Building, User, Mail, Lock, CheckCircle, Hash, Check, AlertCircle, Home } from 'lucide-react';
+import { Link } from 'react-router-dom';
 
 interface EnhancedSignupProps {
   onSignupSuccess?: () => void;
@@ -417,6 +418,15 @@ const EnhancedSignup: React.FC<EnhancedSignupProps> = ({ onSignupSuccess, onSwit
 
   return (
     <div className="max-w-md mx-auto bg-slate-800 rounded-lg border border-slate-700 p-8">
+      <div className="flex justify-between items-center mb-6">
+        <Link 
+          to="/landing" 
+          className="inline-flex items-center text-slate-400 hover:text-white transition-colors"
+        >
+          <Home className="w-4 h-4 mr-2" />
+          Home
+        </Link>
+      </div>
       <div className="text-center mb-6">
         <h2 className="text-2xl font-bold text-white mb-2">Create Account</h2>
         <p className="text-slate-400">Join an existing service station</p>

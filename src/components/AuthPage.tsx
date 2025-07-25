@@ -2,8 +2,8 @@
 import React, { useState } from 'react';
 import { supabase } from '../integrations/supabase/client';
 import { useAuth } from '../contexts/AuthContext';
-import { Navigate } from 'react-router-dom';
-import { Mail, Lock, Eye, EyeOff } from 'lucide-react';
+import { Navigate, Link } from 'react-router-dom';
+import { Mail, Lock, Eye, EyeOff, Home } from 'lucide-react';
 import EnhancedSignup from './EnhancedSignup';
 
 const AuthPage: React.FC = () => {
@@ -60,6 +60,15 @@ const AuthPage: React.FC = () => {
   return (
     <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4">
       <div className="max-w-md mx-auto bg-slate-800 rounded-lg border border-slate-700 p-8">
+        <div className="flex justify-between items-center mb-6">
+          <Link 
+            to="/landing" 
+            className="inline-flex items-center text-slate-400 hover:text-white transition-colors"
+          >
+            <Home className="w-4 h-4 mr-2" />
+            Home
+          </Link>
+        </div>
         <div className="text-center mb-6">
           <h2 className="text-2xl font-bold text-white mb-2">Sign In</h2>
           <p className="text-slate-400">Access your diagnostic system</p>
