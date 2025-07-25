@@ -18,6 +18,10 @@ export default {
 			}
 		},
 		extend: {
+			fontFamily: {
+				'orbitron': ['Orbitron', 'monospace'],
+				'exo': ['Exo 2', 'sans-serif'],
+			},
 			colors: {
 				border: 'hsl(var(--border))',
 				input: 'hsl(var(--input))',
@@ -28,7 +32,8 @@ export default {
 					DEFAULT: 'hsl(var(--primary))',
 					foreground: 'hsl(var(--primary-foreground))',
 					glow: 'hsl(var(--primary-glow))',
-					dark: 'hsl(var(--primary-dark))'
+					dark: 'hsl(var(--primary-dark))',
+					light: 'hsl(var(--primary-light))'
 				},
 				secondary: {
 					DEFAULT: 'hsl(var(--secondary))',
@@ -122,6 +127,40 @@ export default {
 					'50%': {
 						transform: 'translateY(-10px)'
 					}
+				},
+				'holographic': {
+					'0%': {
+						backgroundPosition: '0% 50%'
+					},
+					'50%': {
+						backgroundPosition: '100% 50%'
+					},
+					'100%': {
+						backgroundPosition: '0% 50%'
+					}
+				},
+				'glitch': {
+					'0%': {
+						textShadow: '0.05em 0 0 hsl(var(--primary) / 0.8), -0.05em -0.025em 0 hsl(var(--primary-glow) / 0.8), 0.025em 0.05em 0 hsl(var(--primary-light) / 0.8)'
+					},
+					'15%': {
+						textShadow: '0.05em 0 0 hsl(var(--primary) / 0.8), -0.05em -0.025em 0 hsl(var(--primary-glow) / 0.8), 0.025em 0.05em 0 hsl(var(--primary-light) / 0.8)'
+					},
+					'16%': {
+						textShadow: '-0.05em -0.025em 0 hsl(var(--primary) / 0.8), 0.025em 0.025em 0 hsl(var(--primary-glow) / 0.8), -0.05em -0.05em 0 hsl(var(--primary-light) / 0.8)'
+					},
+					'49%': {
+						textShadow: '-0.05em -0.025em 0 hsl(var(--primary) / 0.8), 0.025em 0.025em 0 hsl(var(--primary-glow) / 0.8), -0.05em -0.05em 0 hsl(var(--primary-light) / 0.8)'
+					},
+					'50%': {
+						textShadow: '0.025em 0.05em 0 hsl(var(--primary) / 0.8), 0.05em 0 0 hsl(var(--primary-glow) / 0.8), 0 -0.05em 0 hsl(var(--primary-light) / 0.8)'
+					},
+					'99%': {
+						textShadow: '0.025em 0.05em 0 hsl(var(--primary) / 0.8), 0.05em 0 0 hsl(var(--primary-glow) / 0.8), 0 -0.05em 0 hsl(var(--primary-light) / 0.8)'
+					},
+					'100%': {
+						textShadow: '0.05em 0 0 hsl(var(--primary) / 0.8), -0.05em -0.025em 0 hsl(var(--primary-glow) / 0.8), 0.025em 0.05em 0 hsl(var(--primary-light) / 0.8)'
+					}
 				}
 			},
 			animation: {
@@ -130,7 +169,9 @@ export default {
 				'electric-pulse': 'electric-pulse 2s ease-in-out infinite',
 				'tech-glow': 'tech-glow 3s ease-in-out infinite',
 				'fade-in-up': 'fade-in-up 0.6s ease-out',
-				'float': 'float 3s ease-in-out infinite'
+				'float': 'float 3s ease-in-out infinite',
+				'holographic': 'holographic 3s ease-in-out infinite',
+				'glitch': 'glitch 2s linear infinite'
 			}
 		}
 	},

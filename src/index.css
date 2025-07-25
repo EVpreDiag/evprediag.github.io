@@ -4,61 +4,64 @@
 
 @layer base {
   :root {
-    /* Electric Blue Modern Tech Theme */
-    --background: 220 27% 98%;
-    --foreground: 215 25% 12%;
+    /* Dark Electric Blue Modern Tech Theme */
+    --background: 220 30% 6%;
+    --foreground: 210 40% 95%;
 
-    --card: 220 27% 100%;
-    --card-foreground: 215 25% 12%;
+    --card: 220 30% 8%;
+    --card-foreground: 210 40% 95%;
 
-    --popover: 220 27% 100%;
-    --popover-foreground: 215 25% 12%;
+    --popover: 220 30% 8%;
+    --popover-foreground: 210 40% 95%;
 
-    /* Electric Blue Primary Colors */
-    --primary: 213 94% 60%;
-    --primary-foreground: 220 27% 98%;
-    --primary-glow: 213 100% 70%;
+    /* Electric Blue Primary Colors - More Vibrant */
+    --primary: 213 100% 65%;
+    --primary-foreground: 220 30% 6%;
+    --primary-glow: 213 100% 75%;
     --primary-dark: 213 90% 45%;
+    --primary-light: 213 100% 85%;
 
     /* Tech Blue Secondary Colors */
-    --secondary: 213 95% 95%;
-    --secondary-foreground: 213 90% 20%;
+    --secondary: 213 35% 12%;
+    --secondary-foreground: 210 40% 85%;
 
-    --muted: 215 25% 95%;
-    --muted-foreground: 215 15% 45%;
+    --muted: 215 25% 15%;
+    --muted-foreground: 215 15% 65%;
 
-    --accent: 195 95% 92%;
-    --accent-foreground: 213 90% 20%;
+    --accent: 195 95% 20%;
+    --accent-foreground: 210 40% 95%;
 
     --destructive: 0 84% 60%;
-    --destructive-foreground: 220 27% 98%;
+    --destructive-foreground: 210 40% 95%;
 
-    --border: 215 25% 88%;
-    --input: 215 25% 90%;
-    --ring: 213 94% 60%;
+    --border: 215 25% 20%;
+    --input: 215 25% 18%;
+    --ring: 213 100% 65%;
 
     --radius: 0.75rem;
 
-    /* Modern Tech Gradients */
-    --gradient-electric: linear-gradient(135deg, hsl(213 94% 60%), hsl(195 95% 65%));
-    --gradient-tech: linear-gradient(135deg, hsl(213 94% 60%), hsl(213 90% 45%));
-    --gradient-subtle: linear-gradient(180deg, hsl(220 27% 98%), hsl(213 95% 96%));
-    --gradient-dark: linear-gradient(135deg, hsl(215 25% 12%), hsl(213 90% 8%));
+    /* Enhanced Electric Gradients */
+    --gradient-electric: linear-gradient(135deg, hsl(213 100% 65%), hsl(195 100% 70%), hsl(213 100% 75%));
+    --gradient-tech: linear-gradient(135deg, hsl(213 100% 65%), hsl(213 90% 45%));
+    --gradient-radial: radial-gradient(ellipse at center, hsl(213 100% 65% / 0.3), transparent 70%);
+    --gradient-subtle: linear-gradient(180deg, hsl(220 30% 6%), hsl(213 30% 8%));
+    --gradient-mesh: conic-gradient(from 0deg at 50% 50%, hsl(213 100% 65%), hsl(195 100% 70%), hsl(240 100% 65%), hsl(213 100% 65%));
 
-    /* Modern Shadows */
-    --shadow-electric: 0 10px 40px -10px hsl(213 94% 60% / 0.4);
-    --shadow-glow: 0 0 50px hsl(213 100% 70% / 0.3);
-    --shadow-tech: 0 20px 60px -10px hsl(213 94% 60% / 0.2);
+    /* Modern Tech Shadows & Effects */
+    --shadow-electric: 0 0 50px hsl(213 100% 65% / 0.4), 0 0 100px hsl(213 100% 65% / 0.2);
+    --shadow-glow: 0 0 80px hsl(213 100% 75% / 0.6);
+    --shadow-tech: 0 20px 60px -10px hsl(213 100% 65% / 0.3);
+    --shadow-neon: 0 0 20px hsl(213 100% 65%), 0 0 40px hsl(213 100% 65%), 0 0 80px hsl(213 100% 65%);
 
     /* Sidebar Theme */
-    --sidebar-background: 220 27% 99%;
-    --sidebar-foreground: 215 25% 15%;
-    --sidebar-primary: 213 94% 60%;
-    --sidebar-primary-foreground: 220 27% 98%;
-    --sidebar-accent: 213 95% 95%;
-    --sidebar-accent-foreground: 213 90% 20%;
-    --sidebar-border: 215 25% 88%;
-    --sidebar-ring: 213 94% 60%;
+    --sidebar-background: 220 30% 8%;
+    --sidebar-foreground: 210 40% 90%;
+    --sidebar-primary: 213 100% 65%;
+    --sidebar-primary-foreground: 220 30% 6%;
+    --sidebar-accent: 213 35% 12%;
+    --sidebar-accent-foreground: 210 40% 85%;
+    --sidebar-border: 215 25% 20%;
+    --sidebar-ring: 213 100% 65%;
   }
 
   .dark {
@@ -123,7 +126,7 @@
   }
 
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground font-exo;
   }
 }
 
@@ -141,6 +144,14 @@
     background: var(--gradient-subtle);
   }
   
+  .radial-gradient {
+    background: var(--gradient-radial);
+  }
+  
+  .mesh-gradient {
+    background: var(--gradient-mesh);
+  }
+  
   .electric-glow {
     box-shadow: var(--shadow-electric);
   }
@@ -153,11 +164,105 @@
     box-shadow: var(--shadow-tech);
   }
   
+  .neon-glow {
+    box-shadow: var(--shadow-neon);
+  }
+  
   .electric-border {
-    border: 1px solid hsl(var(--primary) / 0.3);
+    border: 1px solid hsl(var(--primary) / 0.4);
   }
   
   .tech-blur {
-    backdrop-filter: blur(12px);
+    backdrop-filter: blur(16px) saturate(1.8);
+  }
+
+  /* Tech Grid Pattern */
+  .tech-grid {
+    background-image: 
+      linear-gradient(hsl(var(--primary) / 0.1) 1px, transparent 1px),
+      linear-gradient(90deg, hsl(var(--primary) / 0.1) 1px, transparent 1px);
+    background-size: 30px 30px;
+  }
+
+  /* Circuit Board Pattern */
+  .circuit-pattern {
+    background-image: 
+      radial-gradient(circle at 20% 50%, hsl(var(--primary) / 0.1) 2px, transparent 2px),
+      radial-gradient(circle at 80% 50%, hsl(var(--primary) / 0.1) 2px, transparent 2px),
+      linear-gradient(hsl(var(--primary) / 0.05) 1px, transparent 1px);
+    background-size: 40px 40px, 40px 40px, 20px 20px;
+  }
+
+  /* Floating Tech Elements */
+  .tech-orb {
+    position: absolute;
+    border-radius: 50%;
+    background: radial-gradient(circle, hsl(var(--primary) / 0.6), hsl(var(--primary) / 0.1));
+    box-shadow: 0 0 20px hsl(var(--primary) / 0.4);
+    animation: float 6s ease-in-out infinite;
+  }
+
+  .tech-square {
+    position: absolute;
+    background: linear-gradient(45deg, hsl(var(--primary) / 0.3), hsl(var(--primary-glow) / 0.2));
+    border: 1px solid hsl(var(--primary) / 0.4);
+    backdrop-filter: blur(8px);
+    transform: rotate(45deg);
+    animation: float 8s ease-in-out infinite reverse;
+  }
+
+  .tech-triangle {
+    position: absolute;
+    width: 0;
+    height: 0;
+    border-left: 15px solid transparent;
+    border-right: 15px solid transparent;
+    border-bottom: 25px solid hsl(var(--primary) / 0.3);
+    filter: drop-shadow(0 0 10px hsl(var(--primary) / 0.5));
+    animation: float 10s ease-in-out infinite;
+  }
+
+  /* Holographic Text Effect */
+  .holographic-text {
+    background: linear-gradient(45deg, hsl(var(--primary)), hsl(var(--primary-glow)), hsl(var(--primary-light)));
+    background-size: 200% 200%;
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    animation: holographic 3s ease-in-out infinite;
+  }
+
+  /* Glitch Effect */
+  .glitch-text {
+    position: relative;
+    color: hsl(var(--primary));
+    text-shadow: 
+      0.05em 0 0 hsl(var(--primary) / 0.8),
+      -0.05em -0.025em 0 hsl(var(--primary-glow) / 0.8),
+      0.025em 0.05em 0 hsl(var(--primary-light) / 0.8);
+    animation: glitch 2s linear infinite;
+  }
+
+  /* Scanline Effect */
+  .scanlines {
+    position: relative;
+    overflow: hidden;
+  }
+
+  .scanlines::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      hsl(var(--primary) / 0.03) 2px,
+      hsl(var(--primary) / 0.03) 4px
+    );
+    pointer-events: none;
   }
 }
