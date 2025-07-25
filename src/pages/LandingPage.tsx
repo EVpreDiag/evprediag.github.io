@@ -100,7 +100,6 @@ export default function LandingPage() {
 
       {/* Hero Section */}
       <section className="py-20 text-center relative overflow-hidden">
-        <div className="absolute inset-0 tech-gradient opacity-5"></div>
         <div className="container mx-auto px-4 relative z-10">
           <Badge variant="secondary" className="mb-4 electric-border electric-glow animate-fade-in-up">
             ⚡ Professional Vehicle Diagnostics Platform
