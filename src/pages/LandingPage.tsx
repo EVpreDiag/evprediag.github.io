@@ -129,10 +129,6 @@ export default function LandingPage() {
             No credit card required • Full access for 6 months
           </p>
         </div>
-        {/* Floating Elements */}
-        <div className="absolute top-20 left-10 w-4 h-4 bg-primary/20 rounded-full animate-float [animation-delay:0s]"></div>
-        <div className="absolute top-40 right-20 w-6 h-6 bg-primary-glow/20 rounded-full animate-float [animation-delay:1s]"></div>
-        <div className="absolute bottom-20 left-1/4 w-3 h-3 bg-primary/30 rounded-full animate-float [animation-delay:2s]"></div>
       </section>
 
       {/* Features Section */}
