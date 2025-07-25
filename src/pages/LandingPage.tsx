@@ -105,9 +105,9 @@ export default function LandingPage() {
             ⚡ Professional Vehicle Diagnostics Platform
           </Badge>
           <h1 className="text-5xl md:text-6xl font-bold text-foreground mb-6 max-w-4xl mx-auto leading-tight animate-fade-in-up [animation-delay:0.1s]">
-            Streamline Your Vehicle
-            <span className="bg-gradient-to-r from-primary via-primary-glow to-primary-dark bg-clip-text text-transparent animate-tech-glow">
-              {" "}Diagnostic Process
+            Streamline Your Vehicle{" "}
+            <span className="text-primary">
+              Diagnostic Process
             </span>
           </h1>
           <p className="text-xl text-muted-foreground mb-8 max-w-2xl mx-auto animate-fade-in-up [animation-delay:0.2s]">
