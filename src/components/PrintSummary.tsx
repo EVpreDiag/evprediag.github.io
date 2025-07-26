@@ -533,10 +533,12 @@ const PrintSummary = () => {
           </h2>
           
           {/* Multi-column layout for print */}
-          <div className="print:columns-2 print:gap-4 space-y-4 print:space-y-2">
-            {questionSections.map((section, index) => 
-              renderSection(section.title, section.questions)
-            )}
+          <div className="print:grid print:grid-cols-2 print:gap-3 space-y-4 print:space-y-0">
+            {questionSections.map((section, index) => (
+              <div key={index} className="print:break-inside-avoid">
+                {renderSection(section.title, section.questions)}
+              </div>
+            ))}
           </div>
         </div>
 
@@ -561,15 +563,29 @@ const PrintSummary = () => {
             line-height: 1.2 !important;
           }
           
-          /* allow page breaks but keep sections intact within columns */
-          .break-inside-avoid {
-            page-break-inside: auto;
-            break-inside: avoid-column;
+          /* Force grid layout for consistent 2-column printing */
+          .print\\:grid {
+            display: grid !important;
           }
           
-          .print\\:columns-2 {
-            column-count: 2;
-            column-gap: 1rem;
+          .print\\:grid-cols-2 {
+            grid-template-columns: 1fr 1fr !important;
+          }
+          
+          .print\\:gap-3 {
+            gap: 0.75rem !important;
+          }
+          
+          /* Prevent sections from breaking across columns/pages */
+          .print\\:break-inside-avoid {
+            break-inside: avoid !important;
+            page-break-inside: avoid !important;
+          }
+          
+          /* Ensure consistent layout across devices */
+          * {
+            -webkit-print-color-adjust: exact !important;
+            color-adjust: exact !important;
           }
         }
       `}</style>
