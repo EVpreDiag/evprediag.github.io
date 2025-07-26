@@ -152,8 +152,8 @@ const PrintSummary = () => {
   };
 
   const getYesNoIcon = (value: string) => {
-    if (value === 'yes') return <span className="text-red-500 print:text-red-600 font-bold text-xs">⚠ YES</span>;
-    if (value === 'no') return <span className="text-green-500 print:text-green-600 text-xs">✓ NO</span>;
+    if (value === 'yes') return <span className="text-red-500 print:text-red-600 print:bg-red-100 print:px-2 print:py-1 print:rounded print:font-bold font-bold text-xs">⚠ YES</span>;
+    if (value === 'no') return <span className="text-green-500 print:text-green-700 print:bg-green-100 print:px-2 print:py-1 print:rounded print:font-bold text-xs">✓ NO</span>;
     return <span className="text-slate-400 print:text-gray-500 text-xs">-</span>;
   };
 
@@ -175,21 +175,23 @@ const PrintSummary = () => {
     const hasDetails = detailsField && record?.[detailsField];
     
     return (
-      <div className="border-l-2 border-blue-400 print:border-blue-300 pl-2 py-1 print:py-0.5 mb-2 print:mb-1">
-        <div className="flex items-center justify-between">
-          <h4 className="font-medium text-white print:text-black text-xs print:text-[10px] leading-tight">{question}</h4>
-          <div className="flex items-center space-x-1 ml-2">
+      <div className="print:border print:border-gray-200 print:rounded print:p-2 print:mb-2 mb-3 print:bg-white">
+        <div className="flex items-start justify-between print:items-center">
+          <h4 className="font-medium text-white print:text-gray-800 text-sm print:text-xs leading-tight print:font-semibold flex-1 pr-2">
+            {question}
+          </h4>
+          <div className="flex items-center space-x-1 ml-2 flex-shrink-0">
             {(value === 'yes' || value === 'no') ? getYesNoIcon(value) : (
-              <span className="text-slate-300 print:text-gray-700 text-xs print:text-[10px]">
+              <span className="text-slate-300 print:text-gray-700 text-sm print:text-xs font-medium print:bg-gray-100 print:px-2 print:py-1 print:rounded">
                 {Array.isArray(value) ? value.join(', ') : value || 'Not specified'}
               </span>
             )}
           </div>
         </div>
         {hasDetails && (
-          <div className="mt-1 p-1 bg-slate-700/30 print:bg-gray-50 rounded text-xs print:text-[9px]">
-            <p className="text-slate-300 print:text-gray-700 font-medium">Details:</p>
-            <p className="text-slate-300 print:text-gray-600">{record[detailsField]}</p>
+          <div className="mt-2 print:mt-1 p-2 print:p-2 bg-slate-700/30 print:bg-blue-50 rounded print:border-l-4 print:border-blue-400">
+            <p className="text-slate-300 print:text-blue-800 font-medium text-xs print:text-[10px] print:font-bold mb-1">Details:</p>
+            <p className="text-slate-300 print:text-gray-700 text-xs print:text-[10px] print:leading-tight">{record[detailsField]}</p>
           </div>
         )}
       </div>
@@ -202,11 +204,11 @@ const PrintSummary = () => {
     if (!hasAnyContent) return null;
 
     return (
-      <div className="mb-3 print:mb-2 break-inside-avoid">
-        <h3 className="text-sm print:text-xs font-semibold text-white print:text-black mb-2 print:mb-1 border-b border-slate-600 print:border-gray-300 pb-1">
+      <div className="mb-6 print:mb-4 break-inside-avoid print:bg-white print:border print:border-gray-300 print:rounded-lg print:p-3">
+        <h3 className="text-lg print:text-sm font-bold text-white print:text-gray-900 mb-4 print:mb-3 print:bg-blue-600 print:text-white print:p-2 print:rounded print:font-black print:uppercase print:tracking-wide">
           {title}
         </h3>
-        <div className="space-y-1 print:space-y-0.5">
+        <div className="space-y-2 print:space-y-1">
           {questions.map(({ question, field, detailsField }, index) => (
             <div key={index}>
               {renderQuestionAnswer(question, record?.[field], detailsField)}
@@ -484,69 +486,89 @@ const PrintSummary = () => {
         </div>
       </header>
 
-      {/* Print Content - Optimized Layout */}
-      <div id="print-section" className="p-6 max-w-6xl mx-auto print:p-4 print:max-w-none print:text-[10px]">
-        {/* Header Info - Compact */}
-        <div className="bg-slate-800 print:bg-white print:border print:border-gray-300 rounded-lg p-6 print:p-3 mb-6 print:mb-3">
-          <div className="flex items-center justify-between mb-4 print:mb-2">
-            <div className="flex items-center space-x-3 print:space-x-2">
-              <Battery className="w-8 h-8 print:w-4 print:h-4 text-blue-400 print:text-blue-600" />
+      {/* Print Content - Professional Layout */}
+      <div id="print-section" className="p-6 max-w-6xl mx-auto print:p-0 print:max-w-none">
+        {/* Professional Header */}
+        <div className="bg-slate-800 print:bg-white rounded-lg p-6 print:p-6 mb-6 print:mb-8 print:border-b-4 print:border-blue-600">
+          <div className="flex items-center justify-between mb-6 print:mb-4">
+            <div className="flex items-center space-x-4">
+              <div className="w-12 h-12 print:w-16 print:h-16 bg-blue-600 print:bg-blue-600 rounded-lg flex items-center justify-center">
+                <Battery className="w-6 h-6 print:w-8 print:h-8 text-white" />
+              </div>
               <div>
-                <h1 className="text-2xl print:text-base font-bold text-white print:text-black">
-                  {record.record_type === 'ev' ? 'EV' : 'PHEV'} Diagnostic Report
+                <h1 className="text-3xl print:text-2xl font-bold text-white print:text-gray-900 print:font-black">
+                  {record.record_type.toUpperCase()} DIAGNOSTIC REPORT
                 </h1>
-                <p className="text-slate-400 print:text-gray-600 print:text-xs">Complete Pre-Check Assessment</p>
+                <p className="text-lg print:text-base text-slate-400 print:text-gray-600 font-medium">Complete Pre-Check Assessment</p>
               </div>
             </div>
-            <div className="text-right print:text-xs">
-              <p className="text-sm print:text-[9px] text-slate-400 print:text-gray-600">Generated: {formatDate(record.created_at)}</p>
-              <p className="text-sm print:text-[9px] text-slate-400 print:text-gray-600">Technician: {record.technician_id}</p>
+            <div className="text-right">
+              <div className="print:bg-gray-50 print:p-3 print:rounded-lg print:border">
+                <p className="text-sm print:text-sm text-slate-400 print:text-gray-700 font-semibold">Generated</p>
+                <p className="text-lg print:text-base text-white print:text-gray-900 font-bold">{formatDate(record.created_at)}</p>
+                <p className="text-sm print:text-sm text-slate-400 print:text-gray-600">Tech: {record.technician_id}</p>
+              </div>
             </div>
           </div>
 
-          {/* Vehicle Info - Compact Grid */}
-          <div className="grid grid-cols-2 print:grid-cols-4 gap-4 print:gap-2">
-            <div>
-              <label className="block text-xs print:text-[8px] font-medium text-slate-400 print:text-gray-600 uppercase tracking-wider mb-1">Customer</label>
-              <p className="text-white print:text-black font-medium text-sm print:text-[10px]">{record.customer_name}</p>
-            </div>
-            <div>
-              <label className="block text-xs print:text-[8px] font-medium text-slate-400 print:text-gray-600 uppercase tracking-wider mb-1">VIN</label>
-              <p className="text-white print:text-black font-mono text-sm print:text-[10px]">{record.vin}</p>
-            </div>
-            <div>
-              <label className="block text-xs print:text-[8px] font-medium text-slate-400 print:text-gray-600 uppercase tracking-wider mb-1">RO Number</label>
-              <p className="text-white print:text-black text-sm print:text-[10px]">{record.ro_number}</p>
-            </div>
-            <div>
-              <label className="block text-xs print:text-[8px] font-medium text-slate-400 print:text-gray-600 uppercase tracking-wider mb-1">Make/Model</label>
-              <p className="text-white print:text-black text-sm print:text-[10px]">{record.make_model}</p>
+          {/* Vehicle Information Card */}
+          <div className="print:bg-gray-50 print:p-4 print:rounded-lg print:border">
+            <h2 className="text-lg print:text-base font-bold text-white print:text-gray-900 mb-4 print:mb-3 print:border-b print:border-gray-300 print:pb-2">
+              VEHICLE INFORMATION
+            </h2>
+            <div className="grid grid-cols-2 print:grid-cols-4 gap-6 print:gap-4">
+              <div>
+                <label className="block text-xs print:text-xs font-bold text-slate-400 print:text-gray-600 uppercase tracking-wider mb-2 print:mb-1">Customer Name</label>
+                <p className="text-white print:text-gray-900 font-semibold text-base print:text-sm">{record.customer_name}</p>
+              </div>
+              <div>
+                <label className="block text-xs print:text-xs font-bold text-slate-400 print:text-gray-600 uppercase tracking-wider mb-2 print:mb-1">Vehicle VIN</label>
+                <p className="text-white print:text-gray-900 font-mono font-bold text-base print:text-sm">{record.vin}</p>
+              </div>
+              <div>
+                <label className="block text-xs print:text-xs font-bold text-slate-400 print:text-gray-600 uppercase tracking-wider mb-2 print:mb-1">RO Number</label>
+                <p className="text-white print:text-gray-900 font-semibold text-base print:text-sm">{record.ro_number}</p>
+              </div>
+              <div>
+                <label className="block text-xs print:text-xs font-bold text-slate-400 print:text-gray-600 uppercase tracking-wider mb-2 print:mb-1">Make & Model</label>
+                <p className="text-white print:text-gray-900 font-semibold text-base print:text-sm">{record.make_model}</p>
+              </div>
             </div>
           </div>
         </div>
 
-        {/* Complete Q&A Sections - Multi-column print layout */}
-        <div className="bg-slate-800 print:bg-white print:border print:border-gray-300 rounded-lg p-6 print:p-3">
-          <h2 className="text-xl print:text-sm font-semibold text-white print:text-black mb-6 print:mb-3 flex items-center">
-            <CheckCircle className="w-6 h-6 print:w-3 print:h-3 mr-2 text-blue-400 print:text-blue-600" />
-            Complete Diagnostic Assessment
-          </h2>
+        {/* Diagnostic Assessment Sections */}
+        <div className="bg-slate-800 print:bg-white rounded-lg p-6 print:p-6 print:border">
+          <div className="mb-6 print:mb-6 print:border-b-2 print:border-blue-600 print:pb-3">
+            <h2 className="text-2xl print:text-xl font-bold text-white print:text-gray-900 flex items-center">
+              <CheckCircle className="w-6 h-6 print:w-6 print:h-6 mr-3 text-blue-400 print:text-blue-600" />
+              COMPLETE DIAGNOSTIC ASSESSMENT
+            </h2>
+          </div>
           
-          {/* Multi-column layout for print */}
-          <div className="print:grid print:grid-cols-2 print:gap-3 space-y-4 print:space-y-0">
+          {/* Professional 2-column grid layout */}
+          <div className="print:grid print:grid-cols-2 print:gap-8 space-y-6 print:space-y-0">
             {questionSections.map((section, index) => (
-              <div key={index} className="print:break-inside-avoid">
+              <div key={index} className="print:break-inside-avoid print:mb-6">
                 {renderSection(section.title, section.questions)}
               </div>
             ))}
           </div>
         </div>
 
-        {/* Footer - Compact */}
-        <div className="text-center text-sm print:text-[8px] text-slate-400 print:text-gray-600 pt-4 print:pt-2 border-t border-slate-700 print:border-gray-300 print:mt-3">
-          <p>This comprehensive report was generated by the EV Diagnostic Portal</p>
-          <p>Report ID: {record.id} | Generated on {formatDate(record.created_at)}</p>
-          <p>For technical support, contact your system administrator</p>
+        {/* Professional Footer */}
+        <div className="print:mt-8 print:pt-4 print:border-t-2 print:border-gray-300">
+          <div className="text-center print:text-center">
+            <div className="print:bg-gray-50 print:p-4 print:rounded-lg print:border">
+              <p className="text-sm print:text-sm text-slate-400 print:text-gray-700 font-semibold">EV Diagnostic Portal - Professional Assessment Report</p>
+              <p className="text-xs print:text-xs text-slate-400 print:text-gray-600 mt-1">
+                Report ID: {record.id} | Generated: {formatDate(record.created_at)}
+              </p>
+              <p className="text-xs print:text-xs text-slate-400 print:text-gray-600">
+                For technical support and inquiries, contact your system administrator
+              </p>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -554,13 +576,15 @@ const PrintSummary = () => {
       <style>{`
         @media print {
           @page {
-            margin: 0.5in;
+            margin: 0.4in;
             size: letter;
           }
           
           body {
-            font-size: 10px !important;
-            line-height: 1.2 !important;
+            font-family: 'Arial', 'Helvetica', sans-serif !important;
+            font-size: 11px !important;
+            line-height: 1.3 !important;
+            color: #000 !important;
           }
           
           /* Force grid layout for consistent 2-column printing */
@@ -572,8 +596,12 @@ const PrintSummary = () => {
             grid-template-columns: 1fr 1fr !important;
           }
           
-          .print\\:gap-3 {
-            gap: 0.75rem !important;
+          .print\\:gap-8 {
+            gap: 1rem !important;
+          }
+          
+          .print\\:gap-4 {
+            gap: 0.5rem !important;
           }
           
           /* Prevent sections from breaking across columns/pages */
@@ -582,10 +610,80 @@ const PrintSummary = () => {
             page-break-inside: avoid !important;
           }
           
+          /* Professional header styling */
+          .print\\:border-b-4 {
+            border-bottom: 4px solid #2563eb !important;
+          }
+          
+          .print\\:bg-blue-600 {
+            background-color: #2563eb !important;
+          }
+          
+          .print\\:text-white {
+            color: #ffffff !important;
+          }
+          
+          .print\\:text-gray-900 {
+            color: #111827 !important;
+          }
+          
+          .print\\:text-gray-700 {
+            color: #374151 !important;
+          }
+          
+          .print\\:text-gray-600 {
+            color: #4b5563 !important;
+          }
+          
+          .print\\:bg-gray-50 {
+            background-color: #f9fafb !important;
+          }
+          
+          .print\\:bg-blue-50 {
+            background-color: #eff6ff !important;
+          }
+          
+          .print\\:border-blue-400 {
+            border-color: #60a5fa !important;
+          }
+          
+          .print\\:border-blue-600 {
+            border-color: #2563eb !important;
+          }
+          
+          .print\\:border-gray-200 {
+            border-color: #e5e7eb !important;
+          }
+          
+          .print\\:border-gray-300 {
+            border-color: #d1d5db !important;
+          }
+          
           /* Ensure consistent layout across devices */
           * {
             -webkit-print-color-adjust: exact !important;
             color-adjust: exact !important;
+          }
+          
+          /* Typography improvements */
+          .print\\:font-black {
+            font-weight: 900 !important;
+          }
+          
+          .print\\:font-bold {
+            font-weight: 700 !important;
+          }
+          
+          .print\\:font-semibold {
+            font-weight: 600 !important;
+          }
+          
+          .print\\:uppercase {
+            text-transform: uppercase !important;
+          }
+          
+          .print\\:tracking-wide {
+            letter-spacing: 0.025em !important;
           }
         }
       `}</style>
