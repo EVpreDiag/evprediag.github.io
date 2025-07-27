@@ -135,22 +135,116 @@ const PrintSummary = () => {
   const handleDownload = async () => {
     const element = document.getElementById('print-section');
     if (!element) return;
+    
+    // Create a temporary container with print styles
+    const tempContainer = document.createElement('div');
+    tempContainer.style.cssText = `
+      position: absolute;
+      top: -9999px;
+      left: -9999px;
+      width: 210mm;
+      background: white;
+      color: black;
+      font-family: Arial, sans-serif;
+      font-size: 12px;
+      line-height: 1.4;
+      padding: 20px;
+    `;
+    
+    // Clone the print section
+    const clonedElement = element.cloneNode(true) as HTMLElement;
+    
+    // Apply PDF-specific styles
+    clonedElement.style.cssText = `
+      background: white !important;
+      color: black !important;
+      font-family: Arial, sans-serif;
+      font-size: 12px;
+      line-height: 1.4;
+      padding: 0;
+      margin: 0;
+    `;
+    
+    // Remove dark theme classes and apply light styles
+    const applyPDFStyles = (el: Element) => {
+      if (el instanceof HTMLElement) {
+        // Reset background and text colors
+        el.style.background = 'white';
+        el.style.backgroundColor = 'white';
+        el.style.color = 'black';
+        
+        // Handle specific elements
+        if (el.classList.contains('text-white') || el.classList.contains('text-slate-300') || el.classList.contains('text-slate-400')) {
+          el.style.color = 'black';
+        }
+        
+        if (el.classList.contains('text-red-500')) {
+          el.style.color = '#dc2626';
+        }
+        
+        if (el.classList.contains('text-green-500')) {
+          el.style.color = '#16a34a';
+        }
+        
+        // Handle section backgrounds
+        if (el.tagName === 'H3') {
+          el.style.background = '#f3f4f6';
+          el.style.color = 'black';
+          el.style.padding = '4px 8px';
+          el.style.borderRadius = '4px';
+          el.style.fontSize = '11px';
+          el.style.fontWeight = 'bold';
+          el.style.textTransform = 'uppercase';
+          el.style.textAlign = 'center';
+          el.style.marginBottom = '8px';
+        }
+        
+        // Handle details sections
+        if (el.classList.contains('bg-slate-700/30') || el.style.backgroundColor.includes('slate')) {
+          el.style.background = '#f9fafb';
+          el.style.border = '1px solid #e5e7eb';
+          el.style.borderRadius = '4px';
+          el.style.padding = '6px';
+          el.style.marginTop = '4px';
+        }
+        
+        // Handle section containers
+        if (el.classList.contains('mb-3') || el.classList.contains('mb-2')) {
+          el.style.border = '1px solid #e5e7eb';
+          el.style.borderRadius = '4px';
+          el.style.padding = '8px';
+          el.style.marginBottom = '8px';
+          el.style.pageBreakInside = 'avoid';
+        }
+      }
+      
+      // Recursively apply to children
+      Array.from(el.children).forEach(applyPDFStyles);
+    };
+    
+    applyPDFStyles(clonedElement);
+    tempContainer.appendChild(clonedElement);
+    document.body.appendChild(tempContainer);
+    
     const html2pdf = (await import('html2pdf.js')).default;
-    element.classList.add('pdf-mode');
+    
     try {
       await html2pdf()
-        .from(element)
+        .from(clonedElement)
         .set({
-          // Use A4 paper for downloaded PDFs.  Margins are specified in
-          // millimetres to match the A4 units.  12.7mm is roughly 0.5in.
           margin: 12.7,
           filename: `diagnostic-report-${record?.id ?? 'report'}.pdf`,
-          html2canvas: { scale: 2, backgroundColor: '#fff' },
+          html2canvas: { 
+            scale: 2, 
+            backgroundColor: '#ffffff',
+            useCORS: true,
+            allowTaint: true
+          },
           jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
         })
         .save();
     } finally {
-      element.classList.remove('pdf-mode');
+      document.body.removeChild(tempContainer);
     }
   };
   // Format a date string into a readable format for both screen and print
