@@ -504,7 +504,7 @@ const PrintSummary = () => {
               <span>Back to Modify Reports</span>
             </button>
             <div>
-              <h1 className="text-xl font-bold text-white">Diagnostic Summary</h1>
+              <h1 className="text-xl font-bold text-white">Diagnostic Questions Summary</h1>
               <p className="text-sm text-slate-400">Complete diagnostic report with all questions and answers</p>
             </div>
           </div>
@@ -532,7 +532,7 @@ const PrintSummary = () => {
         {/* Report Header */}
         <div className="mb-6 print:mb-2 text-center print:border-b print:border-gray-300 print:pb-2">
           <h1 className="text-2xl print:text-lg font-bold text-white print:text-black mb-2 print:mb-1">
-            {record.record_type.toUpperCase()} Diagnostic Report
+            {record.record_type.toUpperCase()} Diagnostic Questions Report
           </h1>
           <div className="grid grid-cols-2 gap-4 print:gap-2 text-sm print:text-xs max-w-2xl mx-auto">
             <div className="text-left">
