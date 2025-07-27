@@ -141,7 +141,7 @@ const PrintSummary = () => {
     // print styles during PDF generation.  This class forces white
     // backgrounds and dark text for all children.  After the PDF is saved
     // the class is removed to restore normal rendering.
-    element.classList.add('pdf-mode');
+    //element.classList.add('pdf-mode');
     try {
       await html2pdf()
         .from(element)
@@ -153,7 +153,7 @@ const PrintSummary = () => {
         })
         .save();
     } finally {
-      element.classList.remove('pdf-mode');
+      //element.classList.remove('pdf-mode');
     }
   };
 
