@@ -35,6 +35,8 @@ const PrintSummary = () => {
   const [record, setRecord] = useState<DiagnosticRecord | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  // Store the technician's human-readable name (if available).
+  const [technicianName, setTechnicianName] = useState<string | null>(null);
 
   // Fetch the record when the component mounts or when the id/type params change.
   useEffect(() => {
@@ -108,6 +110,30 @@ const PrintSummary = () => {
             record_type: finalRecordType
           };
           setRecord(formattedRecord);
+
+          // Look up the technician's name by UUID.  We attempt to fetch a
+          // corresponding user record from a `users` table (or similar) where
+          // the id matches the technician_id.  If a record with a name exists,
+          // store it; otherwise leave technicianName as null and fall back to
+          // displaying the UUID.  You can adjust the table/field names to match
+          // your Supabase schema (e.g. profiles.full_name, users.name, etc.).
+          const fetchTechnicianName = async () => {
+            try {
+              if (recordData.technician_id) {
+                const { data: userRec, error: userErr } = await supabase
+                  .from('users')
+                  .select('name')
+                  .eq('id', recordData.technician_id)
+                  .maybeSingle();
+                if (!userErr && userRec && userRec.name) {
+                  setTechnicianName(userRec.name as string);
+                }
+              }
+            } catch (err) {
+              console.warn('Failed to fetch technician name:', err);
+            }
+          };
+          fetchTechnicianName();
         } else {
           setError('Record not found');
         }
@@ -134,7 +160,7 @@ const PrintSummary = () => {
     html2pdf()
       .from(element)
       .set({
-        margin: 0.3,
+        margin: 0.5,
         filename: `diagnostic-report-${record?.id ?? 'report'}.pdf`,
         html2canvas: { scale: 2 },
         jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' }
@@ -420,187 +446,213 @@ const PrintSummary = () => {
       title: 'Driving‑Mode Behavior',
       questions: [
         { question: 'Regular Modes', field: 'regular_modes' },
-        { question: 'Performance/Sport Modes', field: 'performance_modes', detailsField: 'performance_details' },
-        { question: 'Towing Mode', field: 'towing_mode', detailsField: 'towing_mode_details' },
-        { question: 'Terrain/Drive Mode', field: 'terrain_mode', detailsField: 'terrain_details' }
+        { question: 'Inconsistent Performance', field: 'inconsistent_performance', detailsField: 'inconsistent_details' },
+        { question: 'Sport Mode Power', field: 'sport_mode_power', detailsField: 'sport_mode_details' },
+        { question: 'Eco/EV Mode Limit', field: 'eco_ev_mode_limit', detailsField: 'eco_ev_mode_details' },
+        { question: 'Mode Noise', field: 'mode_noise', detailsField: 'mode_noise_details' },
+        { question: 'Mode Warnings', field: 'mode_warnings', detailsField: 'mode_warnings_details' }
       ]
     },
     {
-      title: 'Environmental Conditions',
+      title: 'Environmental & Climate Conditions',
       questions: [
         { question: 'Temperature During Issue', field: 'temperature_during_issue' },
         { question: 'Vehicle Parked', field: 'vehicle_parked' },
         { question: 'Time of Day', field: 'time_of_day' },
         { question: 'HVAC Weather Difference', field: 'hvac_weather_difference', detailsField: 'hvac_weather_details' },
-        { question: 'Range/Regen vs Temperature', field: 'range_regen_temp' },
+        { question: 'Range/Regen vs Temperature', field: 'range_regen_temp', detailsField: 'range_regen_details' },
         { question: 'Moisture in Charging Port', field: 'moisture_charging_port' }
       ]
     }
   ];
 
-  // Show loading state during data fetch
+  // If the record is still loading, show a simple spinner/placeholder
   if (loading) {
     return (
-      <div className="flex justify-center items-center min-h-screen bg-slate-900">
-        <div className="text-white">Loading...</div>
+      <div className="min-h-screen bg-slate-900 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white" />
+          <p className="mt-2 text-white">Loading Record...</p>
+        </div>
       </div>
     );
   }
 
-  // Show error state if data fetch failed
-  if (error) {
+  // If there was an error or no record, show an error message with a back button
+  if (error || !record) {
     return (
-      <div className="flex flex-col justify-center items-center min-h-screen bg-slate-900">
-        <div className="text-white mb-4">{error}</div>
-        <button
-          onClick={() => navigate(-1)}
-          className="text-blue-400 hover:text-blue-300"
-        >
-          Go Back
-        </button>
+      <div className="min-h-screen bg-slate-900 flex items-center justify-center">
+        <div className="text-center">
+          <h2 className="text-xl font-bold text-white mb-2">Record Not Found</h2>
+          <p className="text-slate-400 mb-4">
+            {error || 'The requested diagnostic record could not be found.'}
+          </p>
+          <button
+            onClick={() => navigate('/search-records')}
+            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+          >
+            Back to Search
+          </button>
+        </div>
       </div>
     );
   }
 
-  // Show not found state if no record was found
-  if (!record) {
-    return (
-      <div className="flex flex-col justify-center items-center min-h-screen bg-slate-900">
-        <div className="text-white mb-4">Record not found</div>
-        <button
-          onClick={() => navigate(-1)}
-          className="text-blue-400 hover:text-blue-300"
-        >
-          Go Back
-        </button>
-      </div>
-    );
-  }
-
-  const questions = record.record_type === 'ev' ? getEVQuestions() : getPHEVQuestions();
+  // Choose the appropriate question set based on the record type
+  const questionSections = record.record_type === 'ev' ? getEVQuestions() : getPHEVQuestions();
 
   return (
-    <div className="min-h-screen bg-slate-900 print:bg-white">
-      {/* Navigation bar - hidden during print */}
-      <div className="print:hidden bg-slate-800 border-b border-slate-700 px-4 py-3 sticky top-0 z-10">
-        <div className="flex items-center justify-between max-w-6xl mx-auto">
-          <button
-            onClick={() => navigate(-1)}
-            className="flex items-center space-x-2 text-slate-300 hover:text-white transition-colors"
-          >
-            <ArrowLeft className="h-5 w-5" />
-            <span>Back</span>
-          </button>
+    <div className="min-h-screen bg-slate-900 print:bg-white print:text-black">
+      {/* Header (hidden when printing) */}
+      <header className="bg-slate-800 border-b border-slate-700 px-6 py-4 print:hidden">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-4">
+            <button
+              onClick={() => navigate('/modify-reports')}
+              className="flex items-center space-x-2 text-slate-300 hover:text-white transition-colors"
+            >
+              <ArrowLeft className="w-5 h-5" />
+              <span>Back to Modify Reports</span>
+            </button>
+            <div>
+              <h1 className="text-xl font-bold text-white">Diagnostic Summary</h1>
+              <p className="text-sm text-slate-400">Complete diagnostic report with all questions and answers</p>
+            </div>
+          </div>
           <div className="flex space-x-3">
             <button
-              onClick={handlePrint}
-              className="flex items-center space-x-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors"
-            >
-              <Printer className="h-4 w-4" />
-              <span>Print</span>
-            </button>
-            <button
               onClick={handleDownload}
-              className="flex items-center space-x-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg transition-colors"
+              className="flex items-center space-x-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors"
             >
-              <Download className="h-4 w-4" />
+              <Download className="w-5 h-5" />
               <span>Download PDF</span>
             </button>
+            <button
+              onClick={handlePrint}
+              className="flex items-center space-x-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+            >
+              <Printer className="w-5 h-5" />
+              <span>Print</span>
+            </button>
           </div>
         </div>
-      </div>
+      </header>
 
-      {/* Main content container */}
-      <div id="print-section" className="max-w-6xl mx-auto print:max-w-none print:mx-0">
-        {/* Print styles for compact layout */}
-        <style>
-          {`
-            @media print {
-              @page {
-                margin: 0.3in;
-                size: letter;
-              }
-              body {
-                -webkit-print-color-adjust: exact;
-                color-adjust: exact;
-                font-size: 10px;
-                line-height: 1.2;
-              }
-              .print-grid {
-                display: grid;
-                grid-template-columns: 1fr 1fr;
-                gap: 0.25in;
-                column-gap: 0.3in;
-              }
-            }
-          `}
-        </style>
-
-        {/* Header section */}
-        <div className="p-4 print:p-0 print:mb-3">
-          <div className="bg-slate-800 print:bg-white print:border print:border-gray-300 rounded-lg print:rounded p-4 print:p-3">
-            <div className="text-center mb-4 print:mb-2">
-              <h1 className="text-2xl print:text-sm font-bold text-white print:text-black uppercase tracking-wide">
-                Diagnostic Report
+      {/* Main print section; print classes override screen styling */}
+      <div id="print-section" className="p-6 max-w-6xl mx-auto print:p-0 print:max-w-none">
+        {/* Compact header for print */}
+        <div className="print:bg-white print:border print:border-gray-300 print:rounded print:p-4 print:mb-4">
+          <div className="flex items-center justify-between print:mb-3">
+            <div>
+              <h1 className="text-3xl print:text-lg font-bold text-white print:text-gray-900">
+                {record.record_type.toUpperCase()} DIAGNOSTIC REPORT
               </h1>
-              <p className="text-slate-400 print:text-gray-600 text-sm print:text-xs mt-1 print:mt-0">
-                {record.record_type.toUpperCase()} Vehicle Analysis
+              <p className="text-lg print:text-sm text-slate-400 print:text-gray-600">Complete Pre-Check Assessment</p>
+            </div>
+            <div className="text-right">
+              <p className="text-sm print:text-xs text-slate-400 print:text-gray-700">Generated</p>
+              <p className="text-lg print:text-sm text-white print:text-gray-900 font-bold">{formatDate(record.created_at)}</p>
+              <p className="text-sm print:text-xs text-slate-400 print:text-gray-600">
+                Technician: {technicianName ?? record.technician_id}
               </p>
             </div>
-            
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 print:grid-cols-4 print:gap-2 text-sm print:text-xs">
+          </div>
+          {/* Vehicle information */}
+          <div className="print:border-t print:border-gray-200 print:pt-3">
+            <h2 className="text-lg print:text-sm font-bold text-white print:text-gray-900 print:mb-2">
+              VEHICLE INFORMATION
+            </h2>
+            <div className="grid grid-cols-2 print:grid-cols-4 gap-6 print:gap-3">
               <div>
-                <p className="text-slate-400 print:text-gray-600 font-medium">Customer:</p>
-                <p className="text-white print:text-black font-medium">{record.customer_name}</p>
+                <label className="block text-xs print:text-xs font-bold text-slate-400 print:text-gray-600 uppercase">Customer Name</label>
+                <p className="text-white print:text-gray-900 font-semibold text-base print:text-xs">{record.customer_name}</p>
               </div>
               <div>
-                <p className="text-slate-400 print:text-gray-600 font-medium">VIN:</p>
-                <p className="text-white print:text-black font-medium">{record.vin}</p>
+                <label className="block text-xs print:text-xs font-bold text-slate-400 print:text-gray-600 uppercase">Vehicle VIN</label>
+                <p className="text-white print:text-gray-900 font-mono font-bold text-base print:text-xs">{record.vin}</p>
               </div>
               <div>
-                <p className="text-slate-400 print:text-gray-600 font-medium">RO Number:</p>
-                <p className="text-white print:text-black font-medium">{record.ro_number}</p>
+                <label className="block text-xs print:text-xs font-bold text-slate-400 print:text-gray-600 uppercase">RO Number</label>
+                <p className="text-white print:text-gray-900 font-semibold text-base print:text-xs">{record.ro_number}</p>
               </div>
               <div>
-                <p className="text-slate-400 print:text-gray-600 font-medium">Date:</p>
-                <p className="text-white print:text-black font-medium">{formatDate(record.created_at)}</p>
-              </div>
-              <div>
-                <p className="text-slate-400 print:text-gray-600 font-medium">Vehicle:</p>
-                <p className="text-white print:text-black font-medium">{record.make_model}</p>
-              </div>
-              <div>
-                <p className="text-slate-400 print:text-gray-600 font-medium">Mileage:</p>
-                <p className="text-white print:text-black font-medium">{record.mileage}</p>
-              </div>
-              <div>
-                <p className="text-slate-400 print:text-gray-600 font-medium">Technician:</p>
-                <p className="text-white print:text-black font-medium">{record.technician_id}</p>
-              </div>
-              <div>
-                <p className="text-slate-400 print:text-gray-600 font-medium">Type:</p>
-                <p className="text-white print:text-black font-medium uppercase">{record.record_type}</p>
+                <label className="block text-xs print:text-xs font-bold text-slate-400 print:text-gray-600 uppercase">Make &amp; Model</label>
+                <p className="text-white print:text-gray-900 font-semibold text-base print:text-xs">{record.make_model}</p>
               </div>
             </div>
           </div>
         </div>
-
-        {/* Main content area with two-column layout for print */}
-        <div className="p-4 print:p-0">
-          <div className="print-grid">
-            {questions.map((section, index) => (
-              <div key={index}>
-                {renderSection(section.title, section.questions)}
-              </div>
-            ))}
-          </div>
+        {/* Diagnostic sections rendered in a two-column grid when printing */}
+        <div className="print:grid print:grid-cols-2 print:gap-4 space-y-6 print:space-y-0">
+          {questionSections.map((section, index) => (
+            <div key={index} className="print:break-inside-avoid">
+              {renderSection(section.title, section.questions)}
+            </div>
+          ))}
         </div>
-
         {/* Footer for print */}
-        <div className="print:block hidden print:mt-4 print:pt-2 print:border-t print:border-gray-300 print:text-center print:text-xs print:text-gray-600">
-          <p>Generated on {new Date().toLocaleDateString()} | Page 1</p>
+        <div className="print:mt-4 print:pt-3 print:border-t print:border-gray-300 print:text-center">
+          <p className="text-sm print:text-xs text-slate-400 print:text-gray-700">
+            EV Diagnostic Portal - Report ID: {record.id} | Generated: {formatDate(record.created_at)}
+          </p>
         </div>
       </div>
+
+      {/* Additional print-specific styles beyond Tailwind utilities */}
+      <style>{`
+        @media print {
+          @page {
+            margin: 0.3in;
+            size: letter;
+          }
+
+          body {
+            font-family: 'Arial', 'Helvetica', sans-serif !important;
+            font-size: 10px !important;
+            line-height: 1.2 !important;
+            color: #000 !important;
+          }
+
+          /* Remove all dark backgrounds (override any tailwind bg colours) */
+          * {
+            background-color: transparent !important;
+          }
+          /* Explicitly set the print container background to white */
+          #print-section {
+            background-color: white !important;
+          }
+
+          /* Use grid for the diagnostic sections */
+          .print\\:grid {
+            display: grid !igtigcppiant;
+          }
+          .print\\:grid-cols-2 {
+            grid-template-columns: 1fr 1fr !important;
+          }
+          .print\\:gap-4 {
+            gap: 0.3rem !important;
+          }
+          .print\\:gap-3 {
+            gap: 0.2rem !important;
+          }
+          /* Prevent columns from breaking across pages */
+          .print\\:break-inside-avoid {
+            break-inside: avoid !important;
+            page-break-inside: avoid !important;
+          }
+          /* Typography adjustments */
+          .print\\:font-black { font-weight: 900 !important; }
+          .print\\:font-bold { font-weight: 700 !important; }
+          .print\\:font-semibold { font-weight: 600 !important; }
+          .print\\:uppercase { text-transform: uppercase !important; }
+          .print\\:tracking-wide { letter-spacing: 0.025em !important; }
+          /* Force exact colour adjustment when printing */
+          * {
+            -webkit-print-color-adjust: exact !important;
+            color-adjust: exact !important;
+          }
+        }
+      `}</style>
     </div>
   );
 };
