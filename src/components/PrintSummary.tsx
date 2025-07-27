@@ -110,30 +110,6 @@ const PrintSummary = () => {
             record_type: finalRecordType
           };
           setRecord(formattedRecord);
-
-          // Look up the technician's name by UUID.  We attempt to fetch a
-          // corresponding user record from a `users` table (or similar) where
-          // the id matches the technician_id.  If a record with a name exists,
-          // store it; otherwise leave technicianName as null and fall back to
-          // displaying the UUID.  You can adjust the table/field names to match
-          // your Supabase schema (e.g. profiles.full_name, users.name, etc.).
-          const fetchTechnicianName = async () => {
-            try {
-              if (recordData.technician_id) {
-                const { data: userRec, error: userErr } = await supabase
-                  .from('users')
-                  .select('name')
-                  .eq('id', recordData.technician_id)
-                  .maybeSingle();
-                if (!userErr && userRec && userRec.name) {
-                  setTechnicianName(userRec.name as string);
-                }
-              }
-            } catch (err) {
-              console.warn('Failed to fetch technician name:', err);
-            }
-          };
-          fetchTechnicianName();
         } else {
           setError('Record not found');
         }
@@ -705,9 +681,9 @@ const PrintSummary = () => {
 
         /*
          * The download (PDF) should mirror the print layout.  Tailwind's
-         * `print:*` variants are not applied when generating the PDF via
+         * print:* variants are not applied when generating the PDF via
          * html2canvas, so we reapply the most important print styles under
-         * `.pdf-mode`.  This ensures elements use grids, spacing and colours
+         * .pdf-mode.  This ensures elements use grids, spacing and colours
          * similar to the printed version.
          */
         .pdf-mode .print\\:grid {
