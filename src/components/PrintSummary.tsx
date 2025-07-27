@@ -548,7 +548,13 @@ const PrintSummary = () => {
         </div>
 
         {/* Questions and Answers */}
-        <div className="print:columns-2 print:gap-4 space-y-4 print:space-y-2">
+        {/*
+          Use CSS grid for the print layout. Safari on iOS often ignores
+          multi-column rules which caused inconsistent formatting. A grid
+          layout works reliably across browsers and keeps the two-column
+          arrangement when printing from Windows or iPad.
+        */}
+        <div className="print:grid print:grid-cols-2 print:gap-x-4 print:gap-y-2 space-y-4 print:space-y-0">
           {questionSections.map((section, index) => (
             <div key={index}>
               {renderSection(section.title, section.questions)}
@@ -587,12 +593,18 @@ const PrintSummary = () => {
           #print-section {
             background-color: white !important;
           }
-          /* Column layout and spacing */
-          .print\\:columns-2 {
-            column-count: 2 !important;
+          /* Grid layout used for printing */
+          .print\\:grid {
+            display: grid !important;
           }
-          .print\\:gap-4 {
+          .print\\:grid-cols-2 {
+            grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+          }
+          .print\\:gap-x-4 {
             column-gap: 1rem !important;
+          }
+          .print\\:gap-y-2 {
+            row-gap: 0.5rem !important;
           }
           .print\\:space-y-2 > * + * {
             margin-top: 0.5rem !important;
@@ -670,12 +682,18 @@ const PrintSummary = () => {
           background-color: #e5e7eb !important;
           color: #111827 !important;
         }
-        /* Replicate column layout and spacing for PDF */
-        .pdf-mode .print\\:columns-2 {
-          column-count: 2 !important;
+        /* Replicate grid layout and spacing for PDF */
+        .pdf-mode .print\\:grid {
+          display: grid !important;
         }
-        .pdf-mode .print\\:gap-4 {
+        .pdf-mode .print\\:grid-cols-2 {
+          grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+        }
+        .pdf-mode .print\\:gap-x-4 {
           column-gap: 1rem !important;
+        }
+        .pdf-mode .print\\:gap-y-2 {
+          row-gap: 0.5rem !important;
         }
         .pdf-mode .print\\:space-y-2 > * + * {
           margin-top: 0.5rem !important;
