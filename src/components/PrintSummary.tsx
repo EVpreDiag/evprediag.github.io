@@ -452,26 +452,26 @@ const PrintSummary = () => {
   ];
 
   // If the record is still loading, show a simple spinner/placeholder
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-slate-900 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white" />
-          <p className="mt-2 text-white">Loading Record...</p>
+    if (loading) {
+      return (
+        <div className="min-h-screen print:min-h-0 bg-slate-900 flex items-center justify-center">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white" />
+            <p className="mt-2 text-white">Loading Record...</p>
+          </div>
         </div>
-      </div>
     );
   }
 
   // If there was an error or no record, show an error message with a back button
-  if (error || !record) {
-    return (
-      <div className="min-h-screen bg-slate-900 flex items-center justify-center">
-        <div className="text-center">
-          <h2 className="text-xl font-bold text-white mb-2">Record Not Found</h2>
-          <p className="text-slate-400 mb-4">
-            {error || 'The requested diagnostic record could not be found.'}
-          </p>
+    if (error || !record) {
+      return (
+        <div className="min-h-screen print:min-h-0 bg-slate-900 flex items-center justify-center">
+          <div className="text-center">
+            <h2 className="text-xl font-bold text-white mb-2">Record Not Found</h2>
+            <p className="text-slate-400 mb-4">
+              {error || 'The requested diagnostic record could not be found.'}
+            </p>
           <button
             onClick={() => navigate('/search-records')}
             className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
@@ -486,9 +486,9 @@ const PrintSummary = () => {
   // Choose the appropriate question set based on the record type
   const questionSections = record.record_type === 'ev' ? getEVQuestions() : getPHEVQuestions();
 
-  return (
-    <div className="min-h-screen bg-slate-900 print:bg-white print:text-black">
-      {/* Header (hidden when printing) */}
+    return (
+      <div className="min-h-screen print:min-h-0 bg-slate-900 print:bg-white print:text-black">
+        {/* Header (hidden when printing) */}
       <header className="bg-slate-800 border-b border-slate-700 px-6 py-4 print:hidden">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-4">
@@ -603,15 +603,18 @@ const PrintSummary = () => {
           .print\\:gap-x-4 {
             column-gap: 1rem !important;
           }
-          .print\\:gap-y-2 {
-            row-gap: 0.5rem !important;
-          }
-          .print\\:space-y-2 > * + * {
-            margin-top: 0.5rem !important;
-          }
-          .print\\:space-y-0 > * + * {
-            margin-top: 0 !important;
-          }
+            .print\\:gap-y-2 {
+              row-gap: 0.5rem !important;
+            }
+            .print\\:space-y-2 > * + * {
+              margin-top: 0.5rem !important;
+            }
+            .print\\:space-y-0 > * + * {
+              margin-top: 0 !important;
+            }
+            .print\\:min-h-0 {
+              min-height: 0 !important;
+            }
           /* Borders and rounding */
           .print\\:border {
             border-width: 1px !important;
@@ -743,6 +746,9 @@ const PrintSummary = () => {
         .pdf-mode .print\\:break-inside-avoid {
           break-inside: avoid !important;
           page-break-inside: avoid !important;
+        }
+        .pdf-mode .print\\:min-h-0 {
+          min-height: 0 !important;
         }
       `}</style>
     </div>
