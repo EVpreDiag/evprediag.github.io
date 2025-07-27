@@ -111,29 +111,8 @@ const PrintSummary = () => {
           };
           setRecord(formattedRecord);
 
-          // Look up the technician's name by UUID.  We attempt to fetch a
-          // corresponding user record from a `users` table (or similar) where
-          // the id matches the technician_id.  If a record with a name exists,
-          // store it; otherwise leave technicianName as null and fall back to
-          // displaying the UUID.  You can adjust the table/field names to match
-          // your Supabase schema (e.g. profiles.full_name, users.name, etc.).
-          const fetchTechnicianName = async () => {
-            try {
-              if (recordData.technician_id) {
-                const { data: userRec, error: userErr } = await supabase
-                  .from('users')
-                  .select('name')
-                  .eq('id', recordData.technician_id)
-                  .maybeSingle();
-                if (!userErr && userRec && userRec.name) {
-                  setTechnicianName(userRec.name as string);
-                }
-              }
-            } catch (err) {
-              console.warn('Failed to fetch technician name:', err);
-            }
-          };
-          fetchTechnicianName();
+          // For now, just display the technician_id directly
+          // TODO: Implement proper technician name lookup when schema is confirmed
         } else {
           setError('Record not found');
         }
@@ -532,4 +511,57 @@ const PrintSummary = () => {
           <div className="flex space-x-3">
             <button
               onClick={handleDownload}
-              className="flex items "{ }}">"}?Wow a triple curly braces? The rest of the answer has truncated abruptly due to high token usage.
+              className="flex items-center space-x-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors"
+            >
+              <Download className="w-4 h-4" />
+              <span>Download PDF</span>
+            </button>
+            <button
+              onClick={handlePrint}
+              className="flex items-center space-x-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+            >
+              <Printer className="w-4 h-4" />
+              <span>Print</span>
+            </button>
+          </div>
+        </div>
+      </header>
+
+      {/* Print Content */}
+      <div id="print-section" className="px-6 py-4 print:px-0 print:py-0 print:m-0">
+        {/* Report Header */}
+        <div className="mb-6 print:mb-2 text-center print:border-b print:border-gray-300 print:pb-2">
+          <h1 className="text-2xl print:text-lg font-bold text-white print:text-black mb-2 print:mb-1">
+            {record.record_type.toUpperCase()} Diagnostic Report
+          </h1>
+          <div className="grid grid-cols-2 gap-4 print:gap-2 text-sm print:text-xs max-w-2xl mx-auto">
+            <div className="text-left">
+              <p className="text-slate-300 print:text-gray-600"><span className="font-medium">Customer:</span> {record.customer_name}</p>
+              <p className="text-slate-300 print:text-gray-600"><span className="font-medium">VIN:</span> {record.vin}</p>
+            </div>
+            <div className="text-right">
+              <p className="text-slate-300 print:text-gray-600"><span className="font-medium">RO#:</span> {record.ro_number}</p>
+              <p className="text-slate-300 print:text-gray-600"><span className="font-medium">Date:</span> {formatDate(record.created_at)}</p>
+            </div>
+            <div className="col-span-2 text-center border-t print:border-gray-300 pt-2 print:pt-1">
+              <p className="text-slate-300 print:text-gray-600"><span className="font-medium">Vehicle:</span> {record.make_model}</p>
+              <p className="text-slate-300 print:text-gray-600"><span className="font-medium">Mileage:</span> {record.mileage}</p>
+              <p className="text-slate-300 print:text-gray-600"><span className="font-medium">Technician:</span> {technicianName || record.technician_id}</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Questions and Answers */}
+        <div className="print:columns-2 print:gap-4 space-y-4 print:space-y-2">
+          {questionSections.map((section, index) => (
+            <div key={index}>
+              {renderSection(section.title, section.questions)}
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default PrintSummary;
