@@ -175,12 +175,12 @@ const PrintSummary = () => {
     const hasDetails = detailsField && record?.[detailsField];
     
     return (
-      <div className="mb-2 print:mb-1">
-        <div className="flex items-center justify-between print:py-1 py-2">
-          <h4 className="font-medium text-white print:text-gray-800 text-sm print:text-xs leading-tight flex-1 pr-4">
+      <div className="mb-1 print:mb-0">
+        <div className="flex items-center justify-between print:py-0 py-1">
+          <h4 className="font-medium text-white print:text-gray-800 text-sm print:text-xs leading-tight flex-1 pr-2">
             {question}
           </h4>
-          <div className="flex items-center ml-2 flex-shrink-0">
+          <div className="flex items-center ml-1 flex-shrink-0">
             {(value === 'yes' || value === 'no') ? getYesNoIcon(value) : (
               <span className="text-slate-300 print:text-gray-700 text-sm print:text-xs">
                 {Array.isArray(value) ? value.join(', ') : value || 'Not specified'}
@@ -189,8 +189,8 @@ const PrintSummary = () => {
           </div>
         </div>
         {hasDetails && (
-          <div className="mt-1 print:mt-1 pl-4 print:pl-2 bg-slate-700/30 print:bg-gray-100 print:p-2 rounded print:text-xs">
-            <p className="text-slate-300 print:text-gray-700 font-medium text-xs print:font-semibold mb-1 print:mb-0">Details:</p>
+          <div className="mt-1 print:mt-0 pl-3 print:pl-1 bg-slate-700/30 print:bg-gray-50 print:p-1 rounded print:text-xs">
+            <p className="text-slate-300 print:text-gray-600 font-medium text-xs print:font-normal mb-1 print:mb-0">Details:</p>
             <p className="text-slate-300 print:text-gray-600 text-xs print:leading-tight">{record[detailsField]}</p>
           </div>
         )}
@@ -204,8 +204,8 @@ const PrintSummary = () => {
     if (!hasAnyContent) return null;
 
     return (
-      <div className="mb-4 print:mb-3 break-inside-avoid print:bg-white print:border print:border-gray-200 print:rounded print:p-3">
-        <h3 className="text-lg print:text-xs font-bold text-white print:text-white print:bg-gray-600 mb-3 print:mb-2 print:p-2 print:rounded print:font-bold print:uppercase">
+      <div className="mb-3 print:mb-2 break-inside-avoid print:border print:border-gray-200 print:rounded print:p-2">
+        <h3 className="text-lg print:text-xs font-bold text-white print:text-white print:bg-gray-600 mb-2 print:mb-1 print:p-1 print:rounded print:font-bold print:uppercase print:text-center">
           {title}
         </h3>
         <div className="space-y-1 print:space-y-0">
@@ -486,89 +486,64 @@ const PrintSummary = () => {
         </div>
       </header>
 
-      {/* Print Content - Professional Layout */}
+      {/* Print Content - Compact Layout */}
       <div id="print-section" className="p-6 max-w-6xl mx-auto print:p-0 print:max-w-none">
-        {/* Professional Header */}
-        <div className="bg-slate-800 print:bg-white rounded-lg p-6 print:p-6 mb-6 print:mb-8 print:border-b-4 print:border-blue-600">
-          <div className="flex items-center justify-between mb-6 print:mb-4">
-            <div className="flex items-center space-x-4">
-              <div className="w-12 h-12 print:w-16 print:h-16 bg-blue-600 print:bg-blue-600 rounded-lg flex items-center justify-center">
-                <Battery className="w-6 h-6 print:w-8 print:h-8 text-white" />
-              </div>
-              <div>
-                <h1 className="text-3xl print:text-2xl font-bold text-white print:text-gray-900 print:font-black">
-                  {record.record_type.toUpperCase()} DIAGNOSTIC REPORT
-                </h1>
-                <p className="text-lg print:text-base text-slate-400 print:text-gray-600 font-medium">Complete Pre-Check Assessment</p>
-              </div>
+        {/* Compact Header */}
+        <div className="print:bg-white print:border print:border-gray-300 print:rounded print:p-4 print:mb-4">
+          <div className="flex items-center justify-between print:mb-3">
+            <div>
+              <h1 className="text-3xl print:text-lg font-bold text-white print:text-gray-900">
+                {record.record_type.toUpperCase()} DIAGNOSTIC REPORT
+              </h1>
+              <p className="text-lg print:text-sm text-slate-400 print:text-gray-600">Complete Pre-Check Assessment</p>
             </div>
             <div className="text-right">
-              <div className="print:bg-gray-50 print:p-3 print:rounded-lg print:border">
-                <p className="text-sm print:text-sm text-slate-400 print:text-gray-700 font-semibold">Generated</p>
-                <p className="text-lg print:text-base text-white print:text-gray-900 font-bold">{formatDate(record.created_at)}</p>
-                <p className="text-sm print:text-sm text-slate-400 print:text-gray-600">Tech: {record.technician_id}</p>
-              </div>
+              <p className="text-sm print:text-xs text-slate-400 print:text-gray-700">Generated</p>
+              <p className="text-lg print:text-sm text-white print:text-gray-900 font-bold">{formatDate(record.created_at)}</p>
+              <p className="text-sm print:text-xs text-slate-400 print:text-gray-600">Tech: {record.technician_id}</p>
             </div>
           </div>
 
-          {/* Vehicle Information Card */}
-          <div className="print:bg-gray-50 print:p-4 print:rounded-lg print:border">
-            <h2 className="text-lg print:text-base font-bold text-white print:text-gray-900 mb-4 print:mb-3 print:border-b print:border-gray-300 print:pb-2">
+          {/* Vehicle Information */}
+          <div className="print:border-t print:border-gray-200 print:pt-3">
+            <h2 className="text-lg print:text-sm font-bold text-white print:text-gray-900 print:mb-2">
               VEHICLE INFORMATION
             </h2>
-            <div className="grid grid-cols-2 print:grid-cols-4 gap-6 print:gap-4">
+            <div className="grid grid-cols-2 print:grid-cols-4 gap-6 print:gap-3">
               <div>
-                <label className="block text-xs print:text-xs font-bold text-slate-400 print:text-gray-600 uppercase tracking-wider mb-2 print:mb-1">Customer Name</label>
-                <p className="text-white print:text-gray-900 font-semibold text-base print:text-sm">{record.customer_name}</p>
+                <label className="block text-xs print:text-xs font-bold text-slate-400 print:text-gray-600 uppercase">Customer Name</label>
+                <p className="text-white print:text-gray-900 font-semibold text-base print:text-xs">{record.customer_name}</p>
               </div>
               <div>
-                <label className="block text-xs print:text-xs font-bold text-slate-400 print:text-gray-600 uppercase tracking-wider mb-2 print:mb-1">Vehicle VIN</label>
-                <p className="text-white print:text-gray-900 font-mono font-bold text-base print:text-sm">{record.vin}</p>
+                <label className="block text-xs print:text-xs font-bold text-slate-400 print:text-gray-600 uppercase">Vehicle VIN</label>
+                <p className="text-white print:text-gray-900 font-mono font-bold text-base print:text-xs">{record.vin}</p>
               </div>
               <div>
-                <label className="block text-xs print:text-xs font-bold text-slate-400 print:text-gray-600 uppercase tracking-wider mb-2 print:mb-1">RO Number</label>
-                <p className="text-white print:text-gray-900 font-semibold text-base print:text-sm">{record.ro_number}</p>
+                <label className="block text-xs print:text-xs font-bold text-slate-400 print:text-gray-600 uppercase">RO Number</label>
+                <p className="text-white print:text-gray-900 font-semibold text-base print:text-xs">{record.ro_number}</p>
               </div>
               <div>
-                <label className="block text-xs print:text-xs font-bold text-slate-400 print:text-gray-600 uppercase tracking-wider mb-2 print:mb-1">Make & Model</label>
-                <p className="text-white print:text-gray-900 font-semibold text-base print:text-sm">{record.make_model}</p>
+                <label className="block text-xs print:text-xs font-bold text-slate-400 print:text-gray-600 uppercase">Make & Model</label>
+                <p className="text-white print:text-gray-900 font-semibold text-base print:text-xs">{record.make_model}</p>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Diagnostic Assessment Sections */}
-        <div className="bg-slate-800 print:bg-white rounded-lg p-6 print:p-6 print:border">
-          <div className="mb-6 print:mb-6 print:border-b-2 print:border-blue-600 print:pb-3">
-            <h2 className="text-2xl print:text-xl font-bold text-white print:text-gray-900 flex items-center">
-              <CheckCircle className="w-6 h-6 print:w-6 print:h-6 mr-3 text-blue-400 print:text-blue-600" />
-              COMPLETE DIAGNOSTIC ASSESSMENT
-            </h2>
-          </div>
-          
-          {/* Professional 2-column grid layout */}
-          <div className="print:grid print:grid-cols-2 print:gap-8 space-y-6 print:space-y-0">
-            {questionSections.map((section, index) => (
-              <div key={index} className="print:break-inside-avoid print:mb-6">
-                {renderSection(section.title, section.questions)}
-              </div>
-            ))}
-          </div>
+        {/* Diagnostic Assessment - Compact 2-column grid */}
+        <div className="print:grid print:grid-cols-2 print:gap-4 space-y-6 print:space-y-0">
+          {questionSections.map((section, index) => (
+            <div key={index} className="print:break-inside-avoid">
+              {renderSection(section.title, section.questions)}
+            </div>
+          ))}
         </div>
 
-        {/* Professional Footer */}
-        <div className="print:mt-8 print:pt-4 print:border-t-2 print:border-gray-300">
-          <div className="text-center print:text-center">
-            <div className="print:bg-gray-50 print:p-4 print:rounded-lg print:border">
-              <p className="text-sm print:text-sm text-slate-400 print:text-gray-700 font-semibold">EV Diagnostic Portal - Professional Assessment Report</p>
-              <p className="text-xs print:text-xs text-slate-400 print:text-gray-600 mt-1">
-                Report ID: {record.id} | Generated: {formatDate(record.created_at)}
-              </p>
-              <p className="text-xs print:text-xs text-slate-400 print:text-gray-600">
-                For technical support and inquiries, contact your system administrator
-              </p>
-            </div>
-          </div>
+        {/* Compact Footer */}
+        <div className="print:mt-4 print:pt-3 print:border-t print:border-gray-300 print:text-center">
+          <p className="text-sm print:text-xs text-slate-400 print:text-gray-700">
+            EV Diagnostic Portal - Report ID: {record.id} | Generated: {formatDate(record.created_at)}
+          </p>
         </div>
       </div>
 
@@ -576,15 +551,20 @@ const PrintSummary = () => {
       <style>{`
         @media print {
           @page {
-            margin: 0.4in;
+            margin: 0.3in;
             size: letter;
           }
           
           body {
             font-family: 'Arial', 'Helvetica', sans-serif !important;
-            font-size: 11px !important;
-            line-height: 1.3 !important;
+            font-size: 10px !important;
+            line-height: 1.2 !important;
             color: #000 !important;
+          }
+          
+          /* Remove all black backgrounds and decorative elements */
+          .bg-slate-800, .bg-slate-900 {
+            background: transparent !important;
           }
           
           /* Force grid layout for consistent 2-column printing */
@@ -596,12 +576,12 @@ const PrintSummary = () => {
             grid-template-columns: 1fr 1fr !important;
           }
           
-          .print\\:gap-8 {
-            gap: 1rem !important;
+          .print\\:gap-4 {
+            gap: 0.3rem !important;
           }
           
-          .print\\:gap-4 {
-            gap: 0.5rem !important;
+          .print\\:gap-3 {
+            gap: 0.2rem !important;
           }
           
           /* Prevent sections from breaking across columns/pages */
