@@ -35,7 +35,7 @@ const PrintSummary = () => {
   const [record, setRecord] = useState<DiagnosticRecord | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  // Store the technician's human-readable name (if available).
+  // Store the technician's human‑readable name (if available).
   const [technicianName, setTechnicianName] = useState<string | null>(null);
 
   // Fetch the record when the component mounts or when the id/type params change.
@@ -110,29 +110,6 @@ const PrintSummary = () => {
             record_type: finalRecordType
           };
           setRecord(formattedRecord);
-
-          // Look up the technician's name by UUID.  We attempt to fetch a
-          // corresponding user record from a `users` table (or similar) where
-          // the id matches the technician_id.  If a record with a name exists,
-          // store it; otherwise leave technicianName as null and fall back to
-          // displaying the UUID.  Adjust the table/field names to match your schema.
-          const fetchTechnicianName = async () => {
-            try {
-              if (recordData.technician_id) {
-                const { data: userRec, error: userErr } = await supabase
-                  .from('users')
-                  .select('name')
-                  .eq('id', recordData.technician_id)
-                  .maybeSingle();
-                if (!userErr && userRec && userRec.name) {
-                  setTechnicianName(userRec.name as string);
-                }
-              }
-            } catch (err) {
-              console.warn('Failed to fetch technician name:', err);
-            }
-          };
-          fetchTechnicianName();
         } else {
           setError('Record not found');
         }
@@ -155,14 +132,19 @@ const PrintSummary = () => {
   const handleDownload = async () => {
     const element = document.getElementById('print-section');
     if (!element) return;
+    // Import html2pdf lazily so it isn't loaded until needed
     const html2pdf = (await import('html2pdf.js')).default;
-    // Apply pdf-mode to replicate print styling in the PDF
+    // Temporarily apply the `pdf-mode` class to the print section to inline
+    // print styles during PDF generation.  This class forces white
+    // backgrounds and dark text for all children.  After the PDF is saved
+    // the class is removed to restore normal rendering.
     element.classList.add('pdf-mode');
     try {
       await html2pdf()
         .from(element)
         .set({
-          // A4 paper size (use mm units)
+          // Use A4 paper for downloaded PDFs.  Margins are specified in
+          // millimetres to match the A4 units.  12.7mm is roughly 0.5in.
           margin: 12.7,
           filename: `diagnostic-report-${record?.id ?? 'report'}.pdf`,
           html2canvas: { scale: 2, backgroundColor: '#fff' },
@@ -472,7 +454,7 @@ const PrintSummary = () => {
     }
   ];
 
-  // Show loading state while the record is fetched
+  // If the record is still loading, show a simple spinner/placeholder
   if (loading) {
     return (
       <div className="min-h-screen bg-slate-900 flex items-center justify-center">
@@ -484,7 +466,7 @@ const PrintSummary = () => {
     );
   }
 
-  // Show error if record is not found or fetch failed
+  // If there was an error or no record, show an error message with a back button
   if (error || !record) {
     return (
       <div className="min-h-screen bg-slate-900 flex items-center justify-center">
@@ -504,7 +486,7 @@ const PrintSummary = () => {
     );
   }
 
-  // Determine question sections based on record type
+  // Choose the appropriate question set based on the record type
   const questionSections = record.record_type === 'ev' ? getEVQuestions() : getPHEVQuestions();
 
   return (
@@ -553,15 +535,12 @@ const PrintSummary = () => {
               <h1 className="text-3xl print:text-lg font-bold text-white print:text-gray-900">
                 {record.record_type.toUpperCase()} DIAGNOSTIC REPORT
               </h1>
-              <p className="text-lg print:text-sm text-slate-400 print:text-gray-600">
-                Complete Pre-Check Assessment
-              </p>
+              <p className="text-lg print:text-sm text-slate-400 print:text-gray-600">Complete Pre-Check Assessment</p>
             </div>
             <div className="text-right">
               <p className="text-sm print:text-xs text-slate-400 print:text-gray-700">Generated</p>
-              <p className="text-lg print:text-sm text-white print:text-gray-900 font-bold">
-                {formatDate(record.created_at)}
-              </p>
+              <p className="text-lg print:text-sm text-white print:text-gray-900 font-bold">{formatDate(record.created_at)}</p>
+              {/* Display the technician's name if available, otherwise the UUID */}
               <p className="text-sm print:text-xs text-slate-400 print:text-gray-600">
                 Technician: {technicianName ?? record.technician_id}
               </p>
@@ -574,41 +553,25 @@ const PrintSummary = () => {
             </h2>
             <div className="grid grid-cols-2 print:grid-cols-4 gap-6 print:gap-3">
               <div>
-                <label className="block text-xs print:text-xs font-bold text-slate-400 print:text-gray-600 uppercase">
-                  Customer Name
-                </label>
-                <p className="text-white print:text-gray-900 font-semibold text-base print:text-xs">
-                  {record.customer_name}
-                </p>
+                <label className="block text-xs print:text-xs font-bold text-slate-400 print:text-gray-600 uppercase">Customer Name</label>
+                <p className="text-white print:text-gray-900 font-semibold text-base print:text-xs">{record.customer_name}</p>
               </div>
               <div>
-                <label className="block text-xs print:text-xs font-bold text-slate-400 print:text-gray-600 uppercase">
-                  Vehicle VIN
-                </label>
-                <p className="text-white print:text-gray-900 font-mono font-bold text-base print:text-xs">
-                  {record.vin}
-                </p>
+                <label className="block text-xs print:text-xs font-bold text-slate-400 print:text-gray-600 uppercase">Vehicle VIN</label>
+                <p className="text-white print:text-gray-900 font-mono font-bold text-base print:text-xs">{record.vin}</p>
               </div>
               <div>
-                <label className="block text-xs print:text-xs font-bold text-slate-400 print:text-gray-600 uppercase">
-                  RO Number
-                </label>
-                <p className="text-white print:text-gray-900 font-semibold text-base print:text-xs">
-                  {record.ro_number}
-                </p>
+                <label className="block text-xs print:text-xs font-bold text-slate-400 print:text-gray-600 uppercase">RO Number</label>
+                <p className="text-white print:text-gray-900 font-semibold text-base print:text-xs">{record.ro_number}</p>
               </div>
               <div>
-                <label className="block text-xs print:text-xs font-bold text-slate-400 print:text-gray-600 uppercase">
-                  Make &amp; Model
-                </label>
-                <p className="text-white print:text-gray-900 font-semibold text-base print:text-xs">
-                  {record.make_model}
-                </p>
+                <label className="block text-xs print:text-xs font-bold text-slate-400 print:text-gray-600 uppercase">Make &amp; Model</label>
+                <p className="text-white print:text-gray-900 font-semibold text-base print:text-xs">{record.make_model}</p>
               </div>
             </div>
           </div>
         </div>
-        {/* Diagnostic sections rendered in a two-column grid when printing */}
+        {/* Diagnostic sections rendered in a two‑column grid when printing */}
         <div className="print:grid print:grid-cols-2 print:gap-4 space-y-6 print:space-y-0">
           {questionSections.map((section, index) => (
             <div key={index} className="print:break-inside-avoid">
@@ -631,12 +594,14 @@ const PrintSummary = () => {
             margin: 0.3in;
             size: letter;
           }
+
           body {
             font-family: 'Arial', 'Helvetica', sans-serif !important;
             font-size: 10px !important;
             line-height: 1.2 !important;
             color: #000 !important;
           }
+
           /* Remove all dark backgrounds (override any tailwind bg colours) */
           * {
             background-color: transparent !important;
@@ -645,17 +610,38 @@ const PrintSummary = () => {
           #print-section {
             background-color: white !important;
           }
+
           /* Use grid for the diagnostic sections */
-          .print\\:grid { display: grid !important; }
-          .print\\:grid-cols-2 { grid-template-columns: 1fr 1fr !important; }
-          .print\\:gap-4 { gap: 0.3rem !important; }
-          .print\\:gap-3 { gap: 0.2rem !important; }
-          .print\\:break-inside-avoid { break-inside: avoid !important; page-break-inside: avoid !important; }
+          .print\\:grid {
+            display: grid !important;
+          }
+          .print\\:grid-cols-2 {
+            grid-template-columns: 1fr 1fr !important;
+          }
+          .print\\:gap-4 {
+            gap: 0.3rem !important;
+          }
+          .print\\:gap-3 {
+            gap: 0.2rem !important;
+          }
+          /* Prevent columns from breaking across pages */
+          .print\\:break-inside-avoid {
+            break-inside: avoid !important;
+            page-break-inside: avoid !important;
+          }
+          /* Typography adjustments */
+          .print\\:font-black { font-weight: 900 !important; }
           .print\\:font-bold { font-weight: 700 !important; }
+          .print\\:font-semibold { font-weight: 600 !important; }
           .print\\:uppercase { text-transform: uppercase !important; }
+          .print\\:tracking-wide { letter-spacing: 0.025em !important; }
           /* Force exact colour adjustment when printing */
-          * { -webkit-print-color-adjust: exact !important; color-adjust: exact !important; }
+          * {
+            -webkit-print-color-adjust: exact !important;
+            color-adjust: exact !important;
+          }
         }
+
         /*
          * When exporting a PDF via html2pdf we temporarily add a
          * 'pdf-mode' class to the print section.  This class strips
@@ -665,7 +651,9 @@ const PrintSummary = () => {
          * colours are forced to black.  Specific elements can still
          * override these styles via inline print classes (like
          * print:bg-gray-200) but the default dark backgrounds are
-         * removed.
+         * removed.  Without this override html2pdf captures the
+         * dark 'bg-slate-900' background on the body, resulting in
+         * black pages in the PDF.
          */
         .pdf-mode {
           background-color: #ffffff !important;
@@ -675,44 +663,102 @@ const PrintSummary = () => {
           background-color: transparent !important;
           color: #000000 !important;
         }
+        /* Ensure the main print section inside pdf-mode stays white */
         .pdf-mode #print-section {
           background-color: #ffffff !important;
         }
-        /* Lighten bg-slate-700 backgrounds in pdf-mode */
+
+        /* Lighten any Tailwind bg-slate-700-based backgrounds for details boxes in pdf-mode */
         .pdf-mode [class*="bg-slate-700"] {
           background-color: #f9fafb !important;
           color: #374151 !important;
         }
-        /* Light background for section headers in pdf-mode */
+        /* Give section headers a light grey background in pdf-mode for better contrast */
         .pdf-mode h3 {
           background-color: #e5e7eb !important;
           color: #111827 !important;
         }
-        /* Reapply key print styles in pdf-mode (html2pdf doesn't apply print classes) */
-        .pdf-mode .print\\:grid { display: grid !important; }
-        .pdf-mode .print\\:grid-cols-2 { grid-template-columns: 1fr 1fr !important; }
-        .pdf-mode .print\\:gap-4 { gap: 0.3rem !important; }
-        .pdf-mode .print\\:gap-3 { gap: 0.2rem !important; }
-        .pdf-mode .print\\:break-inside-avoid { break-inside: avoid !important; page-break-inside: avoid !important; }
-        .pdf-mode .print\\:border { border-width: 1px !important; }
-        .pdf-mode .print\\:border-gray-200 { border-color: #e5e7eb !important; }
-        .pdf-mode .print\\:rounded { border-radius: 0.25rem !important; }
-        .pdf-mode .print\\:p-2 { padding: 0.5rem !important; }
-        .pdf-mode .print\\:p-1 { padding: 0.25rem !important; }
-        .pdf-mode .print\\:p-4 { padding: 1rem !important; }
-        .pdf-mode .print\\:mb-4 { margin-bottom: 1rem !important; }
-        .pdf-mode .print\\:mb-3 { margin-bottom: 0.75rem !important; }
-        .pdf-mode .print\\:mb-2 { margin-bottom: 0.5rem !important; }
-        .pdf-mode .print\\:mb-1 { margin-bottom: 0.25rem !important; }
-        .pdf-mode .print\\:mt-0 { margin-top: 0 !important; }
-        .pdf-mode .print\\:pt-3 { padding-top: 0.75rem !important; }
-        .pdf-mode .print\\:text-gray-900 { color: #111827 !important; }
-        .pdf-mode .print\\:text-gray-700 { color: #374151 !important; }
-        .pdf-mode .print\\:text-gray-600 { color: #4b5563 !important; }
-        .pdf-mode .print\\:text-xs { font-size: 0.75rem !important; }
-        .pdf-mode .print\\:text-sm { font-size: 0.875rem !important; }
-        .pdf-mode .print\\:bg-gray-200 { background-color: #e5e7eb !important; }
-        .pdf-mode .print\\:bg-gray-50 { background-color: #f9fafb !important; }
+
+        /*
+         * The download (PDF) should mirror the print layout.  Tailwind's
+         * print:* variants are not applied when generating the PDF via
+         * html2canvas, so we reapply the most important print styles under
+         * .pdf-mode.  This ensures elements use grids, spacing and colours
+         * similar to the printed version.
+         */
+        .pdf-mode .print\\:grid {
+          display: grid !important;
+        }
+        .pdf-mode .print\\:grid-cols-2 {
+          grid-template-columns: 1fr 1fr !important;
+        }
+        .pdf-mode .print\\:gap-4 {
+          gap: 0.3rem !important;
+        }
+        .pdf-mode .print\\:gap-3 {
+          gap: 0.2rem !important;
+        }
+        .pdf-mode .print\\:break-inside-avoid {
+          break-inside: avoid !important;
+          page-break-inside: avoid !important;
+        }
+        .pdf-mode .print\\:border {
+          border-width: 1px !important;
+        }
+        .pdf-mode .print\\:border-gray-200 {
+          border-color: #e5e7eb !important;
+        }
+        .pdf-mode .print\\:rounded {
+          border-radius: 0.25rem !important;
+        }
+        .pdf-mode .print\\:p-2 {
+          padding: 0.5rem !important;
+        }
+        .pdf-mode .print\\:p-1 {
+          padding: 0.25rem !important;
+        }
+        .pdf-mode .print\\:p-4 {
+          padding: 1rem !important;
+        }
+        .pdf-mode .print\\:mb-4 {
+          margin-bottom: 1rem !important;
+        }
+        .pdf-mode .print\\:mb-3 {
+          margin-bottom: 0.75rem !important;
+        }
+        .pdf-mode .print\\:mb-2 {
+          margin-bottom: 0.5rem !important;
+        }
+        .pdf-mode .print\\:mb-1 {
+          margin-bottom: 0.25rem !important;
+        }
+        .pdf-mode .print\\:mt-0 {
+          margin-top: 0 !important;
+        }
+        .pdf-mode .print\\:pt-3 {
+          padding-top: 0.75rem !important;
+        }
+        .pdf-mode .print\\:text-gray-900 {
+          color: #111827 !important;
+        }
+        .pdf-mode .print\\:text-gray-700 {
+          color: #374151 !important;
+        }
+        .pdf-mode .print\\:text-gray-600 {
+          color: #4b5563 !important;
+        }
+        .pdf-mode .print\\:text-xs {
+          font-size: 0.75rem !important;
+        }
+        .pdf-mode .print\\:text-sm {
+          font-size: 0.875rem !important;
+        }
+        .pdf-mode .print\\:bg-gray-200 {
+          background-color: #e5e7eb !important;
+        }
+        .pdf-mode .print\\:bg-gray-50 {
+          background-color: #f9fafb !important;
+        }
       `}</style>
     </div>
   );
