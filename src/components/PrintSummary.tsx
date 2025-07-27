@@ -19,6 +19,89 @@ interface DiagnosticRecord {
   [key: string]: any;
 }
 
+interface QuestionSection {
+  title: string;
+  questions: Array<{
+    label: string;
+    field: string;
+    detailsField?: string;
+  }>;
+}
+
+const getEVQuestions = (): QuestionSection[] => [
+  {
+    title: "Vehicle Information",
+    questions: [
+      { label: "Make/Model", field: "make_model" },
+      { label: "Mileage", field: "mileage" },
+    ]
+  },
+  {
+    title: "Charging Issues",
+    questions: [
+      { label: "Charging Issues at Home", field: "charging_issues_home", detailsField: "charging_issues_home_details" },
+      { label: "Charging Issues at Public Stations", field: "charging_issues_public", detailsField: "charging_issues_public_details" },
+      { label: "Failed Charging Attempts", field: "failed_charges", detailsField: "failed_charges_details" },
+      { label: "Aftermarket Charger", field: "aftermarket_charger", detailsField: "aftermarket_details" },
+    ]
+  },
+  {
+    title: "Battery Performance",
+    questions: [
+      { label: "Range Drop", field: "range_drop", detailsField: "range_drop_details" },
+      { label: "Battery Warnings", field: "battery_warnings", detailsField: "battery_warnings_details" },
+      { label: "Power Loss", field: "power_loss", detailsField: "power_loss_details" },
+      { label: "Charge Rate Drop", field: "charge_rate_drop" },
+    ]
+  },
+  {
+    title: "Drivetrain",
+    questions: [
+      { label: "Consistent Acceleration", field: "consistent_acceleration", detailsField: "acceleration_details" },
+      { label: "Whining Noises", field: "whining_noises", detailsField: "whining_details" },
+      { label: "Jerking/Hesitation", field: "jerking_hesitation", detailsField: "jerking_details" },
+      { label: "Vibrations", field: "vibrations", detailsField: "vibrations_details" },
+    ]
+  }
+];
+
+const getPHEVQuestions = (): QuestionSection[] => [
+  {
+    title: "Vehicle Information",
+    questions: [
+      { label: "Vehicle Make", field: "vehicle_make" },
+      { label: "Model", field: "model" },
+      { label: "Mileage", field: "mileage" },
+      { label: "Fuel Type", field: "fuel_type" },
+    ]
+  },
+  {
+    title: "Fuel Usage",
+    questions: [
+      { label: "Fuel Source", field: "fuel_source" },
+      { label: "Petrol vs EV Usage", field: "petrol_vs_ev_usage" },
+      { label: "Fuel Economy Change", field: "fuel_economy_change", detailsField: "fuel_economy_details" },
+      { label: "Fuel Consumption", field: "fuel_consumption", detailsField: "fuel_consumption_details" },
+    ]
+  },
+  {
+    title: "Battery & Charging",
+    questions: [
+      { label: "Battery Charging Issues", field: "battery_charging", detailsField: "battery_charging_details" },
+      { label: "EV Range as Expected", field: "ev_range_expected", detailsField: "ev_range_details" },
+      { label: "Charge Rate Drop", field: "charge_rate_drop", detailsField: "charge_rate_details" },
+    ]
+  },
+  {
+    title: "Engine Performance",
+    questions: [
+      { label: "Excessive ICE Operation", field: "excessive_ice_operation", detailsField: "ice_operation_details" },
+      { label: "Engine Start in EV Mode", field: "engine_start_ev_mode", detailsField: "engine_start_details" },
+      { label: "Abnormal Vibrations", field: "abnormal_vibrations", detailsField: "vibrations_details" },
+    ]
+  }
+];
+
 const PrintSummary = () => {
   const { type, id } = useParams<{ type?: string; id?: string }>();
   const navigate = useNavigate();
@@ -26,6 +109,19 @@ const PrintSummary = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [technicianName, setTechnicianName] = useState<string | null>(null);
+
+  const renderSection = (title: string, questions: Array<{ label: string; field: string; detailsField?: string }>) => (
+    <div className="mb-4 print:mb-2 break-inside-avoid">
+      <h3 className="text-lg font-semibold text-white print:text-gray-900 mb-2 print:mb-1 border-b border-slate-600 print:border-gray-300 pb-1">
+        {title}
+      </h3>
+      <div className="space-y-1">
+        {questions.map((q, idx) => 
+          renderQuestionAnswer(q.label, record?.[q.field], q.detailsField)
+        )}
+      </div>
+    </div>
+  );
 
   useEffect(() => {
     const fetchRecord = async () => {
@@ -38,7 +134,7 @@ const PrintSummary = () => {
         let recordData: any = null;
         let finalRecordType: 'ev' | 'phev' = 'ev';
 
-        const tryFetch = async (table: string) =>
+        const tryFetch = async (table: 'ev_diagnostic_records' | 'phev_diagnostic_records') =>
           await supabase.from(table).select('*').eq('id', id).maybeSingle();
 
         if (type === 'ev') {
