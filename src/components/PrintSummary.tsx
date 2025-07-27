@@ -135,28 +135,24 @@ const PrintSummary = () => {
   const handleDownload = async () => {
     const element = document.getElementById('print-section');
     if (!element) return;
-    // Import html2pdf lazily so it isn't loaded until needed
     const html2pdf = (await import('html2pdf.js')).default;
-    // Temporarily apply the `pdf-mode` class to the print section to inline
-    // print styles during PDF generation.  This class forces white
-    // backgrounds and dark text for all children.  After the PDF is saved
-    // the class is removed to restore normal rendering.
-    //element.classList.add('pdf-mode');
+    element.classList.add('pdf-mode');
     try {
       await html2pdf()
         .from(element)
         .set({
-          margin: 0.5,
+          // Use A4 paper for downloaded PDFs.  Margins are specified in
+          // millimetres to match the A4 units.  12.7mm is roughly 0.5in.
+          margin: 12.7,
           filename: `diagnostic-report-${record?.id ?? 'report'}.pdf`,
           html2canvas: { scale: 2, backgroundColor: '#fff' },
-          jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' }
+          jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
         })
         .save();
     } finally {
-      //element.classList.remove('pdf-mode');
+      element.classList.remove('pdf-mode');
     }
   };
-
   // Format a date string into a readable format for both screen and print
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
