@@ -152,9 +152,9 @@ const PrintSummary = () => {
   };
 
   const getYesNoIcon = (value: string) => {
-    if (value === 'yes') return <span className="text-red-500 print:text-red-600 print:bg-red-100 print:px-2 print:py-1 print:rounded print:font-bold font-bold text-xs">⚠ YES</span>;
-    if (value === 'no') return <span className="text-green-500 print:text-green-700 print:bg-green-100 print:px-2 print:py-1 print:rounded print:font-bold text-xs">✓ NO</span>;
-    return <span className="text-slate-400 print:text-gray-500 text-xs">-</span>;
+    if (value === 'yes') return <span className="text-red-500 print:text-black font-bold text-xs">⚠ YES</span>;
+    if (value === 'no') return <span className="text-green-500 print:text-black text-xs">✓ NO</span>;
+    return <span className="text-slate-400 print:text-gray-600 text-xs">-</span>;
   };
 
   const formatFieldName = (fieldName: string) => {
@@ -175,23 +175,23 @@ const PrintSummary = () => {
     const hasDetails = detailsField && record?.[detailsField];
     
     return (
-      <div className="print:border print:border-gray-200 print:rounded print:p-2 print:mb-2 mb-3 print:bg-white">
-        <div className="flex items-start justify-between print:items-center">
-          <h4 className="font-medium text-white print:text-gray-800 text-sm print:text-xs leading-tight print:font-semibold flex-1 pr-2">
+      <div className="mb-2 print:mb-1">
+        <div className="flex items-center justify-between print:py-1 py-2">
+          <h4 className="font-medium text-white print:text-gray-800 text-sm print:text-xs leading-tight flex-1 pr-4">
             {question}
           </h4>
-          <div className="flex items-center space-x-1 ml-2 flex-shrink-0">
+          <div className="flex items-center ml-2 flex-shrink-0">
             {(value === 'yes' || value === 'no') ? getYesNoIcon(value) : (
-              <span className="text-slate-300 print:text-gray-700 text-sm print:text-xs font-medium print:bg-gray-100 print:px-2 print:py-1 print:rounded">
+              <span className="text-slate-300 print:text-gray-700 text-sm print:text-xs">
                 {Array.isArray(value) ? value.join(', ') : value || 'Not specified'}
               </span>
             )}
           </div>
         </div>
         {hasDetails && (
-          <div className="mt-2 print:mt-1 p-2 print:p-2 bg-slate-700/30 print:bg-blue-50 rounded print:border-l-4 print:border-blue-400">
-            <p className="text-slate-300 print:text-blue-800 font-medium text-xs print:text-[10px] print:font-bold mb-1">Details:</p>
-            <p className="text-slate-300 print:text-gray-700 text-xs print:text-[10px] print:leading-tight">{record[detailsField]}</p>
+          <div className="mt-1 print:mt-1 pl-4 print:pl-2 bg-slate-700/30 print:bg-gray-100 print:p-2 rounded print:text-xs">
+            <p className="text-slate-300 print:text-gray-700 font-medium text-xs print:font-semibold mb-1 print:mb-0">Details:</p>
+            <p className="text-slate-300 print:text-gray-600 text-xs print:leading-tight">{record[detailsField]}</p>
           </div>
         )}
       </div>
@@ -204,11 +204,11 @@ const PrintSummary = () => {
     if (!hasAnyContent) return null;
 
     return (
-      <div className="mb-6 print:mb-4 break-inside-avoid print:bg-white print:border print:border-gray-300 print:rounded-lg print:p-3">
-        <h3 className="text-lg print:text-sm font-bold text-white print:text-gray-900 mb-4 print:mb-3 print:bg-blue-600 print:text-white print:p-2 print:rounded print:font-black print:uppercase print:tracking-wide">
+      <div className="mb-4 print:mb-3 break-inside-avoid print:bg-white print:border print:border-gray-200 print:rounded print:p-3">
+        <h3 className="text-lg print:text-xs font-bold text-white print:text-white print:bg-gray-600 mb-3 print:mb-2 print:p-2 print:rounded print:font-bold print:uppercase">
           {title}
         </h3>
-        <div className="space-y-2 print:space-y-1">
+        <div className="space-y-1 print:space-y-0">
           {questions.map(({ question, field, detailsField }, index) => (
             <div key={index}>
               {renderQuestionAnswer(question, record?.[field], detailsField)}
