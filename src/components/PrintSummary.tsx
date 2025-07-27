@@ -27,7 +27,7 @@ interface DiagnosticRecord {
  * PrintSummary component displays a single EV or PHEV diagnostic record in a
  * printable format.  It loads the record based on the URL parameters, and
  * provides print and PDF download actions.  When printing, the layout
- * switches to a light theme and a two‑column layout for better legibility.
+ * switches to a light theme and a two-column layout for better legibility.
  */
 const PrintSummary = () => {
   const { type, id } = useParams<{ type?: string; id?: string }>();
@@ -35,7 +35,7 @@ const PrintSummary = () => {
   const [record, setRecord] = useState<DiagnosticRecord | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  // Store the technician's human‑readable name (if available).
+  // Store the technician's human-readable name (if available).
   const [technicianName, setTechnicianName] = useState<string | null>(null);
 
   // Fetch the record when the component mounts or when the id/type params change.
@@ -110,6 +110,9 @@ const PrintSummary = () => {
             record_type: finalRecordType
           };
           setRecord(formattedRecord);
+
+          // For now, just display the technician_id directly
+          // TODO: Implement proper technician name lookup when schema is confirmed
         } else {
           setError('Record not found');
         }
@@ -132,12 +135,7 @@ const PrintSummary = () => {
   const handleDownload = async () => {
     const element = document.getElementById('print-section');
     if (!element) return;
-    // Import html2pdf lazily so it isn't loaded until needed
     const html2pdf = (await import('html2pdf.js')).default;
-    // Temporarily apply the `pdf-mode` class to the print section to inline
-    // print styles during PDF generation.  This class forces white
-    // backgrounds and dark text for all children.  After the PDF is saved
-    // the class is removed to restore normal rendering.
     element.classList.add('pdf-mode');
     try {
       await html2pdf()
@@ -155,7 +153,6 @@ const PrintSummary = () => {
       element.classList.remove('pdf-mode');
     }
   };
-
   // Format a date string into a readable format for both screen and print
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
@@ -503,7 +500,7 @@ const PrintSummary = () => {
               <span>Back to Modify Reports</span>
             </button>
             <div>
-              <h1 className="text-xl font-bold text-white">Diagnostic Summary</h1>
+              <h1 className="text-xl font-bold text-white">Diagnostic Questions Summary</h1>
               <p className="text-sm text-slate-400">Complete diagnostic report with all questions and answers</p>
             </div>
           </div>
@@ -512,254 +509,53 @@ const PrintSummary = () => {
               onClick={handleDownload}
               className="flex items-center space-x-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors"
             >
-              <Download className="w-5 h-5" />
+              <Download className="w-4 h-4" />
               <span>Download PDF</span>
             </button>
             <button
               onClick={handlePrint}
               className="flex items-center space-x-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
             >
-              <Printer className="w-5 h-5" />
+              <Printer className="w-4 h-4" />
               <span>Print</span>
             </button>
           </div>
         </div>
       </header>
 
-      {/* Main print section; print classes override screen styling */}
-      <div id="print-section" className="p-6 max-w-6xl mx-auto print:p-0 print:max-w-none">
-        {/* Compact header for print */}
-        <div className="print:bg-white print:border print:border-gray-300 print:rounded print:p-4 print:mb-4">
-          <div className="flex items-center justify-between print:mb-3">
-            <div>
-              <h1 className="text-3xl print:text-lg font-bold text-white print:text-gray-900">
-                {record.record_type.toUpperCase()} DIAGNOSTIC REPORT
-              </h1>
-              <p className="text-lg print:text-sm text-slate-400 print:text-gray-600">Complete Pre-Check Assessment</p>
+      {/* Print Content */}
+      <div id="print-section" className="px-6 py-4 print:px-0 print:py-0 print:m-0">
+        {/* Report Header */}
+        <div className="mb-6 print:mb-2 text-center print:border-b print:border-gray-300 print:pb-2">
+          <h1 className="text-2xl print:text-lg font-bold text-white print:text-black mb-2 print:mb-1">
+            {record.record_type.toUpperCase()} Diagnostic Questions Report
+          </h1>
+          <div className="grid grid-cols-2 gap-4 print:gap-2 text-sm print:text-xs max-w-2xl mx-auto">
+            <div className="text-left">
+              <p className="text-slate-300 print:text-gray-600"><span className="font-medium">Customer:</span> {record.customer_name}</p>
+              <p className="text-slate-300 print:text-gray-600"><span className="font-medium">VIN:</span> {record.vin}</p>
             </div>
             <div className="text-right">
-              <p className="text-sm print:text-xs text-slate-400 print:text-gray-700">Generated</p>
-              <p className="text-lg print:text-sm text-white print:text-gray-900 font-bold">{formatDate(record.created_at)}</p>
-              {/* Display the technician's name if available, otherwise the UUID */}
-              <p className="text-sm print:text-xs text-slate-400 print:text-gray-600">
-                Technician: {technicianName ?? record.technician_id}
-              </p>
+              <p className="text-slate-300 print:text-gray-600"><span className="font-medium">RO#:</span> {record.ro_number}</p>
+              <p className="text-slate-300 print:text-gray-600"><span className="font-medium">Date:</span> {formatDate(record.created_at)}</p>
             </div>
-          </div>
-          {/* Vehicle information */}
-          <div className="print:border-t print:border-gray-200 print:pt-3">
-            <h2 className="text-lg print:text-sm font-bold text-white print:text-gray-900 print:mb-2">
-              VEHICLE INFORMATION
-            </h2>
-            <div className="grid grid-cols-2 print:grid-cols-4 gap-6 print:gap-3">
-              <div>
-                <label className="block text-xs print:text-xs font-bold text-slate-400 print:text-gray-600 uppercase">Customer Name</label>
-                <p className="text-white print:text-gray-900 font-semibold text-base print:text-xs">{record.customer_name}</p>
-              </div>
-              <div>
-                <label className="block text-xs print:text-xs font-bold text-slate-400 print:text-gray-600 uppercase">Vehicle VIN</label>
-                <p className="text-white print:text-gray-900 font-mono font-bold text-base print:text-xs">{record.vin}</p>
-              </div>
-              <div>
-                <label className="block text-xs print:text-xs font-bold text-slate-400 print:text-gray-600 uppercase">RO Number</label>
-                <p className="text-white print:text-gray-900 font-semibold text-base print:text-xs">{record.ro_number}</p>
-              </div>
-              <div>
-                <label className="block text-xs print:text-xs font-bold text-slate-400 print:text-gray-600 uppercase">Make &amp; Model</label>
-                <p className="text-white print:text-gray-900 font-semibold text-base print:text-xs">{record.make_model}</p>
-              </div>
+            <div className="col-span-2 text-center border-t print:border-gray-300 pt-2 print:pt-1">
+              <p className="text-slate-300 print:text-gray-600"><span className="font-medium">Vehicle:</span> {record.make_model}</p>
+              <p className="text-slate-300 print:text-gray-600"><span className="font-medium">Mileage:</span> {record.mileage}</p>
+              <p className="text-slate-300 print:text-gray-600"><span className="font-medium">Technician:</span> {technicianName || record.technician_id}</p>
             </div>
           </div>
         </div>
-        {/* Diagnostic sections rendered in a two‑column grid when printing */}
-        <div className="print:grid print:grid-cols-2 print:gap-4 space-y-6 print:space-y-0">
+
+        {/* Questions and Answers */}
+        <div className="print:columns-2 print:gap-4 space-y-4 print:space-y-2">
           {questionSections.map((section, index) => (
-            <div key={index} className="print:break-inside-avoid">
+            <div key={index}>
               {renderSection(section.title, section.questions)}
             </div>
           ))}
         </div>
-        {/* Footer for print */}
-        <div className="print:mt-4 print:pt-3 print:border-t print:border-gray-300 print:text-center">
-          <p className="text-sm print:text-xs text-slate-400 print:text-gray-700">
-            EV Diagnostic Portal - Report ID: {record.id} | Generated: {formatDate(record.created_at)}
-          </p>
-        </div>
       </div>
-
-      {/* Additional print-specific styles beyond Tailwind utilities */}
-      <style>{`
-        @media print {
-          @page {
-            margin: 0.3in;
-            size: letter;
-          }
-
-          body {
-            font-family: 'Arial', 'Helvetica', sans-serif !important;
-            font-size: 10px !important;
-            line-height: 1.2 !important;
-            color: #000 !important;
-          }
-
-          /* Remove all dark backgrounds (override any tailwind bg colours) */
-          * {
-            background-color: transparent !important;
-          }
-          /* Explicitly set the print container background to white */
-          #print-section {
-            background-color: white !important;
-          }
-
-          /* Use grid for the diagnostic sections */
-          .print\\:grid {
-            display: grid !important;
-          }
-          .print\\:grid-cols-2 {
-            grid-template-columns: 1fr 1fr !important;
-          }
-          .print\\:gap-4 {
-            gap: 0.3rem !important;
-          }
-          .print\\:gap-3 {
-            gap: 0.2rem !important;
-          }
-          /* Prevent columns from breaking across pages */
-          .print\\:break-inside-avoid {
-            break-inside: avoid !important;
-            page-break-inside: avoid !important;
-          }
-          /* Typography adjustments */
-          .print\\:font-black { font-weight: 900 !important; }
-          .print\\:font-bold { font-weight: 700 !important; }
-          .print\\:font-semibold { font-weight: 600 !important; }
-          .print\\:uppercase { text-transform: uppercase !important; }
-          .print\\:tracking-wide { letter-spacing: 0.025em !important; }
-          /* Force exact colour adjustment when printing */
-          * {
-            -webkit-print-color-adjust: exact !important;
-            color-adjust: exact !important;
-          }
-        }
-
-        /*
-         * When exporting a PDF via html2pdf we temporarily add a
-         * 'pdf-mode' class to the print section.  This class strips
-         * away the dark colour scheme and forces a light theme
-         * similar to the print layout.  It applies recursively to
-         * all children so that backgrounds become transparent and text
-         * colours are forced to black.  Specific elements can still
-         * override these styles via inline print classes (like
-         * print:bg-gray-200) but the default dark backgrounds are
-         * removed.  Without this override html2pdf captures the
-         * dark 'bg-slate-900' background on the body, resulting in
-         * black pages in the PDF.
-         */
-        .pdf-mode {
-          background-color: #ffffff !important;
-          color: #000000 !important;
-        }
-        .pdf-mode * {
-          background-color: transparent !important;
-          color: #000000 !important;
-        }
-        /* Ensure the main print section inside pdf-mode stays white */
-        .pdf-mode #print-section {
-          background-color: #ffffff !important;
-        }
-
-        /* Lighten any Tailwind bg-slate-700-based backgrounds for details boxes in pdf-mode */
-        .pdf-mode [class*="bg-slate-700"] {
-          background-color: #f9fafb !important;
-          color: #374151 !important;
-        }
-        /* Give section headers a light grey background in pdf-mode for better contrast */
-        .pdf-mode h3 {
-          background-color: #e5e7eb !important;
-          color: #111827 !important;
-        }
-
-        /*
-         * The download (PDF) should mirror the print layout.  Tailwind's
-         * print:* variants are not applied when generating the PDF via
-         * html2canvas, so we reapply the most important print styles under
-         * .pdf-mode.  This ensures elements use grids, spacing and colours
-         * similar to the printed version.
-         */
-        .pdf-mode .print\\:grid {
-          display: grid !important;
-        }
-        .pdf-mode .print\\:grid-cols-2 {
-          grid-template-columns: 1fr 1fr !important;
-        }
-        .pdf-mode .print\\:gap-4 {
-          gap: 0.3rem !important;
-        }
-        .pdf-mode .print\\:gap-3 {
-          gap: 0.2rem !important;
-        }
-        .pdf-mode .print\\:break-inside-avoid {
-          break-inside: avoid !important;
-          page-break-inside: avoid !important;
-        }
-        .pdf-mode .print\\:border {
-          border-width: 1px !important;
-        }
-        .pdf-mode .print\\:border-gray-200 {
-          border-color: #e5e7eb !important;
-        }
-        .pdf-mode .print\\:rounded {
-          border-radius: 0.25rem !important;
-        }
-        .pdf-mode .print\\:p-2 {
-          padding: 0.5rem !important;
-        }
-        .pdf-mode .print\\:p-1 {
-          padding: 0.25rem !important;
-        }
-        .pdf-mode .print\\:p-4 {
-          padding: 1rem !important;
-        }
-        .pdf-mode .print\\:mb-4 {
-          margin-bottom: 1rem !important;
-        }
-        .pdf-mode .print\\:mb-3 {
-          margin-bottom: 0.75rem !important;
-        }
-        .pdf-mode .print\\:mb-2 {
-          margin-bottom: 0.5rem !important;
-        }
-        .pdf-mode .print\\:mb-1 {
-          margin-bottom: 0.25rem !important;
-        }
-        .pdf-mode .print\\:mt-0 {
-          margin-top: 0 !important;
-        }
-        .pdf-mode .print\\:pt-3 {
-          padding-top: 0.75rem !important;
-        }
-        .pdf-mode .print\\:text-gray-900 {
-          color: #111827 !important;
-        }
-        .pdf-mode .print\\:text-gray-700 {
-          color: #374151 !important;
-        }
-        .pdf-mode .print\\:text-gray-600 {
-          color: #4b5563 !important;
-        }
-        .pdf-mode .print\\:text-xs {
-          font-size: 0.75rem !important;
-        }
-        .pdf-mode .print\\:text-sm {
-          font-size: 0.875rem !important;
-        }
-        .pdf-mode .print\\:bg-gray-200 {
-          background-color: #e5e7eb !important;
-        }
-        .pdf-mode .print\\:bg-gray-50 {
-          background-color: #f9fafb !important;
-        }
-      `}</style>
     </div>
   );
 };
