@@ -1,7 +1,8 @@
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { supabase } from '../integrations/supabase/client';
 import SubscriptionStatus from './SubscriptionStatus';
 import { 
   LogOut, 
@@ -33,6 +34,33 @@ const Dashboard = () => {
     canModifyAllReports,
     canAccessStationData
   } = useAuth();
+  
+  const [stationName, setStationName] = useState<string | null>(null);
+
+  // Fetch station name when profile changes
+  useEffect(() => {
+    const fetchStationName = async () => {
+      if (profile?.station_id) {
+        try {
+          const { data, error } = await supabase
+            .from('stations')
+            .select('name')
+            .eq('id', profile.station_id)
+            .single();
+          
+          if (!error && data) {
+            setStationName(data.name);
+          }
+        } catch (error) {
+          console.error('Error fetching station name:', error);
+        }
+      } else {
+        setStationName(null);
+      }
+    };
+
+    fetchStationName();
+  }, [profile?.station_id]);
 
   const handleSignOut = async () => {
     try {
@@ -237,12 +265,15 @@ const Dashboard = () => {
                 <div>
                   <p className="text-slate-400 text-sm">Station</p>
                   <p className="text-lg font-semibold text-white">
-                    {profile?.station_id ? 'Assigned' : 'Not Assigned'}
+                    {profile?.station_id ? (stationName || 'Assigned') : 'Not Assigned'}
                   </p>
                   {profile?.station_id && (
-                    <p className="text-xs text-slate-400 mt-1">
-                      ID: {profile.station_id}
-                    </p>
+                    <div className="text-xs text-slate-400 mt-1 space-y-0.5">
+                      {stationName && (
+                        <p>Name: {stationName}</p>
+                      )}
+                      <p>ID: {profile.station_id}</p>
+                    </div>
                   )}
                 </div>
                 <Building className="w-8 h-8 text-green-400" />
