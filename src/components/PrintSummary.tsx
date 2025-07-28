@@ -193,10 +193,10 @@ const PrintSummary = () => {
     if (!value && value !== 0 && !detailsField) return null;
     const hasDetails = detailsField && record?.[detailsField];
     return (
-      <div className="mb-1 print:mb-0">
+      <div className="mb-0.5 print:mb-0">
         {/* Use a grid instead of flex to prevent overlap between question and answer. */}
-        <div className="grid grid-cols-2 gap-x-2 print:grid-cols-2 print:gap-x-1 items-start py-1 print:py-0">
-          <h4 className="font-medium text-white print:text-gray-800 text-sm print:text-xs leading-tight">
+        <div className="grid grid-cols-3 gap-x-1 print:grid-cols-3 print:gap-x-1 items-start py-0.5 print:py-0">
+          <h4 className="col-span-2 font-medium text-white print:text-gray-800 text-sm print:text-xs leading-tight">
             {question}
           </h4>
           <div className="text-right">
@@ -207,13 +207,13 @@ const PrintSummary = () => {
             )}
           </div>
           {hasDetails && (
-            <div className="col-span-2 mt-1 print:mt-0 pl-3 print:pl-1 bg-slate-700/30 print:bg-gray-50 print:p-1 rounded print:text-xs">
-              <p className="text-slate-300 print:text-gray-600 font-medium text-xs print:font-normal mb-1 print:mb-0">
-                Details:
+            <div className="col-span-3 mt-0.5 print:mt-0 pl-2 print:pl-1 bg-slate-700/30 print:bg-gray-50 print:p-1 rounded print:text-xs">
+              <p className="text-slate-300 print:text-gray-600 font-medium text-xs print:font-normal inline print:mb-0">
+                Details: 
               </p>
-              <p className="text-slate-300 print:text-gray-600 text-xs print:leading-tight">
+              <span className="text-slate-300 print:text-gray-600 text-xs print:leading-tight">
                 {record![detailsField!]}
-              </p>
+              </span>
             </div>
           )}
         </div>
@@ -235,11 +235,11 @@ const PrintSummary = () => {
     );
     if (!hasAnyContent) return null;
     return (
-      <div className="mb-3 print:mb-2 break-inside-avoid print:border print:border-gray-200 print:rounded print:p-2">
-        <h3 className="text-lg print:text-xs font-bold text-white print:text-gray-900 print:bg-gray-200 mb-2 print:mb-1 print:p-1 print:rounded print:font-bold print:uppercase print:text-center">
+      <div className="mb-2 print:mb-1 break-inside-avoid print:border print:border-gray-200 print:rounded print:p-1">
+        <h3 className="text-base print:text-xs font-bold text-white print:text-gray-900 print:bg-gray-200 mb-1 print:mb-0.5 print:p-1 print:rounded print:font-bold print:uppercase print:text-center">
           {title}
         </h3>
-        <div className="space-y-1 print:space-y-0">
+        <div className="space-y-0.5 print:space-y-0">
           {questions
             .map(({ question, field, detailsField }, index) => (
               <div key={index}>{renderQuestionAnswer(question, record?.[field], detailsField)}</div>
@@ -554,7 +554,7 @@ const PrintSummary = () => {
           layout works reliably across browsers and keeps the two-column
           arrangement when printing from Windows or iPad.
         */}
-        <div className="print:grid print:grid-cols-2 print:gap-x-4 print:gap-y-2 space-y-4 print:space-y-0">
+        <div className="print:grid print:grid-cols-2 print:gap-x-3 print:gap-y-1 space-y-2 print:space-y-0">
           {questionSections.map((section, index) => (
             <div key={index}>
               {renderSection(section.title, section.questions)}
