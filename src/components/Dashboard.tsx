@@ -239,6 +239,11 @@ const Dashboard = () => {
                   <p className="text-lg font-semibold text-white">
                     {profile?.station_id ? 'Assigned' : 'Not Assigned'}
                   </p>
+                  {profile?.station_id && (
+                    <p className="text-xs text-slate-400 mt-1">
+                      ID: {profile.station_id}
+                    </p>
+                  )}
                 </div>
                 <Building className="w-8 h-8 text-green-400" />
               </div>
