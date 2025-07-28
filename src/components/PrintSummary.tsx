@@ -193,30 +193,29 @@ const PrintSummary = () => {
     if (!value && value !== 0 && !detailsField) return null;
     const hasDetails = detailsField && record?.[detailsField];
     return (
-      <div className="mb-0.5 print:mb-0">
-        {/* Use a grid instead of flex to prevent overlap between question and answer. */}
-        <div className="grid grid-cols-3 gap-x-1 print:grid-cols-3 print:gap-x-1 items-start py-0.5 print:py-0">
-          <h4 className="col-span-2 font-medium text-white print:text-gray-800 text-sm print:text-xs leading-tight">
+      <div className="border-b border-slate-600 print:border-gray-200 last:border-b-0 py-1.5 print:py-1">
+        <div className="flex justify-between items-start">
+          <h4 className="font-medium text-white print:text-gray-900 text-sm print:text-xs flex-1 pr-4">
             {question}
           </h4>
-          <div className="text-right">
+          <div className="text-right flex-shrink-0">
             {(value === 'yes' || value === 'no') ? getYesNoIcon(value) : (
-              <span className="text-slate-300 print:text-gray-700 text-sm print:text-xs">
+              <span className="text-slate-300 print:text-gray-700 text-sm print:text-xs font-medium">
                 {Array.isArray(value) ? value.join(', ') : value || 'Not specified'}
               </span>
             )}
           </div>
-          {hasDetails && (
-            <div className="col-span-3 mt-0.5 print:mt-0 pl-2 print:pl-1 bg-slate-700/30 print:bg-gray-50 print:p-1 rounded print:text-xs">
-              <p className="text-slate-300 print:text-gray-600 font-medium text-xs print:font-normal inline print:mb-0">
-                Details: 
-              </p>
-              <span className="text-slate-300 print:text-gray-600 text-xs print:leading-tight">
-                {record![detailsField!]}
-              </span>
-            </div>
-          )}
         </div>
+        {hasDetails && (
+          <div className="mt-1 pl-0 bg-slate-700/20 print:bg-gray-50 p-2 print:p-1 rounded text-xs">
+            <span className="text-slate-300 print:text-gray-600 font-medium">
+              Details: 
+            </span>
+            <span className="text-slate-300 print:text-gray-700">
+              {record![detailsField!]}
+            </span>
+          </div>
+        )}
       </div>
     );
   };
@@ -235,11 +234,11 @@ const PrintSummary = () => {
     );
     if (!hasAnyContent) return null;
     return (
-      <div className="mb-2 print:mb-1 break-inside-avoid print:border print:border-gray-200 print:rounded print:p-1">
-        <h3 className="text-base print:text-xs font-bold text-white print:text-gray-900 print:bg-gray-200 mb-1 print:mb-0.5 print:p-1 print:rounded print:font-bold print:uppercase print:text-center">
+      <div className="mb-3 print:mb-2 break-inside-avoid bg-slate-800 print:bg-white print:border print:border-gray-300 rounded print:rounded-sm overflow-hidden">
+        <h3 className="text-sm print:text-xs font-bold text-white print:text-gray-900 bg-slate-700 print:bg-gray-200 px-3 py-2 print:px-2 print:py-1">
           {title}
         </h3>
-        <div className="space-y-0.5 print:space-y-0">
+        <div className="px-3 py-2 print:px-2 print:py-1">
           {questions
             .map(({ question, field, detailsField }, index) => (
               <div key={index}>{renderQuestionAnswer(question, record?.[field], detailsField)}</div>
