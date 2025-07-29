@@ -74,8 +74,19 @@ const ProfileManagement = () => {
       <div className="p-6 max-w-2xl mx-auto">
         <div className="bg-slate-800 rounded-lg p-6 border border-slate-700">
           <div className="flex items-center space-x-3 mb-6">
-            <div className="w-12 h-12 bg-blue-600 rounded-full flex items-center justify-center">
-              <User className="w-6 h-6 text-white" />
+            <div className="w-12 h-12 bg-blue-600 rounded-full flex items-center justify-center overflow-hidden">
+              {profile?.avatar_url ? (
+                <img 
+                  src={profile.avatar_url} 
+                  alt="Profile Avatar" 
+                  className="w-full h-full object-cover"
+                  onError={(e) => {
+                    e.currentTarget.style.display = 'none';
+                    e.currentTarget.nextElementSibling?.classList.remove('hidden');
+                  }}
+                />
+              ) : null}
+              <User className={`w-6 h-6 text-white ${profile?.avatar_url ? 'hidden' : ''}`} />
             </div>
             <div>
               <h2 className="text-xl font-semibold text-white">
