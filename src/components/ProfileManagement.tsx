@@ -9,7 +9,6 @@ import { useNavigate } from 'react-router-dom';
 const ProfileManagement = () => {
   const { user, profile, updateProfile } = useAuth();
   const navigate = useNavigate();
-  const [editing, setEditing] = useState(false);
   const [formData, setFormData] = useState({
     username: profile?.username || '',
     full_name: profile?.full_name || '',
@@ -25,28 +24,22 @@ const ProfileManagement = () => {
     setError('');
     setSuccess('');
 
-    const { error } = await updateProfile(formData);
+    // Only update full_name and avatar_url
+    const updateData = {
+      full_name: formData.full_name,
+      avatar_url: formData.avatar_url
+    };
+
+    const { error } = await updateProfile(updateData);
 
     if (error) {
       setError('Failed to update profile. Please try again.');
     } else {
       setSuccess('Profile updated successfully!');
-      setEditing(false);
       setTimeout(() => setSuccess(''), 3000);
     }
 
     setLoading(false);
-  };
-
-  const handleCancel = () => {
-    setFormData({
-      username: profile?.username || '',
-      full_name: profile?.full_name || '',
-      avatar_url: profile?.avatar_url || ''
-    });
-    setEditing(false);
-    setError('');
-    setSuccess('');
   };
 
   return (
@@ -118,10 +111,7 @@ const ProfileManagement = () => {
                 type="text"
                 value={formData.full_name}
                 onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
-                disabled={!editing}
-                className={`bg-slate-700/50 border-slate-600 text-white ${
-                  !editing ? 'cursor-not-allowed opacity-75' : ''
-                }`}
+                className="bg-slate-700/50 border-slate-600 text-white"
                 placeholder="Enter your full name"
               />
             </div>
@@ -133,13 +123,11 @@ const ProfileManagement = () => {
               <Input
                 type="text"
                 value={formData.username}
-                onChange={(e) => setFormData({ ...formData, username: e.target.value })}
-                disabled={!editing}
-                className={`bg-slate-700/50 border-slate-600 text-white ${
-                  !editing ? 'cursor-not-allowed opacity-75' : ''
-                }`}
-                placeholder="Choose a username"
+                disabled
+                className="bg-slate-700/30 border-slate-600 text-slate-400 cursor-not-allowed"
+                placeholder="Username cannot be changed"
               />
+              <p className="text-xs text-slate-500 mt-1">Username cannot be changed</p>
             </div>
 
             <div>
@@ -150,44 +138,20 @@ const ProfileManagement = () => {
                 type="url"
                 value={formData.avatar_url}
                 onChange={(e) => setFormData({ ...formData, avatar_url: e.target.value })}
-                disabled={!editing}
-                className={`bg-slate-700/50 border-slate-600 text-white ${
-                  !editing ? 'cursor-not-allowed opacity-75' : ''
-                }`}
+                className="bg-slate-700/50 border-slate-600 text-white"
                 placeholder="Enter avatar image URL"
               />
             </div>
 
             <div className="flex space-x-4">
-              {!editing ? (
-                <Button
-                  type="button"
-                  onClick={() => setEditing(true)}
-                  className="bg-blue-600 hover:bg-blue-700 text-white"
-                >
-                  <User className="w-4 h-4 mr-2" />
-                  Edit Profile
-                </Button>
-              ) : (
-                <>
-                  <Button
-                    type="submit"
-                    disabled={loading}
-                    className="bg-green-600 hover:bg-green-700 text-white"
-                  >
-                    <Save className="w-4 h-4 mr-2" />
-                    {loading ? 'Saving...' : 'Save Changes'}
-                  </Button>
-                  <Button
-                    type="button"
-                    onClick={handleCancel}
-                    variant="outline"
-                    className="border-slate-600 text-slate-300 hover:bg-slate-700"
-                  >
-                    Cancel
-                  </Button>
-                </>
-              )}
+              <Button
+                type="submit"
+                disabled={loading}
+                className="bg-green-600 hover:bg-green-700 text-white"
+              >
+                <Save className="w-4 h-4 mr-2" />
+                {loading ? 'Saving...' : 'Save Changes'}
+              </Button>
             </div>
           </form>
         </div>
