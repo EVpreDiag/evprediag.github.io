@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { User, Mail, Save, ArrowLeft } from 'lucide-react';
 import { Button } from './ui/button';
@@ -17,6 +17,17 @@ const ProfileManagement = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+
+  // Sync form data with profile when it loads
+  useEffect(() => {
+    if (profile) {
+      setFormData({
+        username: profile.username || '',
+        full_name: profile.full_name || '',
+        avatar_url: profile.avatar_url || ''
+      });
+    }
+  }, [profile]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
