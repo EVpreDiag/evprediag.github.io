@@ -17,7 +17,8 @@ import {
   ClipboardList,
   Zap,
   Battery,
-  Car
+  Car,
+  User
 } from 'lucide-react';
 
 const Dashboard = () => {
@@ -189,15 +190,31 @@ const Dashboard = () => {
           
           <div className="flex items-center space-x-4">
             <SubscriptionStatus />
-            <div className="text-right">
-              <p className="text-sm font-medium text-white">
-                {profile?.full_name || user?.email}
-              </p>
-              <div className="flex items-center space-x-2 text-xs text-slate-400">
-                {isSuperAdmin() && <span className="bg-red-600/20 text-red-400 px-2 py-1 rounded">Super Admin</span>}
-                {isStationAdmin() && <span className="bg-blue-600/20 text-blue-400 px-2 py-1 rounded">Station Admin</span>}
-                {isTechnician() && <span className="bg-green-600/20 text-green-400 px-2 py-1 rounded">Technician</span>}
-                {isFrontDesk() && <span className="bg-purple-600/20 text-purple-400 px-2 py-1 rounded">Front Desk</span>}
+            <div className="flex items-center space-x-3">
+              <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center overflow-hidden">
+                {profile?.avatar_url ? (
+                  <img 
+                    src={profile.avatar_url} 
+                    alt="Profile Avatar" 
+                    className="w-full h-full object-cover"
+                    onError={(e) => {
+                      e.currentTarget.style.display = 'none';
+                      e.currentTarget.nextElementSibling?.classList.remove('hidden');
+                    }}
+                  />
+                ) : null}
+                <User className={`w-5 h-5 text-white ${profile?.avatar_url ? 'hidden' : ''}`} />
+              </div>
+              <div className="text-right">
+                <p className="text-sm font-medium text-white">
+                  {profile?.full_name || user?.email}
+                </p>
+                <div className="flex items-center space-x-2 text-xs text-slate-400">
+                  {isSuperAdmin() && <span className="bg-red-600/20 text-red-400 px-2 py-1 rounded">Super Admin</span>}
+                  {isStationAdmin() && <span className="bg-blue-600/20 text-blue-400 px-2 py-1 rounded">Station Admin</span>}
+                  {isTechnician() && <span className="bg-green-600/20 text-green-400 px-2 py-1 rounded">Technician</span>}
+                  {isFrontDesk() && <span className="bg-purple-600/20 text-purple-400 px-2 py-1 rounded">Front Desk</span>}
+                </div>
               </div>
             </div>
             <button
