@@ -156,7 +156,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       .eq('id', user.id);
 
     if (!error) {
-      setProfile(prev => prev ? { ...prev, ...data } : null);
+      // Fetch the updated profile to ensure synchronization
+      const updatedProfile = await fetchUserProfile(user.id);
+      if (updatedProfile) {
+        setProfile(updatedProfile);
+      }
     }
 
     return { error };
