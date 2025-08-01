@@ -8,3 +8,6 @@ jwt_expiry = 3600
 
 [functions.validate-station]
 verify_jwt = false
+
+[functions.send-support-email]
+verify_jwt = false

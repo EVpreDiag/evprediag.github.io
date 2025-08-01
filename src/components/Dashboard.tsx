@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../integrations/supabase/client';
 import SubscriptionStatus from './SubscriptionStatus';
@@ -18,7 +18,8 @@ import {
   Zap,
   Battery,
   Car,
-  User
+  User,
+  HelpCircle
 } from 'lucide-react';
 
 const Dashboard = () => {
@@ -217,6 +218,13 @@ const Dashboard = () => {
                 </div>
               </div>
             </div>
+            <Link
+              to="/support"
+              className="flex items-center space-x-2 px-3 py-2 text-slate-300 hover:text-white hover:bg-slate-700 rounded-lg transition-colors"
+            >
+              <HelpCircle className="w-4 h-4" />
+              <span>Support</span>
+            </Link>
             <button
               onClick={handleSignOut}
               className="flex items-center space-x-2 px-3 py-2 text-slate-300 hover:text-white hover:bg-slate-700 rounded-lg transition-colors"

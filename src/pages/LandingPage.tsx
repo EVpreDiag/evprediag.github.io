@@ -298,7 +298,7 @@ export default function LandingPage() {
             <div className="flex space-x-6 text-sm text-muted-foreground font-exo">
               <a href="#" className="hover:text-primary transition-colors duration-300">Privacy Policy</a>
               <a href="#" className="hover:text-primary transition-colors duration-300">Terms of Service</a>
-              <a href="#" className="hover:text-primary transition-colors duration-300">Support</a>
+              <Link to="/support" className="hover:text-primary transition-colors duration-300">Support</Link>
             </div>
           </div>
           <div className="mt-8 pt-8 border-t electric-border text-center text-sm text-muted-foreground font-exo">

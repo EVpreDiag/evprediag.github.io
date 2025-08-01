@@ -4,6 +4,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { Toaster } from './components/ui/sonner';
 import LandingPage from './pages/LandingPage';
+import SupportPage from './pages/SupportPage';
 import AuthPage from './components/AuthPage';
 import Dashboard from './components/Dashboard';
 import DiagnosticForm from './components/DiagnosticForm';
@@ -57,6 +58,7 @@ function App() {
           <Routes>
             <Route path="/" element={<RootRedirect />} />
             <Route path="/landing" element={<LandingPage />} />
+            <Route path="/support" element={<SupportPage />} />
             <Route path="/auth" element={<AuthPage />} />
             <Route path="/register-station" element={<StationRegistration />} />
             <Route path="/verify-email" element={<EmailVerification />} />
