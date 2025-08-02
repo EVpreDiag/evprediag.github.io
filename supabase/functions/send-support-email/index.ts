@@ -1,10 +1,7 @@
-import emailjs from 'npm:@emailjs/nodejs@5.0.2';
+import { Resend } from "npm:resend@2.0.0";
 import { corsHeaders } from "../_shared/cors.ts";
 
-const EMAILJS_SERVICE_ID = Deno.env.get("EMAILJS_SERVICE_ID");
-const EMAILJS_TEMPLATE_ID = Deno.env.get("EMAILJS_TEMPLATE_ID");
-const EMAILJS_PUBLIC_KEY = Deno.env.get("EMAILJS_PUBLIC_KEY");
-const EMAILJS_PRIVATE_KEY = Deno.env.get("EMAILJS_PRIVATE_KEY");
+const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
 
 interface SupportEmailRequest {
   name: string;
@@ -29,19 +26,6 @@ const handler = async (req: Request): Promise<Response> => {
       });
     }
 
-    if (!EMAILJS_SERVICE_ID || !EMAILJS_TEMPLATE_ID || !EMAILJS_PUBLIC_KEY) {
-      return new Response(JSON.stringify({ error: "EmailJS configuration missing" }), {
-        status: 500,
-        headers: { "Content-Type": "application/json", ...corsHeaders },
-      });
-    }
-
-    // Initialize EmailJS
-    emailjs.init({
-      publicKey: EMAILJS_PUBLIC_KEY,
-      privateKey: EMAILJS_PRIVATE_KEY,
-    });
-
     const priorityColorMap = {
       low: "#10B981",
       medium: "#F59E0B", 
@@ -51,13 +35,11 @@ const handler = async (req: Request): Promise<Response> => {
 
     const priorityColor = priorityColorMap[priority as keyof typeof priorityColorMap] || priorityColorMap.medium;
 
-    const templateParams = {
-      name,
-      email,
-      subject,
-      priority,
-      submitted_at: new Date().toLocaleString(),
-      body_html: `
+    const emailResponse = await resend.emails.send({
+      from: "Support <onboarding@resend.dev>",
+      to: ["support@yourdomain.com"], // You can update this to your actual support email
+      subject: `[${priority.toUpperCase()}] ${subject}`,
+      html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
           <div style="background-color: ${priorityColor}; color: white; padding: 15px; border-radius: 5px 5px 0 0;">
             <h2 style="margin: 0;">New Support Request - ${priority.toUpperCase()} Priority</h2>
@@ -79,19 +61,9 @@ const handler = async (req: Request): Promise<Response> => {
           </div>
         </div>
       `,
-    };
+    });
 
-    const response = await emailjs.send(
-      EMAILJS_SERVICE_ID,
-      EMAILJS_TEMPLATE_ID,
-      templateParams,
-      {
-        publicKey: EMAILJS_PUBLIC_KEY,
-        privateKey: EMAILJS_PRIVATE_KEY,
-      },
-    );
-
-    console.log("Email sent via EmailJS:", response.status, response.text);
+    console.log("Email sent via Resend:", emailResponse);
     return new Response(JSON.stringify({ success: true, message: "Support request sent successfully" }), {
       status: 200,
       headers: { "Content-Type": "application/json", ...corsHeaders },
