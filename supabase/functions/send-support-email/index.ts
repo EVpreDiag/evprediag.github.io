@@ -1,7 +1,10 @@
+import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { Resend } from "npm:resend@2.0.0";
-import { corsHeaders } from "../_shared/cors.ts";
 
-const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+};
 
 interface SupportEmailRequest {
   name: string;
@@ -12,32 +15,64 @@ interface SupportEmailRequest {
 }
 
 const handler = async (req: Request): Promise<Response> => {
+  // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const { name, email, subject, message, priority }: SupportEmailRequest = await req.json();
+    console.log("Processing support email request...");
     
-    if (!name || !email || !subject || !message) {
-      return new Response(JSON.stringify({ error: "Missing required fields" }), {
-        status: 400,
-        headers: { "Content-Type": "application/json", ...corsHeaders },
-      });
+    // Get Resend API key
+    const resendApiKey = Deno.env.get("RESEND_API_KEY");
+    
+    console.log("Checking Resend configuration...");
+    console.log("API Key exists:", !!resendApiKey);
+    
+    if (!resendApiKey) {
+      console.error("Missing Resend API key");
+      return new Response(
+        JSON.stringify({ error: "Resend API key not configured" }),
+        {
+          status: 500,
+          headers: { "Content-Type": "application/json", ...corsHeaders },
+        }
+      );
     }
 
-    const priorityColorMap = {
+    const resend = new Resend(resendApiKey);
+    
+    const { name, email, subject, message, priority }: SupportEmailRequest = await req.json();
+    console.log("Request data received:", { name, email, subject, messageLength: message?.length, priority });
+
+    // Validate required fields
+    if (!name || !email || !subject || !message) {
+      console.error("Missing required fields");
+      return new Response(
+        JSON.stringify({ error: "Missing required fields" }),
+        {
+          status: 400,
+          headers: { "Content-Type": "application/json", ...corsHeaders },
+        }
+      );
+    }
+
+    // Priority color coding for emails
+    const priorityColors = {
       low: "#10B981",
       medium: "#F59E0B", 
       high: "#F97316",
-      urgent: "#EF4444",
-    } as const;
+      urgent: "#EF4444"
+    };
 
-    const priorityColor = priorityColorMap[priority as keyof typeof priorityColorMap] || priorityColorMap.medium;
+    const priorityColor = priorityColors[priority as keyof typeof priorityColors] || priorityColors.medium;
 
+    console.log("Sending email via Resend...");
+    
+    // Send email using Resend
     const emailResponse = await resend.emails.send({
-      from: "Support <onboarding@resend.dev>",
-      to: ["support@yourdomain.com"], // You can update this to your actual support email
+      from: "Support <support@resend.dev>",
+      to: ["support@yourcompany.com"], // Replace with your support email
       subject: `[${priority.toUpperCase()}] ${subject}`,
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
@@ -49,10 +84,12 @@ const handler = async (req: Request): Promise<Response> => {
             <p><strong>Name:</strong> ${name}</p>
             <p><strong>Email:</strong> ${email}</p>
             <p><strong>Subject:</strong> ${subject}</p>
+            
             <h3 style="color: #333;">Message</h3>
             <div style="background-color: white; padding: 15px; border-left: 4px solid ${priorityColor}; margin: 10px 0;">
               ${message.replace(/\n/g, '<br>')}
             </div>
+            
             <hr style="border: none; border-top: 1px solid #ddd; margin: 20px 0;">
             <p style="color: #666; font-size: 12px;">
               <strong>Priority:</strong> ${priority}<br>
@@ -63,19 +100,42 @@ const handler = async (req: Request): Promise<Response> => {
       `,
     });
 
-    console.log("Email sent via Resend:", emailResponse);
-    return new Response(JSON.stringify({ success: true, message: "Support request sent successfully" }), {
-      status: 200,
-      headers: { "Content-Type": "application/json", ...corsHeaders },
-    });
+    console.log("Resend response:", emailResponse);
+    
+    if (emailResponse.error) {
+      console.error("Resend error:", emailResponse.error);
+      throw new Error(`Resend failed: ${emailResponse.error.message}`);
+    }
 
-  } catch (error) {
-    console.error("Support email error:", error);
-    return new Response(JSON.stringify({ error: "Failed to send support request", details: error.message }), {
-      status: 500,
-      headers: { "Content-Type": "application/json", ...corsHeaders },
-    });
+    console.log("Email sent successfully via Resend");
+
+    return new Response(
+      JSON.stringify({ 
+        success: true, 
+        message: "Support request sent successfully"
+      }),
+      {
+        status: 200,
+        headers: { "Content-Type": "application/json", ...corsHeaders },
+      }
+    );
+
+  } catch (error: any) {
+    console.error("Error in send-support-email function:", error);
+    console.error("Error message:", error.message);
+    console.error("Error stack:", error.stack);
+    
+    return new Response(
+      JSON.stringify({ 
+        error: "Failed to send support request", 
+        details: error.message 
+      }),
+      {
+        status: 500,
+        headers: { "Content-Type": "application/json", ...corsHeaders },
+      }
+    );
   }
 };
 
-Deno.serve(handler);
+serve(handler);
