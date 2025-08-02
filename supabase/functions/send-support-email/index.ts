@@ -115,6 +115,8 @@ const handler = async (req: Request): Promise<Response> => {
 
   } catch (error: any) {
     console.error("Error in send-support-email function:", error);
+    console.error("Error stack:", error.stack);
+    console.error("Error details:", JSON.stringify(error));
     return new Response(
       JSON.stringify({ 
         error: "Failed to send support request", 
