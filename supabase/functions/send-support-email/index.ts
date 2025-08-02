@@ -1,10 +1,9 @@
-import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import { Resend } from "npm:resend@2.0.0";
+import { Resend } from "npm:resend@4.7.0";
+import { corsHeaders } from "../_shared/cors.ts";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
+// Support email configuration
+const FROM_EMAIL = Deno.env.get("SUPPORT_FROM_EMAIL") || "support@resend.dev";
+const TO_EMAIL = Deno.env.get("SUPPORT_TO_EMAIL") || "onboarding@resend.dev";
 
 interface SupportEmailRequest {
   name: string;
@@ -70,9 +69,9 @@ const handler = async (req: Request): Promise<Response> => {
     console.log("Sending email via Resend...");
     
     // Send email using Resend
-    const emailResponse = await resend.emails.send({
-      from: "Support <support@resend.dev>",
-      to: ["support@yourcompany.com"], // Replace with your support email
+    const { data: _, error: resendError } = await resend.emails.send({
+      from: `Support <${FROM_EMAIL}>`,
+      to: [TO_EMAIL],
       subject: `[${priority.toUpperCase()}] ${subject}`,
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
@@ -100,11 +99,9 @@ const handler = async (req: Request): Promise<Response> => {
       `,
     });
 
-    console.log("Resend response:", emailResponse);
-    
-    if (emailResponse.error) {
-      console.error("Resend error:", emailResponse.error);
-      throw new Error(`Resend failed: ${emailResponse.error.message}`);
+    if (resendError) {
+      console.error("Resend error:", resendError);
+      throw new Error(`Resend failed: ${typeof resendError === "string" ? resendError : JSON.stringify(resendError)}`);
     }
 
     console.log("Email sent successfully via Resend");
@@ -138,4 +135,4 @@ const handler = async (req: Request): Promise<Response> => {
   }
 };
 
-serve(handler);
+Deno.serve(handler);
