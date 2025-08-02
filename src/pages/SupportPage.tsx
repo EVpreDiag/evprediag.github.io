@@ -29,13 +29,17 @@ const SupportPage = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    console.log('Form submitted with data:', formData);
     setIsSubmitting(true);
 
     try {
-      const { error } = await supabase.functions.invoke('send-support-email', {
+      console.log('Calling send-support-email function...');
+      const { data, error } = await supabase.functions.invoke('send-support-email', {
         body: formData
       });
 
+      console.log('Function response:', { data, error });
+      
       if (error) throw error;
 
       toast({
