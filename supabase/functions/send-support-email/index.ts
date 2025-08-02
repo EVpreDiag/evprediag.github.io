@@ -1,4 +1,3 @@
-import emailjs from 'npm:@emailjs/nodejs@5.0.2';
 import { corsHeaders } from "../_shared/cors.ts"; // Update the path if needed
 
 // Environment variables
@@ -34,7 +33,12 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     // Check EmailJS config
-    if (!EMAILJS_SERVICE_ID || !EMAILJS_TEMPLATE_ID || !EMAILJS_PUBLIC_KEY) {
+    if (
+      !EMAILJS_SERVICE_ID ||
+      !EMAILJS_TEMPLATE_ID ||
+      !EMAILJS_PUBLIC_KEY ||
+      !EMAILJS_PRIVATE_KEY
+    ) {
       return new Response(JSON.stringify({ error: "Missing EmailJS configuration" }), {
         status: 500,
         headers: { "Content-Type": "application/json", ...corsHeaders },
@@ -77,16 +81,23 @@ const handler = async (req: Request): Promise<Response> => {
       `
     };
 
-    // Send via EmailJS
-    const response = await emailjs.send(
-      EMAILJS_SERVICE_ID,
-      EMAILJS_TEMPLATE_ID,
-      templateParams,
-      {
-        publicKey: EMAILJS_PUBLIC_KEY,
-        privateKey: EMAILJS_PRIVATE_KEY,
-      }
-    );
+    // Send via EmailJS REST API
+    const response = await fetch("https://api.emailjs.com/api/v1.0/email/send", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        service_id: EMAILJS_SERVICE_ID,
+        template_id: EMAILJS_TEMPLATE_ID,
+        user_id: EMAILJS_PUBLIC_KEY,
+        accessToken: EMAILJS_PRIVATE_KEY,
+        template_params: templateParams,
+      }),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`EmailJS request failed: ${response.status} ${errorText}`);
+    }
 
     console.log("✅ Email sent:", response.status, response.text);
 
@@ -98,9 +109,10 @@ const handler = async (req: Request): Promise<Response> => {
       }
     );
 
-  } catch (err: any) {
+  } catch (err) {
     console.error("❌ Email sending failed:", err);
-    return new Response(JSON.stringify({ error: "Failed to send support request", details: err.message }), {
+    const message = err instanceof Error ? err.message : "Unknown error";
+    return new Response(JSON.stringify({ error: "Failed to send support request", details: message }), {
       status: 500,
       headers: { "Content-Type": "application/json", ...corsHeaders },
     });
