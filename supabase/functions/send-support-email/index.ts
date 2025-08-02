@@ -4,7 +4,7 @@ import { corsHeaders } from "../_shared/cors.ts";
 const EMAILJS_SERVICE_ID = Deno.env.get("EMAILJS_SERVICE_ID");
 const EMAILJS_TEMPLATE_ID = Deno.env.get("EMAILJS_TEMPLATE_ID");
 const EMAILJS_PUBLIC_KEY = Deno.env.get("EMAILJS_PUBLIC_KEY");
-const EMAILJS_PRIVATE_KEY = Deno.env.get("EMAILJS_PRIVATE_KEY"); // optional
+const EMAILJS_PRIVATE_KEY = Deno.env.get("EMAILJS_PRIVATE_KEY");
 
 interface SupportEmailRequest {
   name: string;
@@ -21,6 +21,7 @@ const handler = async (req: Request): Promise<Response> => {
 
   try {
     const { name, email, subject, message, priority }: SupportEmailRequest = await req.json();
+    
     if (!name || !email || !subject || !message) {
       return new Response(JSON.stringify({ error: "Missing required fields" }), {
         status: 400,
@@ -35,16 +36,15 @@ const handler = async (req: Request): Promise<Response> => {
       });
     }
 
-    // Optional: set keys globally
+    // Initialize EmailJS
     emailjs.init({
       publicKey: EMAILJS_PUBLIC_KEY,
       privateKey: EMAILJS_PRIVATE_KEY,
     });
 
-    // Build template parameters; body_html uses triple-curly variable in the EmailJS template
     const priorityColorMap = {
       low: "#10B981",
-      medium: "#F59E0B",
+      medium: "#F59E0B", 
       high: "#F97316",
       urgent: "#EF4444",
     } as const;
