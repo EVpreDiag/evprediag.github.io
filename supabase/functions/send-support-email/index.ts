@@ -27,7 +27,26 @@ const handler = async (req: Request): Promise<Response> => {
   try {
     console.log("Processing support email request...");
     
+    // Check if all required secrets are available
+    console.log("Checking EmailJS configuration...");
+    console.log("Service ID exists:", !!emailjsServiceId);
+    console.log("Template ID exists:", !!emailjsTemplateId);
+    console.log("Public Key exists:", !!emailjsPublicKey);
+    console.log("Private Key exists:", !!emailjsPrivateKey);
+    
+    if (!emailjsServiceId || !emailjsTemplateId || !emailjsPublicKey || !emailjsPrivateKey) {
+      console.error("Missing EmailJS configuration");
+      return new Response(
+        JSON.stringify({ error: "EmailJS configuration incomplete" }),
+        {
+          status: 500,
+          headers: { "Content-Type": "application/json", ...corsHeaders },
+        }
+      );
+    }
+    
     const { name, email, subject, message, priority }: SupportEmailRequest = await req.json();
+    console.log("Request data received:", { name, email, subject, messageLength: message?.length, priority });
 
     // Validate required fields
     if (!name || !email || !subject || !message) {
