@@ -1,10 +1,5 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 
-const emailjsServiceId = Deno.env.get("EMAILJS_SERVICE_ID");
-const emailjsTemplateId = Deno.env.get("EMAILJS_TEMPLATE_ID");
-const emailjsPublicKey = Deno.env.get("EMAILJS_PUBLIC_KEY");
-const emailjsPrivateKey = Deno.env.get("EMAILJS_PRIVATE_KEY");
-
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -27,7 +22,12 @@ const handler = async (req: Request): Promise<Response> => {
   try {
     console.log("Processing support email request...");
     
-    // Check if all required secrets are available
+    // Get EmailJS configuration
+    const emailjsServiceId = Deno.env.get("EMAILJS_SERVICE_ID");
+    const emailjsTemplateId = Deno.env.get("EMAILJS_TEMPLATE_ID");
+    const emailjsPublicKey = Deno.env.get("EMAILJS_PUBLIC_KEY");
+    const emailjsPrivateKey = Deno.env.get("EMAILJS_PRIVATE_KEY");
+    
     console.log("Checking EmailJS configuration...");
     console.log("Service ID exists:", !!emailjsServiceId);
     console.log("Template ID exists:", !!emailjsTemplateId);
@@ -50,6 +50,7 @@ const handler = async (req: Request): Promise<Response> => {
 
     // Validate required fields
     if (!name || !email || !subject || !message) {
+      console.error("Missing required fields");
       return new Response(
         JSON.stringify({ error: "Missing required fields" }),
         {
@@ -69,6 +70,8 @@ const handler = async (req: Request): Promise<Response> => {
 
     const priorityColor = priorityColors[priority as keyof typeof priorityColors] || priorityColors.medium;
 
+    console.log("Sending email via EmailJS...");
+    
     // Send email using EmailJS
     const emailResponse = await fetch('https://api.emailjs.com/api/v1.0/email/send', {
       method: 'POST',
@@ -100,6 +103,8 @@ const handler = async (req: Request): Promise<Response> => {
       throw new Error(`EmailJS failed: ${emailResponse.status} - ${errorText}`);
     }
 
+    const responseData = await emailResponse.text();
+    console.log("EmailJS response:", responseData);
     console.log("Email sent successfully via EmailJS");
 
     return new Response(
@@ -115,8 +120,9 @@ const handler = async (req: Request): Promise<Response> => {
 
   } catch (error: any) {
     console.error("Error in send-support-email function:", error);
+    console.error("Error message:", error.message);
     console.error("Error stack:", error.stack);
-    console.error("Error details:", JSON.stringify(error));
+    
     return new Response(
       JSON.stringify({ 
         error: "Failed to send support request", 
