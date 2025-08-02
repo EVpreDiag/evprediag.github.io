@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import { Resend } from "npm:resend@2.0.0";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -22,28 +23,24 @@ const handler = async (req: Request): Promise<Response> => {
   try {
     console.log("Processing support email request...");
     
-    // Get EmailJS configuration
-    const emailjsServiceId = Deno.env.get("EMAILJS_SERVICE_ID");
-    const emailjsTemplateId = Deno.env.get("EMAILJS_TEMPLATE_ID");
-    const emailjsPublicKey = Deno.env.get("EMAILJS_PUBLIC_KEY");
-    const emailjsPrivateKey = Deno.env.get("EMAILJS_PRIVATE_KEY");
+    // Get Resend API key
+    const resendApiKey = Deno.env.get("RESEND_API_KEY");
     
-    console.log("Checking EmailJS configuration...");
-    console.log("Service ID exists:", !!emailjsServiceId);
-    console.log("Template ID exists:", !!emailjsTemplateId);
-    console.log("Public Key exists:", !!emailjsPublicKey);
-    console.log("Private Key exists:", !!emailjsPrivateKey);
+    console.log("Checking Resend configuration...");
+    console.log("API Key exists:", !!resendApiKey);
     
-    if (!emailjsServiceId || !emailjsTemplateId || !emailjsPublicKey || !emailjsPrivateKey) {
-      console.error("Missing EmailJS configuration");
+    if (!resendApiKey) {
+      console.error("Missing Resend API key");
       return new Response(
-        JSON.stringify({ error: "EmailJS configuration incomplete" }),
+        JSON.stringify({ error: "Resend API key not configured" }),
         {
           status: 500,
           headers: { "Content-Type": "application/json", ...corsHeaders },
         }
       );
     }
+
+    const resend = new Resend(resendApiKey);
     
     const { name, email, subject, message, priority }: SupportEmailRequest = await req.json();
     console.log("Request data received:", { name, email, subject, messageLength: message?.length, priority });
@@ -70,47 +67,52 @@ const handler = async (req: Request): Promise<Response> => {
 
     const priorityColor = priorityColors[priority as keyof typeof priorityColors] || priorityColors.medium;
 
-    console.log("Sending email via EmailJS...");
+    console.log("Sending email via Resend...");
     
-    // Send email using EmailJS
-    const emailResponse = await fetch('https://api.emailjs.com/api/v1.0/email/send', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        service_id: emailjsServiceId,
-        template_id: emailjsTemplateId,
-        user_id: emailjsPublicKey,
-        accessToken: emailjsPrivateKey,
-        template_params: {
-          from_name: name,
-          from_email: email,
-          subject: subject,
-          message: message,
-          priority: priority,
-          priority_color: priorityColor,
-          timestamp: new Date().toLocaleString()
-        }
-      })
+    // Send email using Resend
+    const emailResponse = await resend.emails.send({
+      from: "Support <support@resend.dev>",
+      to: ["support@yourcompany.com"], // Replace with your support email
+      subject: `[${priority.toUpperCase()}] ${subject}`,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <div style="background-color: ${priorityColor}; color: white; padding: 15px; border-radius: 5px 5px 0 0;">
+            <h2 style="margin: 0;">New Support Request - ${priority.toUpperCase()} Priority</h2>
+          </div>
+          <div style="background-color: #f9f9f9; padding: 20px; border-radius: 0 0 5px 5px;">
+            <h3 style="color: #333; margin-top: 0;">Contact Information</h3>
+            <p><strong>Name:</strong> ${name}</p>
+            <p><strong>Email:</strong> ${email}</p>
+            <p><strong>Subject:</strong> ${subject}</p>
+            
+            <h3 style="color: #333;">Message</h3>
+            <div style="background-color: white; padding: 15px; border-left: 4px solid ${priorityColor}; margin: 10px 0;">
+              ${message.replace(/\n/g, '<br>')}
+            </div>
+            
+            <hr style="border: none; border-top: 1px solid #ddd; margin: 20px 0;">
+            <p style="color: #666; font-size: 12px;">
+              <strong>Priority:</strong> ${priority}<br>
+              <strong>Submitted:</strong> ${new Date().toLocaleString()}
+            </p>
+          </div>
+        </div>
+      `,
     });
 
-    console.log("EmailJS response status:", emailResponse.status);
+    console.log("Resend response:", emailResponse);
     
-    if (!emailResponse.ok) {
-      const errorText = await emailResponse.text();
-      console.error("EmailJS error:", errorText);
-      throw new Error(`EmailJS failed: ${emailResponse.status} - ${errorText}`);
+    if (emailResponse.error) {
+      console.error("Resend error:", emailResponse.error);
+      throw new Error(`Resend failed: ${emailResponse.error.message}`);
     }
 
-    const responseData = await emailResponse.text();
-    console.log("EmailJS response:", responseData);
-    console.log("Email sent successfully via EmailJS");
+    console.log("Email sent successfully via Resend");
 
     return new Response(
       JSON.stringify({ 
         success: true, 
-        message: "Support request sent successfully via EmailJS"
+        message: "Support request sent successfully"
       }),
       {
         status: 200,
