@@ -2,7 +2,7 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
-import { Toaster } from './components/ui/sonner';
+import { Toaster } from './components/ui/toaster';
 import LandingPage from './pages/LandingPage';
 import SupportPage from './pages/SupportPage';
 import AuthPage from './components/AuthPage';
