@@ -7,7 +7,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { toast } from '@/hooks/use-toast';
-import { supabase } from '@/integrations/supabase/client';
+import emailjs from 'emailjs-com';
 
 const SupportPage = () => {
   const [formData, setFormData] = useState({
@@ -33,34 +33,64 @@ const SupportPage = () => {
     setIsSubmitting(true);
 
     try {
-      console.log('Calling send-support-email function...');
-      const { data, error } = await supabase.functions.invoke('send-support-email', {
-        body: formData
-      });
+      const priorityColors = {
+        low: '#10B981',
+        medium: '#F59E0B',
+        high: '#F97316',
+        urgent: '#EF4444',
+      };
 
-      console.log('Function response:', { data, error });
-      
-      if (error) throw error;
+      const priorityColor =
+        priorityColors[formData.priority as keyof typeof priorityColors] ||
+        priorityColors.medium;
+
+      const templateParams = {
+        ...formData,
+        submitted_at: new Date().toLocaleString(),
+        body_html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <div style="background-color: ${priorityColor}; color: white; padding: 15px; border-radius: 5px 5px 0 0;">
+            <h2 style="margin: 0;">Support Request - ${formData.priority.toUpperCase()}</h2>
+          </div>
+          <div style="background-color: #f9f9f9; padding: 20px;">
+            <h3>From: ${formData.name} (${formData.email})</h3>
+            <p><strong>Subject:</strong> ${formData.subject}</p>
+            <div style="padding: 15px; background: white; border-left: 4px solid ${priorityColor}; margin-top: 10px;">
+              ${formData.message.replace(/\n/g, '<br>')}
+            </div>
+            <p style="font-size: 12px; color: #888; margin-top: 20px;">
+              Sent at: ${new Date().toLocaleString()}
+            </p>
+          </div>
+        </div>
+        `,
+      };
+
+     await emailjs.send(
+        import.meta.env.VITE_EMAILJS_SERVICE_ID,
+        import.meta.env.VITE_EMAILJS_TEMPLATE_ID,
+        templateParams,
+        import.meta.env.VITE_EMAILJS_PUBLIC_KEY,
+      );
 
       toast({
-        title: "Message sent successfully!",
+        title: 'Message sent successfully!',
         description: "We'll get back to you within 24 hours.",
       });
 
-      // Reset form
       setFormData({
         name: '',
         email: '',
         subject: '',
         message: '',
-        priority: 'medium'
+        priority: 'medium',
       });
     } catch (error) {
       console.error('Error sending message:', error);
       toast({
-        title: "Failed to send message",
-        description: "Please try again or contact us directly.",
-        variant: "destructive",
+        title: 'Failed to send message',
+        description: 'Please try again or contact us directly.',
+        variant: 'destructive',
       });
     } finally {
       setIsSubmitting(false);
