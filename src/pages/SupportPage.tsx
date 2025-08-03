@@ -172,10 +172,10 @@ const SupportPage = () => {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <p className="text-slate-300">support@diagnosticplatform.com</p>
+                <p className="text-slate-300">77nimesh@gmail.com</p>
                 <div className="flex items-center space-x-2 mt-2">
                   <Clock className="w-4 h-4 text-slate-400" />
-                  <span className="text-sm text-slate-400">Response within 24 hours</span>
+                  <span className="text-sm text-slate-400">Response within 48 hours</span>
                 </div>
               </CardContent>
             </Card>
@@ -191,10 +191,10 @@ const SupportPage = () => {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <p className="text-slate-300">+1 (555) 123-4567</p>
+                <p className="text-slate-300">+61 494 15 494 4</p>
                 <div className="flex items-center space-x-2 mt-2">
                   <Clock className="w-4 h-4 text-slate-400" />
-                  <span className="text-sm text-slate-400">Mon-Fri, 9 AM - 6 PM EST</span>
+                  <span className="text-sm text-slate-400">Mon-Fri, 9 AM - 6 PM AEST</span>
                 </div>
               </CardContent>
             </Card>
