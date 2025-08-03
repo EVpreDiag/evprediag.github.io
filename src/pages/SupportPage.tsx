@@ -33,6 +33,10 @@ const SupportPage = () => {
     setIsSubmitting(true);
 
     try {
+      const now = new Date();
+      const timestamp = now.toLocaleString();
+      const year = now.getFullYear().toString();
+      
       const priorityColors = {
         low: '#10B981',
         medium: '#F59E0B',
@@ -46,7 +50,9 @@ const SupportPage = () => {
 
       const templateParams = {
         ...formData,
-        submitted_at: new Date().toLocaleString(),
+        timestamp,
+        year,
+        submitted_at: timestamp,
         body_html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
           <div style="background-color: ${priorityColor}; color: white; padding: 15px; border-radius: 5px 5px 0 0;">
@@ -59,7 +65,8 @@ const SupportPage = () => {
               ${formData.message.replace(/\n/g, '<br>')}
             </div>
             <p style="font-size: 12px; color: #888; margin-top: 20px;">
-              Sent at: ${new Date().toLocaleString()}
+              Sent at: ${timestamp} <br />
+              Year: ${year}
             </p>
           </div>
         </div>
