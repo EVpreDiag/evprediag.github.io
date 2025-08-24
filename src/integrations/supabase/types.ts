@@ -7,7 +7,7 @@ export type Json =
   | Json[]
 
 export type Database = {
-  // Allows to automatically instanciate createClient with right options
+  // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
     PostgrestVersion: "12.2.3 (519615d)"
@@ -1219,11 +1219,11 @@ export type Database = {
     }
     Functions: {
       can_manage_station_roles: {
-        Args: { _user_id: string; _station_id: string }
+        Args: { _station_id: string; _user_id: string }
         Returns: boolean
       }
       create_station_invitation: {
-        Args: { _registration_id: string; _email: string }
+        Args: { _email: string; _registration_id: string }
         Returns: string
       }
       generate_token: {
@@ -1233,12 +1233,12 @@ export type Database = {
       get_subscription_status: {
         Args: { station_id_param: string }
         Returns: {
-          subscription_id: string
-          status: string
-          plan_name: string
-          trial_end: string
           current_period_end: string
           days_remaining: number
+          plan_name: string
+          status: string
+          subscription_id: string
+          trial_end: string
         }[]
       }
       get_user_roles: {
@@ -1261,8 +1261,8 @@ export type Database = {
       }
       has_role: {
         Args: {
-          _user_id: string
           _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
         }
         Returns: boolean
       }
@@ -1271,7 +1271,7 @@ export type Database = {
         Returns: boolean
       }
       is_front_desk_for_station: {
-        Args: { user_id: string; station_id: string }
+        Args: { station_id: string; user_id: string }
         Returns: boolean
       }
       is_station_admin: {
@@ -1279,7 +1279,7 @@ export type Database = {
         Returns: boolean
       }
       is_station_admin_for_station: {
-        Args: { user_id: string; station_id: string }
+        Args: { station_id: string; user_id: string }
         Returns: boolean
       }
       is_super_admin: {
@@ -1287,7 +1287,7 @@ export type Database = {
         Returns: boolean
       }
       is_technician_for_station: {
-        Args: { user_id: string; station_id: string }
+        Args: { station_id: string; user_id: string }
         Returns: boolean
       }
     }
