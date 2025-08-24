@@ -296,8 +296,8 @@ export default function LandingPage() {
               </span>
             </div>
             <div className="flex space-x-6 text-sm text-muted-foreground font-exo">
-              <a href="#" className="hover:text-primary transition-colors duration-300">Privacy Policy</a>
-              <a href="#" className="hover:text-primary transition-colors duration-300">Terms of Service</a>
+              <Link to="/privacy-policy" className="hover:text-primary transition-colors duration-300">Privacy Policy</Link>
+              <Link to="/terms-of-service" className="hover:text-primary transition-colors duration-300">Terms of Service</Link>
               <Link to="/support" className="hover:text-primary transition-colors duration-300">Support</Link>
             </div>
           </div>

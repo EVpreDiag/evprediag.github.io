@@ -5,6 +5,8 @@ import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { Toaster } from './components/ui/toaster';
 import LandingPage from './pages/LandingPage';
 import SupportPage from './pages/SupportPage';
+import PrivacyPolicy from './pages/PrivacyPolicy';
+import TermsOfService from './pages/TermsOfService';
 import AuthPage from './components/AuthPage';
 import Dashboard from './components/Dashboard';
 import DiagnosticForm from './components/DiagnosticForm';
@@ -59,6 +61,8 @@ function App() {
             <Route path="/" element={<RootRedirect />} />
             <Route path="/landing" element={<LandingPage />} />
             <Route path="/support" element={<SupportPage />} />
+            <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+            <Route path="/terms-of-service" element={<TermsOfService />} />
             <Route path="/auth" element={<AuthPage />} />
             <Route path="/register-station" element={<StationRegistration />} />
             <Route path="/verify-email" element={<EmailVerification />} />
